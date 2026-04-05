@@ -62,6 +62,9 @@ public class AppDbContext : DbContext, IApplicationDbContext
     // Event responses
     public DbSet<EventResponse> EventResponses => Set<EventResponse>();
 
+    // Watch streaks
+    public DbSet<WatchStreak> WatchStreaks => Set<WatchStreak>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

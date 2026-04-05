@@ -59,14 +59,27 @@ public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
 
         // Compute actual stream duration from ChannelContext before resetting state
         var channelCtx = _registry.Get(broadcasterId);
+        var endedAt = DateTimeOffset.UtcNow;
         var streamDuration =
             channelCtx?.WentLiveAt.HasValue == true
-                ? DateTimeOffset.UtcNow - channelCtx.WentLiveAt.Value
+                ? endedAt - channelCtx.WentLiveAt.Value
                 : @event.StreamDuration;
+
+        // Finalize the Stream record with EndedAt
+        if (channelCtx?.CurrentStreamId is not null)
+        {
+            var streamRecord = await db.Streams.FindAsync(
+                [channelCtx.CurrentStreamId],
+                cancellationToken
+            );
+            if (streamRecord is not null)
+                streamRecord.EndedAt = endedAt;
+        }
 
         if (channelCtx is not null)
         {
             channelCtx.IsLive = false;
+            channelCtx.CurrentStreamId = null;
             channelCtx.WentLiveAt = null;
         }
 

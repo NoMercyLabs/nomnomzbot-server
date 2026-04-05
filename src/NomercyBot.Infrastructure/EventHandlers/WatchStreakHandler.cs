@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) NoMercy Entertainment. All rights reserved.
 
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using NoMercyBot.Application.Common.Interfaces;
+using NoMercyBot.Domain.Entities;
 using NoMercyBot.Domain.Events;
 using NoMercyBot.Domain.Interfaces;
 
@@ -10,7 +13,7 @@ namespace NoMercyBot.Infrastructure.EventHandlers;
 
 /// <summary>
 /// Handles IRC viewermilestone events (watch streaks).
-/// Executes the event_response:watch_streak pipeline if configured.
+/// Upserts the WatchStreak entity and executes the event_response:watch_streak pipeline.
 /// Variables exposed: user.id, user.name, streak.months, streak.points
 /// </summary>
 public sealed class WatchStreakHandler
@@ -41,6 +44,63 @@ public sealed class WatchStreakHandler
             ["streak.message"] = e.CustomMessage ?? string.Empty,
         };
 
-    public Task HandleAsync(WatchStreakReceivedEvent @event, CancellationToken ct = default) =>
-        HandleCoreAsync(@event, ct);
+    public async Task HandleAsync(WatchStreakReceivedEvent @event, CancellationToken ct = default)
+    {
+        await UpsertStreakAsync(@event, ct);
+        await HandleCoreAsync(@event, ct);
+    }
+
+    private async Task UpsertStreakAsync(WatchStreakReceivedEvent e, CancellationToken ct)
+    {
+        try
+        {
+            using var scope = ScopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var broadcasterId = e.BroadcasterId;
+            if (string.IsNullOrEmpty(broadcasterId))
+                return;
+
+            var existing = await db.WatchStreaks.FirstOrDefaultAsync(
+                w => w.BroadcasterId == broadcasterId && w.UserId == e.UserId,
+                ct
+            );
+
+            if (existing is null)
+            {
+                db.WatchStreaks.Add(
+                    new WatchStreak
+                    {
+                        Id = Guid.NewGuid(),
+                        BroadcasterId = broadcasterId,
+                        UserId = e.UserId,
+                        UserDisplayName = e.UserDisplayName,
+                        CurrentStreak = e.StreakMonths,
+                        MaxStreak = e.StreakMonths,
+                        LastSeenDate = today,
+                    }
+                );
+            }
+            else
+            {
+                existing.UserDisplayName = e.UserDisplayName;
+                existing.CurrentStreak = e.StreakMonths;
+                if (e.StreakMonths > existing.MaxStreak)
+                    existing.MaxStreak = e.StreakMonths;
+                existing.LastSeenDate = today;
+            }
+
+            await db.SaveChangesAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(
+                ex,
+                "Failed to upsert WatchStreak for user {UserId} in channel {BroadcasterId}",
+                e.UserId,
+                e.BroadcasterId
+            );
+        }
+    }
 }

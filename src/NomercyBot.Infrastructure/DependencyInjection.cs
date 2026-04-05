@@ -213,6 +213,7 @@ public static class DependencyInjection
         services.AddHostedService<BotLifecycleService>();
         services.AddHostedService<TimerSchedulerService>();
         services.AddHostedService<TimerService>();
+        services.AddHostedService<DefaultCommandSeederService>();
 
         // Twitch options
         services.Configure<TwitchOptions>(configuration.GetSection(TwitchOptions.SectionName));

@@ -34,6 +34,10 @@ public class Stream : BaseEntity
 
     public bool IsBrandedContent { get; set; }
 
+    public DateTimeOffset? StartedAt { get; set; }
+
+    public DateTimeOffset? EndedAt { get; set; }
+
     [ForeignKey(nameof(ChannelId))]
     public virtual Channel Channel { get; set; } = null!;
 }

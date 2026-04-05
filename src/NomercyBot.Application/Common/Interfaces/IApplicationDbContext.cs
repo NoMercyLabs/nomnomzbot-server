@@ -35,6 +35,7 @@ public interface IApplicationDbContext
     DbSet<DeletionAuditLog> DeletionAuditLogs { get; }
     DbSet<NoMercyBot.Domain.Entities.Timer> Timers { get; }
     DbSet<EventResponse> EventResponses { get; }
+    DbSet<WatchStreak> WatchStreaks { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
