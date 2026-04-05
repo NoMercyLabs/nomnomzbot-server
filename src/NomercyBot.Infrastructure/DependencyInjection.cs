@@ -122,6 +122,7 @@ public static class DependencyInjection
         services.AddTransient<ICommandAction, SetVariableAction>();
         services.AddTransient<ICommandAction, StopAction>();
         services.AddTransient<ICommandAction, DeleteMessageAction>();
+        services.AddTransient<ICommandAction, ShoutoutAction>();
 
         // Pipeline conditions (transient — stateless)
         services.AddTransient<ICommandCondition, UserRoleCondition>();
