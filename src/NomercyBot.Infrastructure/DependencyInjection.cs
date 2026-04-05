@@ -142,6 +142,13 @@ public static class DependencyInjection
         services.AddHttpClient("spotify");
         services.AddHttpClient("spotify-auth");
 
+        // Edge TTS HTTP client
+        services.AddHttpClient("edge-tts");
+
+        // TTS providers + service (singletons — stateless synthesis)
+        services.AddSingleton<NoMercyBot.Domain.Interfaces.ITtsProvider, Services.Tts.EdgeTtsProvider>();
+        services.AddSingleton<NoMercyBot.Application.Contracts.Tts.ITtsService, Services.Tts.TtsService>();
+
         // Music provider + service (singleton — manages per-channel fair queues)
         services.AddSingleton<NoMercyBot.Domain.Interfaces.IMusicProvider, Services.Music.SpotifyMusicProvider>();
         services.AddSingleton<NoMercyBot.Application.Contracts.Music.IMusicService, Services.Music.MusicService>();
