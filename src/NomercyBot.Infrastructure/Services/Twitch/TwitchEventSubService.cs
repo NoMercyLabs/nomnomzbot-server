@@ -182,9 +182,11 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
 
         while (!ct.IsCancellationRequested)
         {
+            var cleanClose = false;
             try
             {
                 connectUrl = await ConnectAndReceiveAsync(connectUrl, ct);
+                cleanClose = true;
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
@@ -204,8 +206,24 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
                 break;
 
             _sessionId = null;
-            await Task.Delay(delay, ct);
-            delay = TimeSpan.FromSeconds(Math.Min(delay.TotalSeconds * 2, 64));
+
+            // If the session closed cleanly with no active subscriptions (e.g. no channels
+            // configured yet), back off longer rather than tight-looping.
+            if (cleanClose && _activeSubscriptions.IsEmpty)
+            {
+                var idleDelay = TimeSpan.FromSeconds(30);
+                _logger.LogInformation(
+                    "EventSub: No subscriptions — waiting {Delay:g} before reconnect",
+                    idleDelay
+                );
+                await Task.Delay(idleDelay, ct);
+                delay = TimeSpan.FromSeconds(1); // reset on next real connect
+            }
+            else
+            {
+                await Task.Delay(delay, ct);
+                delay = TimeSpan.FromSeconds(Math.Min(delay.TotalSeconds * 2, 64));
+            }
         }
     }
 
