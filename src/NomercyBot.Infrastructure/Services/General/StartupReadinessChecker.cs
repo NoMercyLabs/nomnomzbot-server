@@ -17,7 +17,7 @@ public sealed class StartupReadinessChecker(
 
     public async Task WaitForPostgresAsync(CancellationToken cancellationToken = default)
     {
-        var connectionString = configuration.GetConnectionString("DefaultConnection");
+        string? connectionString = configuration.GetConnectionString("DefaultConnection");
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             logger.LogWarning(
@@ -26,16 +26,27 @@ public sealed class StartupReadinessChecker(
             return;
         }
 
-        var delay = TimeSpan.FromSeconds(2);
+        TimeSpan delay = TimeSpan.FromSeconds(2);
 
-        for (var attempt = 1; attempt <= MaxAttempts; attempt++)
+        for (int attempt = 1; attempt <= MaxAttempts; attempt++)
         {
             try
             {
-                await using var conn = new NpgsqlConnection(connectionString);
+                await using NpgsqlConnection conn = new NpgsqlConnection(connectionString);
                 await conn.OpenAsync(cancellationToken);
                 logger.LogInformation("PostgreSQL is ready");
                 return;
+            }
+            catch (PostgresException pgEx)
+                when (pgEx.SqlState == "28P01" || pgEx.SqlState == "28000")
+            {
+                // Auth failure — retrying won't help, the password is wrong.
+                throw new InvalidOperationException(
+                    "PostgreSQL authentication failed. The database volume likely has credentials "
+                        + "that don't match the current configuration. "
+                        + "Reset the volume with: docker compose down -v && docker compose up -d",
+                    pgEx
+                );
             }
             catch (Exception ex) when (attempt < MaxAttempts)
             {
@@ -59,24 +70,26 @@ public sealed class StartupReadinessChecker(
 
     public async Task WaitForRedisAsync(CancellationToken cancellationToken = default)
     {
-        var connectionString = configuration.GetConnectionString("Redis");
+        string? connectionString = configuration.GetConnectionString("Redis");
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             logger.LogInformation("No Redis connection string configured — using in-memory cache");
             return;
         }
 
-        var delay = TimeSpan.FromSeconds(2);
+        TimeSpan delay = TimeSpan.FromSeconds(2);
 
-        for (var attempt = 1; attempt <= MaxAttempts; attempt++)
+        for (int attempt = 1; attempt <= MaxAttempts; attempt++)
         {
             try
             {
-                var options = ConfigurationOptions.Parse(connectionString);
+                ConfigurationOptions options = ConfigurationOptions.Parse(connectionString);
                 options.AbortOnConnectFail = true;
                 options.ConnectTimeout = 3000;
 
-                using var redis = await ConnectionMultiplexer.ConnectAsync(options);
+                using ConnectionMultiplexer redis = await ConnectionMultiplexer.ConnectAsync(
+                    options
+                );
                 await redis.GetDatabase().PingAsync();
                 logger.LogInformation("Redis is ready");
                 return;
