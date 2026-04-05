@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\NoMercyBot.Domain\NoMercyBot.Domain.csproj" />
+    <ProjectReference Include="..\..\src\NomercyBot.Domain\NomercyBot.Domain.csproj" />
   </ItemGroup>
 
 </Project>

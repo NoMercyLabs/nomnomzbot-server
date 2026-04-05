@@ -21,7 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\NoMercyBot.Application\NoMercyBot.Application.csproj" />
+    <ProjectReference Include="..\..\src\NomercyBot.Application\NomercyBot.Application.csproj" />
   </ItemGroup>
 
 </Project>

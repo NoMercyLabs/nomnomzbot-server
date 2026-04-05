@@ -28,7 +28,6 @@ public sealed class TimerService : BackgroundService
 
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IChannelRegistry _registry;
-    private readonly IChatProvider _chat;
     private readonly ITemplateResolver _templateResolver;
     private readonly ILogger<TimerService> _logger;
 
@@ -39,13 +38,11 @@ public sealed class TimerService : BackgroundService
     public TimerService(
         IServiceScopeFactory scopeFactory,
         IChannelRegistry registry,
-        IChatProvider chat,
         ITemplateResolver templateResolver,
         ILogger<TimerService> logger)
     {
         _scopeFactory = scopeFactory;
         _registry = registry;
-        _chat = chat;
         _templateResolver = templateResolver;
         _logger = logger;
     }
@@ -77,6 +74,7 @@ public sealed class TimerService : BackgroundService
 
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        var chat = scope.ServiceProvider.GetRequiredService<IChatProvider>();
 
         var now = DateTime.UtcNow;
         var broadcasterIds = liveChannels.Select(c => c.BroadcasterId).ToList();
@@ -91,7 +89,7 @@ public sealed class TimerService : BackgroundService
         {
             try
             {
-                await ProcessTimerAsync(db, timer, now, ct);
+                await ProcessTimerAsync(db, chat, timer, now, ct);
             }
             catch (Exception ex)
             {
@@ -102,6 +100,7 @@ public sealed class TimerService : BackgroundService
 
     private async Task ProcessTimerAsync(
         IApplicationDbContext db,
+        IChatProvider chat,
         Domain.Entities.Timer timer,
         DateTime now,
         CancellationToken ct)
@@ -142,7 +141,7 @@ public sealed class TimerService : BackgroundService
         if (string.IsNullOrWhiteSpace(message)) return;
 
         // Send to chat
-        await _chat.SendMessageAsync(timer.BroadcasterId, message, cancellationToken: ct);
+        await chat.SendMessageAsync(timer.BroadcasterId, message, cancellationToken: ct);
 
         // Persist state: LastFiredAt + NextMessageIndex
         timer.LastFiredAt = now;

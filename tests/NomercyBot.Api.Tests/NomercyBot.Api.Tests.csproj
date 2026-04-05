@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\NoMercyBot.Api\NoMercyBot.Api.csproj" />
+    <ProjectReference Include="..\..\src\NomercyBot.Api\NomercyBot.Api.csproj" />
   </ItemGroup>
 
 </Project>

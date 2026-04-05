@@ -190,6 +190,9 @@ public static class DependencyInjection
         // Twitch API service (scoped — uses IApplicationDbContext for tokens)
         services.AddScoped<ITwitchApiService, TwitchApiService>();
 
+        // Chat provider (Helix-first, used by pipeline actions and background services)
+        services.AddScoped<IChatProvider, HelixChatProvider>();
+
         // Twitch IRC chat service (singleton + hosted service — persistent WebSocket connection)
         services.AddSingleton<TwitchIrcService>();
         services.AddSingleton<ITwitchChatService>(sp => sp.GetRequiredService<TwitchIrcService>());

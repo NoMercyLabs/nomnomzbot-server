@@ -4,8 +4,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\NoMercyBot.Application\NoMercyBot.Application.csproj" />
-    <ProjectReference Include="..\NoMercyBot.Domain\NoMercyBot.Domain.csproj" />
+    <ProjectReference Include="..\NomercyBot.Application\NomercyBot.Application.csproj" />
+    <ProjectReference Include="..\NomercyBot.Domain\NomercyBot.Domain.csproj" />
   </ItemGroup>
 
   <ItemGroup>

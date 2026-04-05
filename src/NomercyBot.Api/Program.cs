@@ -155,6 +155,13 @@ try
 
     var app = builder.Build();
 
+    // Run EF Core migrations on startup
+    using (var scope = app.Services.CreateScope())
+    {
+        var migrator = scope.ServiceProvider.GetRequiredService<IDatabaseMigrator>();
+        await migrator.MigrateAsync(CancellationToken.None);
+    }
+
     // Middleware pipeline
     app.UseMiddleware<GlobalExceptionMiddleware>();
     app.UseMiddleware<RequestLoggingMiddleware>();

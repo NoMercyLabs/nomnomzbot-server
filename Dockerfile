@@ -12,22 +12,22 @@ WORKDIR /src
 
 COPY ["Directory.Build.props", "."]
 COPY ["Directory.Packages.props", "."]
-COPY ["src/NoMercyBot.Domain/NoMercyBot.Domain.csproj", "src/NoMercyBot.Domain/"]
-COPY ["src/NoMercyBot.Application/NoMercyBot.Application.csproj", "src/NoMercyBot.Application/"]
-COPY ["src/NoMercyBot.Infrastructure/NoMercyBot.Infrastructure.csproj", "src/NoMercyBot.Infrastructure/"]
-COPY ["src/NoMercyBot.Api/NoMercyBot.Api.csproj", "src/NoMercyBot.Api/"]
+COPY ["src/NomercyBot.Domain/NomercyBot.Domain.csproj", "src/NomercyBot.Domain/"]
+COPY ["src/NomercyBot.Application/NomercyBot.Application.csproj", "src/NomercyBot.Application/"]
+COPY ["src/NomercyBot.Infrastructure/NomercyBot.Infrastructure.csproj", "src/NomercyBot.Infrastructure/"]
+COPY ["src/NomercyBot.Api/NomercyBot.Api.csproj", "src/NomercyBot.Api/"]
 
-RUN dotnet restore "src/NoMercyBot.Api/NoMercyBot.Api.csproj"
+RUN dotnet restore "src/NomercyBot.Api/NomercyBot.Api.csproj"
 
 COPY . .
-WORKDIR "/src/src/NoMercyBot.Api"
-RUN dotnet build "NoMercyBot.Api.csproj" -c $BUILD_CONFIGURATION -o /app/build
+WORKDIR "/src/src/NomercyBot.Api"
+RUN dotnet build "NomercyBot.Api.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "NoMercyBot.Api.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "NomercyBot.Api.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "NoMercyBot.Api.dll"]
+ENTRYPOINT ["dotnet", "NomercyBot.Api.dll"]

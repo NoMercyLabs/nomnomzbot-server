@@ -4,7 +4,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\NoMercyBot.Domain\NoMercyBot.Domain.csproj" />
+    <ProjectReference Include="..\NomercyBot.Domain\NomercyBot.Domain.csproj" />
   </ItemGroup>
 
   <ItemGroup>
