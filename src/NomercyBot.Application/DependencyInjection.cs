@@ -9,7 +9,11 @@ using NoMercyBot.Application.Features.Commands.Commands.CreateCommand;
 using NoMercyBot.Application.Features.Commands.Commands.DeleteCommand;
 using NoMercyBot.Application.Features.Commands.Queries.GetCommands;
 using NoMercyBot.Application.Features.Features.Queries.GetFeatures;
+using NoMercyBot.Application.Pipeline;
+using NoMercyBot.Application.Pipeline.Actions;
+using NoMercyBot.Application.Pipeline.Conditions;
 using NoMercyBot.Application.Services.Pipeline;
+using NoMercyBot.Domain.Interfaces;
 
 namespace NoMercyBot.Application;
 
@@ -29,8 +33,20 @@ public static class DependencyInjection
         services.AddScoped<CreateCommandHandler>();
         services.AddScoped<DeleteCommandHandler>();
 
-        // Services
-        services.AddScoped<PipelineEngine>();
+        // Pipeline engine
+        services.AddSingleton<ICommandActionRegistry, CommandActionRegistry>();
+        services.AddSingleton<IConditionEvaluatorRegistry, ConditionEvaluatorRegistry>();
+        services.AddSingleton<IPipelineEngine, PipelineEngine>();
+
+        // Register actions
+        services.AddTransient<ICommandAction, SendMessageAction>();
+        services.AddTransient<ICommandAction, DelayAction>();
+        services.AddTransient<ICommandAction, SetVariableAction>();
+        services.AddTransient<ICommandAction, StopAction>();
+        services.AddTransient<ICommandAction, RandomResponseAction>();
+
+        // Register conditions
+        services.AddTransient<IConditionEvaluator, VariableEqualsCondition>();
 
         return services;
     }

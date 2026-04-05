@@ -19,4 +19,12 @@ public class PagedList<T>
         PageSize = pageSize;
         TotalCount = totalCount;
     }
+
+    public PagedList(IEnumerable<T> items, int total, int page, int pageSize)
+    {
+        Items = items.ToList().AsReadOnly();
+        TotalCount = total;
+        Page = page;
+        PageSize = pageSize;
+    }
 }

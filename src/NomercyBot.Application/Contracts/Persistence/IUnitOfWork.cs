@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 namespace NoMercyBot.Application.Contracts.Persistence;
 
-/// <summary>
-/// Unit of Work pattern abstraction. Wraps SaveChanges to allow the Application layer
-/// to commit transactional changes without depending on EF Core directly.
-/// </summary>
 public interface IUnitOfWork
 {
-    /// <summary>
-    /// Persist all pending changes to the database.
-    /// Returns the number of state entries written.
-    /// </summary>
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+    Task BeginTransactionAsync(CancellationToken cancellationToken = default);
+    Task CommitTransactionAsync(CancellationToken cancellationToken = default);
+    Task RollbackTransactionAsync(CancellationToken cancellationToken = default);
 }
