@@ -52,28 +52,27 @@ public sealed class AdminService : IAdminService
         CancellationToken ct = default
     )
     {
-        IQueryable<Domain.Entities.Channel> query = _db.Channels;
+        int total = await _db.Channels.CountAsync(ct);
 
-        int total = await query.CountAsync(ct);
-
-        List<AdminChannelDto> items = await query
-            .OrderBy(c => c.Name)
-            .Skip((pagination.Page - 1) * pagination.PageSize)
-            .Take(pagination.PageSize)
-            .Select(c => new AdminChannelDto(
+        List<AdminChannelDto> items = await (
+            from c in _db.Channels
+            join sub in _db.ChannelSubscriptions
+                on c.Id equals sub.BroadcasterId into subs
+            from sub in subs.OrderByDescending(s => s.CreatedAt).Take(1).DefaultIfEmpty()
+            orderby c.CreatedAt descending
+            select new AdminChannelDto(
                 c.Id,
                 c.User.DisplayName,
                 c.Name,
                 c.IsLive,
                 c.Enabled,
                 0,
-                _db
-                    .ChannelSubscriptions.Where(s => s.BroadcasterId == c.Id)
-                    .OrderByDescending(s => s.CreatedAt)
-                    .Select(s => s.Tier)
-                    .FirstOrDefault() ?? "free",
+                sub != null ? sub.Tier : "free",
                 c.CreatedAt
-            ))
+            )
+        )
+            .Skip((pagination.Page - 1) * pagination.PageSize)
+            .Take(pagination.PageSize)
             .ToListAsync(ct);
 
         return Result.Success(

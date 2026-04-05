@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NoMercyBot.Application.Common.Interfaces;
 using NoMercyBot.Application.Common.Models;
+using NoMercyBot.Application.Services;
 using NoMercyBot.Domain.Entities;
 
 namespace NoMercyBot.Infrastructure.Services.Application;
@@ -17,7 +18,7 @@ namespace NoMercyBot.Infrastructure.Services.Application;
 /// Deletion: soft-deletes personal data, optionally hard-deletes on request.
 /// OAuth tokens are revoked and cleared on deletion.
 /// </summary>
-public sealed class GdprService
+public sealed class GdprService : IGdprService
 {
     private readonly IApplicationDbContext _db;
     private readonly ILogger<GdprService> _logger;

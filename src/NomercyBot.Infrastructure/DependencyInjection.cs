@@ -173,7 +173,7 @@ public static class DependencyInjection
         services.AddScoped<IPipelineService, PipelineService>();
 
         // GDPR + migration (scoped — use DbContext)
-        services.AddScoped<GdprService>();
+        services.AddScoped<IGdprService, GdprService>();
         services.AddScoped<SqliteMigrationService>();
 
         // Auto-moderation (scoped — uses ICooldownManager which is singleton, fine)

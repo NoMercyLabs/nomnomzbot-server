@@ -8,7 +8,6 @@ using NoMercyBot.Api.Models;
 using NoMercyBot.Application.Common.Models;
 using NoMercyBot.Application.DTOs.Users;
 using NoMercyBot.Application.Services;
-using NoMercyBot.Infrastructure.Services.Application;
 
 namespace NoMercyBot.Api.Controllers.V1;
 
@@ -19,9 +18,9 @@ namespace NoMercyBot.Api.Controllers.V1;
 public class UsersController : BaseController
 {
     private readonly IUserService _userService;
-    private readonly GdprService _gdpr;
+    private readonly IGdprService _gdpr;
 
-    public UsersController(IUserService userService, GdprService gdpr)
+    public UsersController(IUserService userService, IGdprService gdpr)
     {
         _userService = userService;
         _gdpr = gdpr;
@@ -103,9 +102,9 @@ public class UsersController : BaseController
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> ExportUserData(string userId, CancellationToken ct)
     {
-        // Only the user themselves or admins may export
         string? callerId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        if (callerId != userId)
+        bool isAdmin = User.IsInRole("admin");
+        if (callerId != userId && !isAdmin)
             return UnauthorizedResponse("You may only export your own data.");
 
         Result<string> result = await _gdpr.ExportUserDataAsync(userId, ct);
@@ -129,7 +128,8 @@ public class UsersController : BaseController
     public async Task<IActionResult> DeleteUserData(string userId, CancellationToken ct)
     {
         string? callerId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        if (callerId != userId)
+        bool isAdmin = User.IsInRole("admin");
+        if (callerId != userId && !isAdmin)
             return UnauthorizedResponse("You may only delete your own data.");
 
         Result result = await _gdpr.DeleteUserDataAsync(userId, ct);
