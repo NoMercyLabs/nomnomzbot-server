@@ -123,6 +123,11 @@ public static class DependencyInjection
         services.AddTransient<ICommandAction, StopAction>();
         services.AddTransient<ICommandAction, DeleteMessageAction>();
         services.AddTransient<ICommandAction, ShoutoutAction>();
+        services.AddTransient<ICommandAction, SongRequestAction>();
+        services.AddTransient<ICommandAction, SongSkipAction>();
+        services.AddTransient<ICommandAction, SongCurrentAction>();
+        services.AddTransient<ICommandAction, SongQueueAction>();
+        services.AddTransient<ICommandAction, SongVolumeAction>();
 
         // Pipeline conditions (transient — stateless)
         services.AddTransient<ICommandCondition, UserRoleCondition>();
