@@ -16,6 +16,7 @@ using NoMercyBot.Application;
 using NoMercyBot.Infrastructure;
 using NoMercyBot.Infrastructure.Persistence;
 using NoMercyBot.Infrastructure.Services.General;
+using Scalar.AspNetCore;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration().WriteTo.Console().CreateBootstrapLogger();
@@ -120,12 +121,13 @@ try
                     ?? "anonymous";
                 return RateLimitPartition.GetFixedWindowLimiter(
                     key,
-                    _ => new()
-                    {
-                        PermitLimit = 120,
-                        Window = TimeSpan.FromMinutes(1),
-                        QueueLimit = 0,
-                    }
+                    _ =>
+                        new()
+                        {
+                            PermitLimit = 120,
+                            Window = TimeSpan.FromMinutes(1),
+                            QueueLimit = 0,
+                        }
                 );
             }
         );
@@ -138,12 +140,13 @@ try
                 string ip = context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
                 return RateLimitPartition.GetFixedWindowLimiter(
                     $"auth:{ip}",
-                    _ => new()
-                    {
-                        PermitLimit = 10,
-                        Window = TimeSpan.FromMinutes(1),
-                        QueueLimit = 0,
-                    }
+                    _ =>
+                        new()
+                        {
+                            PermitLimit = 10,
+                            Window = TimeSpan.FromMinutes(1),
+                            QueueLimit = 0,
+                        }
                 );
             }
         );
@@ -187,7 +190,8 @@ try
     {
         Log.Information("Waiting for PostgreSQL and Redis to be ready...");
         await using AsyncServiceScope readinessScope = app.Services.CreateAsyncScope();
-        StartupReadinessChecker checker = readinessScope.ServiceProvider.GetRequiredService<StartupReadinessChecker>();
+        StartupReadinessChecker checker =
+            readinessScope.ServiceProvider.GetRequiredService<StartupReadinessChecker>();
         await checker.WaitForPostgresAsync();
         await checker.WaitForRedisAsync();
     }
@@ -206,7 +210,8 @@ try
     {
         Log.Information("Running database migrations...");
         await using AsyncServiceScope migrationScope = app.Services.CreateAsyncScope();
-        IDatabaseMigrator migrator = migrationScope.ServiceProvider.GetRequiredService<IDatabaseMigrator>();
+        IDatabaseMigrator migrator =
+            migrationScope.ServiceProvider.GetRequiredService<IDatabaseMigrator>();
         await migrator.MigrateAsync(CancellationToken.None);
     }
     catch (Exception ex)
@@ -233,8 +238,13 @@ try
     app.UseMiddleware<GlobalExceptionMiddleware>();
     app.UseMiddleware<RequestLoggingMiddleware>();
 
-    if (app.Environment.IsDevelopment())
-        app.MapOpenApi();
+    // OpenAPI spec + Scalar UI — always available (self-hosted / local dev)
+    app.MapOpenApi();
+    app.MapScalarApiReference(options =>
+    {
+        options.Title = "NomercyBot API";
+        options.Theme = ScalarTheme.DeepSpace;
+    });
 
     app.UseHttpsRedirection();
     app.UseCors();
