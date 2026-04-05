@@ -7,7 +7,12 @@ namespace NoMercyBot.Application.Contracts.Music;
 public interface IMusicService
 {
     /// <summary>Search for tracks by query string.</summary>
-    Task<IReadOnlyList<MusicTrack>> SearchAsync(string broadcasterId, string query, int maxResults = 5, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<MusicTrack>> SearchAsync(
+        string broadcasterId,
+        string query,
+        int maxResults = 5,
+        CancellationToken cancellationToken = default
+    );
 
     /// <summary>Start or resume playback.</summary>
     Task<bool> PlayAsync(string broadcasterId, CancellationToken cancellationToken = default);
@@ -19,16 +24,38 @@ public interface IMusicService
     Task<bool> SkipAsync(string broadcasterId, CancellationToken cancellationToken = default);
 
     /// <summary>Get the current playback queue for a channel.</summary>
-    Task<MusicQueue> GetQueueAsync(string broadcasterId, CancellationToken cancellationToken = default);
+    Task<MusicQueue> GetQueueAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    );
 
     /// <summary>Add a track to the playback queue.</summary>
-    Task<bool> AddToQueueAsync(string broadcasterId, string trackUri, string? requestedBy = null, CancellationToken cancellationToken = default);
+    Task<bool> AddToQueueAsync(
+        string broadcasterId,
+        string trackUri,
+        string? requestedBy = null,
+        CancellationToken cancellationToken = default
+    );
 
     /// <summary>Set the playback volume (0-100).</summary>
-    Task<bool> SetVolumeAsync(string broadcasterId, int volume, CancellationToken cancellationToken = default);
+    Task<bool> SetVolumeAsync(
+        string broadcasterId,
+        int volume,
+        CancellationToken cancellationToken = default
+    );
 
     /// <summary>Get the currently playing track, if any.</summary>
-    Task<NowPlaying?> GetNowPlayingAsync(string broadcasterId, CancellationToken cancellationToken = default);
+    Task<NowPlaying?> GetNowPlayingAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>Remove a specific item from the queue by its zero-based position.</summary>
+    Task<bool> RemoveFromQueueAsync(
+        string broadcasterId,
+        int position,
+        CancellationToken cancellationToken = default
+    );
 }
 
 /// <summary>A music track from a search result.</summary>
@@ -39,7 +66,8 @@ public sealed record MusicTrack(
     string? Album,
     string? ImageUrl,
     int DurationMs,
-    string Provider);
+    string Provider
+);
 
 /// <summary>Current playback state for a channel.</summary>
 public sealed record NowPlaying(
@@ -52,12 +80,11 @@ public sealed record NowPlaying(
     bool IsPlaying,
     int Volume,
     string? RequestedBy,
-    string Provider);
+    string Provider
+);
 
 /// <summary>The full playback queue including the current track.</summary>
-public sealed record MusicQueue(
-    NowPlaying? CurrentTrack,
-    IReadOnlyList<MusicQueueItem> Queue);
+public sealed record MusicQueue(NowPlaying? CurrentTrack, IReadOnlyList<MusicQueueItem> Queue);
 
 /// <summary>An item in the music playback queue.</summary>
 public sealed record MusicQueueItem(
@@ -65,4 +92,5 @@ public sealed record MusicQueueItem(
     string Artist,
     string? ImageUrl,
     int DurationMs,
-    string? RequestedBy);
+    string? RequestedBy
+);

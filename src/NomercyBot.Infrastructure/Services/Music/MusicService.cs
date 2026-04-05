@@ -28,7 +28,8 @@ public sealed class MusicService : IMusicService
     public MusicService(
         IEnumerable<IMusicProvider> providers,
         IApplicationDbContext db,
-        ILogger<MusicService> logger)
+        ILogger<MusicService> logger
+    )
     {
         _providers = providers;
         _db = db;
@@ -39,45 +40,67 @@ public sealed class MusicService : IMusicService
         string broadcasterId,
         string query,
         int maxResults = 5,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         var provider = await GetActiveProviderAsync(broadcasterId, cancellationToken);
-        if (provider is null) return [];
+        if (provider is null)
+            return [];
 
-        var results = await provider.SearchAsync(broadcasterId, query, maxResults, cancellationToken);
+        var results = await provider.SearchAsync(
+            broadcasterId,
+            query,
+            maxResults,
+            cancellationToken
+        );
 
-        return results.Select(t => new MusicTrack(
-            t.TrackUri,
-            t.TrackName,
-            t.Artist,
-            t.Album,
-            t.AlbumArtUrl,
-            t.DurationMs,
-            t.Provider)).ToList();
+        return results
+            .Select(t => new MusicTrack(
+                t.TrackUri,
+                t.TrackName,
+                t.Artist,
+                t.Album,
+                t.AlbumArtUrl,
+                t.DurationMs,
+                t.Provider
+            ))
+            .ToList();
     }
 
-    public async Task<bool> PlayAsync(string broadcasterId, CancellationToken cancellationToken = default)
+    public async Task<bool> PlayAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    )
     {
         var provider = await GetActiveProviderAsync(broadcasterId, cancellationToken);
-        if (provider is null) return false;
+        if (provider is null)
+            return false;
 
         await provider.PlayAsync(broadcasterId, cancellationToken);
         return true;
     }
 
-    public async Task<bool> PauseAsync(string broadcasterId, CancellationToken cancellationToken = default)
+    public async Task<bool> PauseAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    )
     {
         var provider = await GetActiveProviderAsync(broadcasterId, cancellationToken);
-        if (provider is null) return false;
+        if (provider is null)
+            return false;
 
         await provider.PauseAsync(broadcasterId, cancellationToken);
         return true;
     }
 
-    public async Task<bool> SkipAsync(string broadcasterId, CancellationToken cancellationToken = default)
+    public async Task<bool> SkipAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    )
     {
         var provider = await GetActiveProviderAsync(broadcasterId, cancellationToken);
-        if (provider is null) return false;
+        if (provider is null)
+            return false;
 
         // Dequeue next from fair queue and add to provider queue
         var next = DequeueNext(broadcasterId);
@@ -90,7 +113,10 @@ public sealed class MusicService : IMusicService
         return true;
     }
 
-    public async Task<MusicQueue> GetQueueAsync(string broadcasterId, CancellationToken cancellationToken = default)
+    public async Task<MusicQueue> GetQueueAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    )
     {
         var nowPlaying = await GetNowPlayingAsync(broadcasterId, cancellationToken);
 
@@ -102,13 +128,15 @@ public sealed class MusicService : IMusicService
 
         IReadOnlyList<MusicQueueItem> items = queue is null
             ? []
-            : queue.GetSnapshot()
+            : queue
+                .GetSnapshot()
                 .Select(e => new MusicQueueItem(
                     e.Item.TrackName,
                     e.Item.Artist,
                     e.Item.ImageUrl,
                     e.Item.DurationMs,
-                    e.Item.RequestedBy))
+                    e.Item.RequestedBy
+                ))
                 .ToList();
 
         return new MusicQueue(nowPlaying, items);
@@ -118,14 +146,17 @@ public sealed class MusicService : IMusicService
         string broadcasterId,
         string trackUri,
         string? requestedBy = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         var provider = await GetActiveProviderAsync(broadcasterId, cancellationToken);
-        if (provider is null) return false;
+        if (provider is null)
+            return false;
 
         // Look up track info for the queue display
         var track = await provider.SearchAsync(broadcasterId, trackUri, 1, cancellationToken);
-        var trackInfo = track.FirstOrDefault(t => t.TrackUri == trackUri)
+        var trackInfo =
+            track.FirstOrDefault(t => t.TrackUri == trackUri)
             ?? new TrackInfo
             {
                 TrackName = trackUri,
@@ -141,7 +172,8 @@ public sealed class MusicService : IMusicService
             trackInfo.Artist,
             trackInfo.AlbumArtUrl,
             trackInfo.DurationMs,
-            requestedBy ?? "anonymous");
+            requestedBy ?? "anonymous"
+        );
 
         // Add to fair queue
         FairQueue<SongRequestEntry> queue;
@@ -163,30 +195,48 @@ public sealed class MusicService : IMusicService
             await provider.AddToQueueAsync(broadcasterId, trackUri, cancellationToken);
         }
 
-        _logger.LogInformation("Queued track '{Track}' for {BroadcasterId} (requested by {RequestedBy})",
-            trackInfo.TrackName, broadcasterId, requestedBy);
+        _logger.LogInformation(
+            "Queued track '{Track}' for {BroadcasterId} (requested by {RequestedBy})",
+            trackInfo.TrackName,
+            broadcasterId,
+            requestedBy
+        );
 
         return true;
     }
 
-    public async Task<bool> SetVolumeAsync(string broadcasterId, int volume, CancellationToken cancellationToken = default)
+    public async Task<bool> SetVolumeAsync(
+        string broadcasterId,
+        int volume,
+        CancellationToken cancellationToken = default
+    )
     {
         // Volume control is Spotify-specific; try Spotify provider first
         var spotifyProvider = _providers.OfType<SpotifyMusicProvider>().FirstOrDefault();
-        if (spotifyProvider is null) return false;
+        if (spotifyProvider is null)
+            return false;
 
         // Direct Spotify volume — not in IMusicProvider interface, logged only
-        _logger.LogDebug("SetVolumeAsync({Volume}) called for {BroadcasterId}", volume, broadcasterId);
+        _logger.LogDebug(
+            "SetVolumeAsync({Volume}) called for {BroadcasterId}",
+            volume,
+            broadcasterId
+        );
         return await Task.FromResult(false);
     }
 
-    public async Task<NowPlaying?> GetNowPlayingAsync(string broadcasterId, CancellationToken cancellationToken = default)
+    public async Task<NowPlaying?> GetNowPlayingAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    )
     {
         var provider = await GetActiveProviderAsync(broadcasterId, cancellationToken);
-        if (provider is null) return null;
+        if (provider is null)
+            return null;
 
         var track = await provider.GetCurrentTrackAsync(broadcasterId, cancellationToken);
-        if (track is null) return null;
+        if (track is null)
+            return null;
 
         return new NowPlaying(
             track.TrackName,
@@ -198,7 +248,8 @@ public sealed class MusicService : IMusicService
             true,
             100,
             null,
-            track.Provider);
+            track.Provider
+        );
     }
 
     // ─── Trust-level enforcement ──────────────────────────────────────────────
@@ -213,19 +264,26 @@ public sealed class MusicService : IMusicService
 
         return tier switch
         {
-            TrustTier.Untrusted => "Your trust score is too low. Requests require moderator approval.",
-            TrustTier.Low when isYouTubeContent => "YouTube requests are not available at your trust level. Try Spotify.",
+            TrustTier.Untrusted =>
+                "Your trust score is too low. Requests require moderator approval.",
+            TrustTier.Low when isYouTubeContent =>
+                "YouTube requests are not available at your trust level. Try Spotify.",
             _ => null,
         };
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
-    private async Task<IMusicProvider?> GetActiveProviderAsync(string broadcasterId, CancellationToken cancellationToken)
+    private async Task<IMusicProvider?> GetActiveProviderAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken
+    )
     {
         // Look up which services are connected for this broadcaster
-        var services = await _db.Services
-            .Where(s => s.BroadcasterId == broadcasterId && s.Enabled && s.AccessToken != null)
+        var services = await _db
+            .Services.Where(s =>
+                s.BroadcasterId == broadcasterId && s.Enabled && s.AccessToken != null
+            )
             .Select(s => s.Name)
             .ToListAsync(cancellationToken);
 
@@ -233,17 +291,34 @@ public sealed class MusicService : IMusicService
         if (services.Contains("spotify"))
         {
             var spotify = _providers.OfType<SpotifyMusicProvider>().FirstOrDefault();
-            if (spotify is not null) return spotify;
+            if (spotify is not null)
+                return spotify;
         }
 
         if (services.Contains("youtube"))
         {
             var youtube = _providers.OfType<YouTubeMusicProvider>().FirstOrDefault();
-            if (youtube is not null) return youtube;
+            if (youtube is not null)
+                return youtube;
         }
 
         _logger.LogDebug("No active music provider for broadcaster {BroadcasterId}", broadcasterId);
         return null;
+    }
+
+    public Task<bool> RemoveFromQueueAsync(
+        string broadcasterId,
+        int position,
+        CancellationToken cancellationToken = default
+    )
+    {
+        lock (_queueLock)
+        {
+            if (!_queues.TryGetValue(broadcasterId, out var queue))
+                return Task.FromResult(false);
+
+            return Task.FromResult(queue.RemoveAt(position));
+        }
     }
 
     private SongRequestEntry? DequeueNext(string broadcasterId)
@@ -262,4 +337,5 @@ internal sealed record SongRequestEntry(
     string Artist,
     string? ImageUrl,
     int DurationMs,
-    string RequestedBy);
+    string RequestedBy
+);

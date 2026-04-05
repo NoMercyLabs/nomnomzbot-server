@@ -25,12 +25,20 @@ public sealed class FairQueue<T> : IFairQueue<T>
 
     public int Count
     {
-        get { lock (_lock) return _items.Count; }
+        get
+        {
+            lock (_lock)
+                return _items.Count;
+        }
     }
 
     public bool IsEmpty
     {
-        get { lock (_lock) return _items.Count == 0; }
+        get
+        {
+            lock (_lock)
+                return _items.Count == 0;
+        }
     }
 
     public void Enqueue(string ownerKey, T item)
@@ -55,7 +63,8 @@ public sealed class FairQueue<T> : IFairQueue<T>
     {
         lock (_lock)
         {
-            if (_items.Count == 0) return default;
+            if (_items.Count == 0)
+                return default;
 
             var node = _items.First!;
             var (ownerKey, item) = node.Value;
@@ -71,7 +80,8 @@ public sealed class FairQueue<T> : IFairQueue<T>
     {
         lock (_lock)
         {
-            if (_items.Count == 0) return default;
+            if (_items.Count == 0)
+                return default;
             return _items.First!.Value.Item;
         }
     }
@@ -94,7 +104,9 @@ public sealed class FairQueue<T> : IFairQueue<T>
             while (node is not null)
             {
                 var next = node.Next;
-                if (string.Equals(node.Value.OwnerKey, ownerKey, StringComparison.OrdinalIgnoreCase))
+                if (
+                    string.Equals(node.Value.OwnerKey, ownerKey, StringComparison.OrdinalIgnoreCase)
+                )
                 {
                     _items.Remove(node);
                     removed++;
@@ -102,6 +114,34 @@ public sealed class FairQueue<T> : IFairQueue<T>
                 node = next;
             }
             return removed;
+        }
+    }
+
+    public bool RemoveAt(int position)
+    {
+        lock (_lock)
+        {
+            if (position < 0 || position >= _items.Count)
+                return false;
+
+            var node = _items.First;
+            for (int i = 0; i < position; i++)
+                node = node!.Next;
+
+            _items.Remove(node!);
+            return true;
+        }
+    }
+
+    public IReadOnlyList<(T Item, int Rank, string OwnerKey)> GetSnapshot()
+    {
+        lock (_lock)
+        {
+            var result = new List<(T Item, int Rank, string OwnerKey)>();
+            int rank = 1;
+            foreach (var (ownerKey, item) in _items)
+                result.Add((item, rank++, ownerKey));
+            return result;
         }
     }
 

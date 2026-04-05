@@ -29,4 +29,10 @@ public interface IFairQueue<T>
 
     /// <summary>Removes all items belonging to a specific owner.</summary>
     int RemoveByOwner(string ownerKey);
+
+    /// <summary>Removes the item at the specified zero-based position. Returns false if position is out of range.</summary>
+    bool RemoveAt(int position);
+
+    /// <summary>Returns a snapshot of all items in fair-schedule order.</summary>
+    IReadOnlyList<(T Item, int Rank, string OwnerKey)> GetSnapshot();
 }

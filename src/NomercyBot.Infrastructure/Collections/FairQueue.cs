@@ -22,12 +22,20 @@ public sealed class FairQueue<T> : IFairQueue<T>
 
     public int Count
     {
-        get { lock (_lock) return _queue.Count; }
+        get
+        {
+            lock (_lock)
+                return _queue.Count;
+        }
     }
 
     public bool IsEmpty
     {
-        get { lock (_lock) return _queue.Count == 0; }
+        get
+        {
+            lock (_lock)
+                return _queue.Count == 0;
+        }
     }
 
     public void Enqueue(string ownerKey, T item)
@@ -61,7 +69,8 @@ public sealed class FairQueue<T> : IFairQueue<T>
     {
         lock (_lock)
         {
-            if (_queue.Count == 0) return default;
+            if (_queue.Count == 0)
+                return default;
 
             var entry = _queue[0];
             _queue.RemoveAt(0);
@@ -85,7 +94,8 @@ public sealed class FairQueue<T> : IFairQueue<T>
 
     public void Clear()
     {
-        lock (_lock) _queue.Clear();
+        lock (_lock)
+            _queue.Clear();
     }
 
     public int RemoveByOwner(string ownerKey)
@@ -104,6 +114,25 @@ public sealed class FairQueue<T> : IFairQueue<T>
             }
 
             return removed;
+        }
+    }
+
+    public bool RemoveAt(int position)
+    {
+        lock (_lock)
+        {
+            if (position < 0 || position >= _queue.Count)
+                return false;
+
+            var removed = _queue[position];
+            _queue.RemoveAt(position);
+
+            // Recalculate ranks for the removed owner's remaining items
+            int rank = 1;
+            foreach (var e in _queue.Where(e => e.OwnerKey == removed.OwnerKey))
+                e.Rank = rank++;
+
+            return true;
         }
     }
 
