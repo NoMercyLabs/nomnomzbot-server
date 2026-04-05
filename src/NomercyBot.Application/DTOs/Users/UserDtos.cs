@@ -37,3 +37,14 @@ public sealed record UpdateUserProfileRequest
     public string? DisplayName { get; init; }
     public string? Email { get; init; }
 }
+
+/// <summary>GDPR data summary for a user.</summary>
+public sealed record UserStatsDto(
+    int MessageCount,
+    double WatchHours,
+    int ChannelsCount,
+    int CommandsUsed,
+    DateTime? FirstSeen,
+    DateTime? LastActive,
+    bool ExportAvailable
+);

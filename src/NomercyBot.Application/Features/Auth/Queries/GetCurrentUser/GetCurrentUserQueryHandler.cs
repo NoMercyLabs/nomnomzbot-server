@@ -30,7 +30,8 @@ public class GetCurrentUserQueryHandler
                 u.Username,
                 u.DisplayName,
                 u.ProfileImageUrl,
-                u.BroadcasterType
+                u.BroadcasterType,
+                u.IsAdmin
             ))
             .FirstOrDefaultAsync(ct);
 
@@ -45,5 +46,6 @@ public record CurrentUserDto(
     string Username,
     string DisplayName,
     string? ProfileImageUrl,
-    string BroadcasterType
+    string BroadcasterType,
+    bool IsAdmin
 );

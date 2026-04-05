@@ -159,7 +159,8 @@ public sealed class AuthService : IAuthService
         await _db.SaveChangesAsync(cancellationToken);
 
         // Issue platform JWT
-        string platformJwt = _jwt.GenerateToken(twitchUser.Id, twitchUser.Login, ["user"]);
+        IEnumerable<string> roles = user.IsAdmin ? ["user", "admin"] : ["user"];
+        string platformJwt = _jwt.GenerateToken(twitchUser.Id, twitchUser.Login, roles);
         string refreshJwt = _jwt.GenerateToken(twitchUser.Id, twitchUser.Login, ["refresh"]);
 
         UserDto userDto = new(
@@ -200,7 +201,8 @@ public sealed class AuthService : IAuthService
         if (user is null)
             return Result.Failure<AuthResultDto>("User not found.", "NOT_FOUND");
 
-        string newJwt = _jwt.GenerateToken(user.Id, user.Username, ["user"]);
+        IEnumerable<string> refreshRoles = user.IsAdmin ? ["user", "admin"] : ["user"];
+        string newJwt = _jwt.GenerateToken(user.Id, user.Username, refreshRoles);
         string newRefresh = _jwt.GenerateToken(user.Id, user.Username, ["refresh"]);
 
         UserDto userDto = new(

@@ -157,6 +157,7 @@ public static class DependencyInjection
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         // Application services
+        services.AddScoped<IAdminService, AdminService>();
         services.AddScoped<ICommandService, CommandService>();
         services.AddScoped<IChannelService, ChannelService>();
         services.AddScoped<IRewardService, RewardService>();

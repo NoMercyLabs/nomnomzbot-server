@@ -38,4 +38,10 @@ public interface IUserService
         string userId,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>Get a GDPR data summary for a user.</summary>
+    Task<Result<UserStatsDto>> GetStatsAsync(
+        string userId,
+        CancellationToken cancellationToken = default
+    );
 }

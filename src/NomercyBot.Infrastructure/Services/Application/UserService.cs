@@ -128,6 +128,48 @@ public class UserService : IUserService
         return Result.Success(ToProfileDto(user));
     }
 
+    public async Task<Result<UserStatsDto>> GetStatsAsync(
+        string userId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        User? user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+
+        if (user is null)
+            return Errors.NotFound<UserStatsDto>("User", userId);
+
+        int messageCount = await _db.ChatMessages.CountAsync(
+            m => m.UserId == userId,
+            cancellationToken
+        );
+
+        int watchStreakCount = await _db.WatchStreaks.CountAsync(
+            w => w.UserId == userId,
+            cancellationToken
+        );
+
+        int moderatorChannels = await _db.ChannelModerators.CountAsync(
+            m => m.UserId == userId,
+            cancellationToken
+        );
+
+        bool ownsChannel = await _db.Channels.AnyAsync(c => c.Id == userId, cancellationToken);
+
+        int channelsCount = moderatorChannels + (ownsChannel ? 1 : 0);
+
+        UserStatsDto dto = new(
+            messageCount,
+            0,
+            channelsCount,
+            0,
+            user.CreatedAt,
+            user.UpdatedAt,
+            true
+        );
+
+        return Result.Success(dto);
+    }
+
     private static UserDto ToDto(User u) =>
         new(u.Id, u.Username, u.DisplayName, u.ProfileImageUrl, null, u.CreatedAt, u.UpdatedAt);
 

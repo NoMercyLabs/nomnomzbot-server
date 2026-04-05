@@ -41,6 +41,8 @@ public class User : BaseEntity
 
     public bool Enabled { get; set; } = true;
 
+    public bool IsAdmin { get; set; }
+
     public Pronoun? Pronoun { get; set; }
     public bool PronounManualOverride { get; set; }
 

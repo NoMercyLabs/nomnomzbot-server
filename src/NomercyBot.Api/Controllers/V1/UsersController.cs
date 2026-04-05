@@ -82,6 +82,19 @@ public class UsersController : BaseController
 
     // ─── GDPR endpoints ───────────────────────────────────────────────────────
 
+    /// <summary>Returns a summary of the user's data (GDPR data summary).</summary>
+    [HttpGet("{userId}/stats")]
+    [ProducesResponseType<StatusResponseDto<UserStatsDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetUserStats(string userId, CancellationToken ct)
+    {
+        string? callerId =
+            User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (callerId != userId)
+            return UnauthorizedResponse("You may only view your own stats.");
+        Result<UserStatsDto> result = await _userService.GetStatsAsync(userId, ct);
+        return ResultResponse(result);
+    }
+
     /// <summary>
     /// Export all personal data for the specified user (GDPR right of access).
     /// Returns a JSON file download containing all data we hold for this user.
