@@ -119,8 +119,17 @@ public static class DependencyInjection
 
         // Music providers + service (singleton — maintain per-channel queues)
         services.AddSingleton<ITtsProvider, EdgeTtsProvider>();
-        services.AddSingleton<ITtsProvider, AzureTtsProvider>();
-        services.AddSingleton<ITtsProvider, ElevenLabsTtsProvider>();
+        services.AddHttpClient("azure-tts");
+        services.AddSingleton<ITtsProvider>(sp => new AzureTtsProvider(
+            sp.GetRequiredService<IHttpClientFactory>(),
+            sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AzureTtsProvider>>(),
+            configuration["Azure:Tts:ApiKey"],
+            configuration["Azure:Tts:Region"] ?? "westeurope"));
+        services.AddHttpClient("elevenlabs-tts");
+        services.AddSingleton<ITtsProvider>(sp => new ElevenLabsTtsProvider(
+            sp.GetRequiredService<IHttpClientFactory>(),
+            sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ElevenLabsTtsProvider>>(),
+            configuration["ElevenLabs:ApiKey"]));
         services.AddSingleton<ITtsService, TtsService>();
 
         // Spotify HTTP client with resilience
