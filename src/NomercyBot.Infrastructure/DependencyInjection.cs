@@ -3,13 +3,18 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using NoMercyBot.Application.Common.Interfaces;
+using NoMercyBot.Application.Contracts.Persistence;
+using NoMercyBot.Application.Services;
 using NoMercyBot.Domain.Interfaces;
 using NoMercyBot.Infrastructure.EventBus;
 using NoMercyBot.Infrastructure.Persistence;
 using NoMercyBot.Infrastructure.Persistence.Interceptors;
+using NoMercyBot.Infrastructure.Persistence.Repositories;
+using NoMercyBot.Infrastructure.Services.Application;
 using NoMercyBot.Infrastructure.Services.Caching;
 using NoMercyBot.Infrastructure.Services.General;
 using NoMercyBot.Infrastructure.Services.Identity;
+using NoMercyBot.Infrastructure.Services.Registry;
 using NoMercyBot.Infrastructure.Services.Security;
 
 namespace NoMercyBot.Infrastructure;
@@ -72,6 +77,28 @@ public static class DependencyInjection
 
         // Database migrator (development utility)
         services.AddScoped<IDatabaseMigrator, DatabaseMigrator>();
+
+        // Repositories
+        services.AddScoped<ChannelRepository>();
+        services.AddScoped<CommandRepository>();
+        services.AddScoped<RewardRepository>();
+        services.AddScoped<UserRepository>();
+        services.AddScoped<WidgetRepository>();
+
+        // UnitOfWork
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+        // Application services
+        services.AddScoped<ICommandService, CommandService>();
+        services.AddScoped<IChannelService, ChannelService>();
+        services.AddScoped<IRewardService, RewardService>();
+        services.AddScoped<IWidgetService, WidgetService>();
+        services.AddScoped<IUserService, UserService>();
+        services.AddScoped<IModerationService, ModerationService>();
+
+        // ChannelRegistry (singleton + hosted service)
+        services.AddSingleton<NoMercyBot.Domain.Interfaces.IChannelRegistry, ChannelRegistry>();
+        services.AddHostedService(sp => (ChannelRegistry)sp.GetRequiredService<NoMercyBot.Domain.Interfaces.IChannelRegistry>());
 
         return services;
     }
