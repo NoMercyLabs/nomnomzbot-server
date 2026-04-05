@@ -1,0 +1,132 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) NoMercy Entertainment. All rights reserved.
+
+using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using NoMercyBot.Application.Common.Interfaces;
+using NoMercyBot.Domain.Entities;
+using NoMercyBot.Domain.Events;
+using NoMercyBot.Domain.Interfaces;
+
+namespace NoMercyBot.Infrastructure.EventHandlers;
+
+/// <summary>
+/// Base class for stream engagement event handlers.
+/// Logs the event to ChannelEvents and executes the user-configured pipeline
+/// stored in Records with RecordType = "event_response:{eventType}".
+/// If no config exists, does nothing (no hardcoded behavior).
+/// </summary>
+public abstract class TwitchAlertHandlerBase<TEvent>
+    where TEvent : class, IDomainEvent
+{
+    protected abstract string EventTypeKey { get; }
+
+    protected readonly IServiceScopeFactory ScopeFactory;
+    protected readonly IPipelineEngine Pipeline;
+    protected readonly ILogger Logger;
+
+    protected TwitchAlertHandlerBase(
+        IServiceScopeFactory scopeFactory,
+        IPipelineEngine pipeline,
+        ILogger logger
+    )
+    {
+        ScopeFactory = scopeFactory;
+        Pipeline = pipeline;
+        Logger = logger;
+    }
+
+    protected abstract string? GetUserId(TEvent @event);
+    protected abstract string? GetUserDisplayName(TEvent @event);
+    protected abstract Dictionary<string, string> BuildVariables(TEvent @event);
+
+    protected async Task HandleCoreAsync(TEvent @event, CancellationToken ct)
+    {
+        var broadcasterId = @event.BroadcasterId;
+        if (string.IsNullOrEmpty(broadcasterId))
+            return;
+
+        using var scope = ScopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+
+        await LogChannelEventAsync(db, @event, broadcasterId, ct);
+
+        var config = await db.Records.FirstOrDefaultAsync(
+            r =>
+                r.BroadcasterId == broadcasterId
+                && r.RecordType == $"event_response:{EventTypeKey}",
+            ct
+        );
+
+        if (config is null || string.IsNullOrWhiteSpace(config.Data))
+            return;
+
+        var variables = BuildVariables(@event);
+
+        Logger.LogDebug(
+            "Executing event_response:{EventType} pipeline for channel {Channel}",
+            EventTypeKey,
+            broadcasterId
+        );
+
+        try
+        {
+            await Pipeline.ExecuteAsync(
+                new PipelineRequest
+                {
+                    BroadcasterId = broadcasterId,
+                    PipelineJson = config.Data,
+                    TriggeredByUserId = GetUserId(@event) ?? broadcasterId,
+                    TriggeredByDisplayName = GetUserDisplayName(@event) ?? string.Empty,
+                    RawMessage = string.Empty,
+                    InitialVariables = variables,
+                },
+                ct
+            );
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(
+                ex,
+                "Failed to execute event_response:{EventType} pipeline in {Channel}",
+                EventTypeKey,
+                broadcasterId
+            );
+        }
+    }
+
+    private async Task LogChannelEventAsync(
+        IApplicationDbContext db,
+        TEvent @event,
+        string broadcasterId,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            var variables = BuildVariables(@event);
+            db.ChannelEvents.Add(
+                new ChannelEvent
+                {
+                    Id = Ulid.NewUlid().ToString(),
+                    ChannelId = broadcasterId,
+                    UserId = GetUserId(@event),
+                    Type = EventTypeKey,
+                    Data = JsonSerializer.Serialize(variables),
+                }
+            );
+            await db.SaveChangesAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(
+                ex,
+                "Failed to log ChannelEvent {EventType} for {Channel}",
+                EventTypeKey,
+                broadcasterId
+            );
+        }
+    }
+}

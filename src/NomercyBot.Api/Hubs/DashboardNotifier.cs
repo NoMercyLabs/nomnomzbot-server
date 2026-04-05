@@ -29,6 +29,22 @@ public interface IDashboardNotifier
         CancellationToken ct = default
     );
     Task SendAlertAsync(string broadcasterId, AlertDto dto, CancellationToken ct = default);
+    Task SendModActionAsync(string broadcasterId, ModActionDto dto, CancellationToken ct = default);
+    Task SendRewardRedeemedAsync(
+        string broadcasterId,
+        RewardRedeemedDto dto,
+        CancellationToken ct = default
+    );
+    Task SendPermissionChangedAsync(
+        string broadcasterId,
+        PermissionChangedDto dto,
+        CancellationToken ct = default
+    );
+    Task SendMusicStateAsync(
+        string broadcasterId,
+        MusicStateDto dto,
+        CancellationToken ct = default
+    );
 }
 
 public class DashboardNotifier : IDashboardNotifier
@@ -79,4 +95,28 @@ public class DashboardNotifier : IDashboardNotifier
         AlertDto dto,
         CancellationToken ct = default
     ) => _hub.Clients.Group($"channel-{broadcasterId}").AlertTriggered(dto);
+
+    public Task SendModActionAsync(
+        string broadcasterId,
+        ModActionDto dto,
+        CancellationToken ct = default
+    ) => _hub.Clients.Group($"channel-{broadcasterId}").ModAction(dto);
+
+    public Task SendRewardRedeemedAsync(
+        string broadcasterId,
+        RewardRedeemedDto dto,
+        CancellationToken ct = default
+    ) => _hub.Clients.Group($"channel-{broadcasterId}").RewardRedeemed(dto);
+
+    public Task SendPermissionChangedAsync(
+        string broadcasterId,
+        PermissionChangedDto dto,
+        CancellationToken ct = default
+    ) => _hub.Clients.Group($"channel-{broadcasterId}").PermissionChanged(dto);
+
+    public Task SendMusicStateAsync(
+        string broadcasterId,
+        MusicStateDto dto,
+        CancellationToken ct = default
+    ) => _hub.Clients.Group($"channel-{broadcasterId}").MusicStateChanged(dto);
 }

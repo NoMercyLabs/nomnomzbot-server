@@ -401,13 +401,73 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
                 break;
 
             case "channel.ban":
-                // ModerationActionTakenEvent is a DomainEvent record (not IDomainEvent); log only
-                _logger.LogInformation(
-                    "EventSub ban/timeout: channel={BroadcasterId} target={Target} mod={Mod} reason={Reason}",
-                    broadcasterId,
-                    eventData?.GetProp("user_login"),
-                    eventData?.GetProp("moderator_user_login"),
-                    eventData?.GetProp("reason")
+                if (eventData.HasValue)
+                {
+                    var isPermanent = eventData.Value.GetProp("is_permanent") == "true";
+                    var banDurationStr = eventData.Value.GetProp("ban_duration_seconds");
+                    int.TryParse(banDurationStr, out var banDuration);
+                    var hasDuration = !isPermanent && banDuration > 0;
+
+                    if (hasDuration)
+                    {
+                        await _eventBus.PublishAsync(
+                            new UserTimedOutEvent
+                            {
+                                BroadcasterId = broadcasterId,
+                                TargetUserId = eventData.Value.GetProp("user_id") ?? string.Empty,
+                                TargetDisplayName =
+                                    eventData.Value.GetProp("user_name") ?? string.Empty,
+                                ModeratorUserId =
+                                    eventData.Value.GetProp("moderator_user_id") ?? string.Empty,
+                                DurationSeconds = banDuration,
+                                Reason = eventData.Value.GetProp("reason"),
+                            },
+                            ct
+                        );
+                    }
+                    else
+                    {
+                        await _eventBus.PublishAsync(
+                            new UserBannedEvent
+                            {
+                                BroadcasterId = broadcasterId,
+                                TargetUserId = eventData.Value.GetProp("user_id") ?? string.Empty,
+                                TargetDisplayName =
+                                    eventData.Value.GetProp("user_name") ?? string.Empty,
+                                ModeratorUserId =
+                                    eventData.Value.GetProp("moderator_user_id") ?? string.Empty,
+                                Reason = eventData.Value.GetProp("reason"),
+                            },
+                            ct
+                        );
+                    }
+                }
+                break;
+
+            case "channel.update":
+                await _eventBus.PublishAsync(
+                    new ChannelUpdatedEvent
+                    {
+                        BroadcasterId = broadcasterId,
+                        BroadcasterDisplayName =
+                            eventData?.GetProp("broadcaster_user_name") ?? broadcasterId,
+                        NewTitle = eventData?.GetProp("title") ?? string.Empty,
+                        NewGameName = eventData?.GetProp("category_name") ?? string.Empty,
+                    },
+                    ct
+                );
+                break;
+
+            case "channel.shoutout.create":
+                await _eventBus.PublishAsync(
+                    new ShoutoutSentEvent
+                    {
+                        BroadcasterId = broadcasterId,
+                        ToUserId = eventData?.GetProp("to_broadcaster_user_id") ?? string.Empty,
+                        ToDisplayName =
+                            eventData?.GetProp("to_broadcaster_user_name") ?? string.Empty,
+                    },
+                    ct
                 );
                 break;
 
