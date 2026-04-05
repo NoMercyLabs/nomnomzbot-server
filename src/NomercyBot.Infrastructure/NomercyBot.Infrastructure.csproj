@@ -25,5 +25,6 @@
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
     <PackageReference Include="Microsoft.IdentityModel.Tokens" />
     <PackageReference Include="Serilog.AspNetCore" />
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
   </ItemGroup>
 </Project>

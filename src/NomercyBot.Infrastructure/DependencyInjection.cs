@@ -136,17 +136,23 @@ public static class DependencyInjection
         // Twitch options
         services.Configure<TwitchOptions>(configuration.GetSection(TwitchOptions.SectionName));
 
-        // Twitch HTTP clients
-        services.AddHttpClient("twitch-auth");
-        services.AddHttpClient("twitch-helix");
+        // Twitch HTTP clients — with standard Polly resilience (retry + circuit breaker + timeout)
+        services.AddHttpClient("twitch-auth")
+            .AddStandardResilienceHandler();
+        services.AddHttpClient("twitch-helix")
+            .AddStandardResilienceHandler();
+        // EventSub WebSocket client: no HTTP resilience (WebSocket is long-lived, not request/response)
         services.AddHttpClient("twitch-eventsub");
 
-        // Spotify HTTP clients
-        services.AddHttpClient("spotify");
-        services.AddHttpClient("spotify-auth");
+        // Spotify HTTP clients — with standard resilience
+        services.AddHttpClient("spotify")
+            .AddStandardResilienceHandler();
+        services.AddHttpClient("spotify-auth")
+            .AddStandardResilienceHandler();
 
-        // Edge TTS HTTP client
-        services.AddHttpClient("edge-tts");
+        // Edge TTS HTTP client — with standard resilience
+        services.AddHttpClient("edge-tts")
+            .AddStandardResilienceHandler();
 
         // TTS providers + service (singletons — stateless synthesis)
         services.AddSingleton<NoMercyBot.Domain.Interfaces.ITtsProvider, Services.Tts.EdgeTtsProvider>();
