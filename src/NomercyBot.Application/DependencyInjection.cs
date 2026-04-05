@@ -36,7 +36,7 @@ public static class DependencyInjection
         // Pipeline engine
         services.AddSingleton<ICommandActionRegistry, CommandActionRegistry>();
         services.AddSingleton<IConditionEvaluatorRegistry, ConditionEvaluatorRegistry>();
-        services.AddSingleton<IPipelineEngine, PipelineEngine>();
+        services.AddScoped<IPipelineEngine, PipelineEngine>();
 
         // Register actions
         services.AddTransient<ICommandAction, SendMessageAction>();

@@ -142,7 +142,16 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
         {
             try
             {
-                await ConnectAndReceiveAsync(ct);
+                var connected = await ConnectAndReceiveAsync(ct);
+                if (!connected)
+                {
+                    // No bot token — poll every 60 s until one is available
+                    await Task.Delay(TimeSpan.FromSeconds(60), ct);
+                    continue;
+                }
+
+                // Reset backoff after a clean session
+                delay = TimeSpan.FromSeconds(1);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
@@ -161,8 +170,13 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
         }
     }
 
-    private async Task ConnectAndReceiveAsync(CancellationToken ct)
+    /// <returns>false if no bot token is available (skip connection); true after session ends normally.</returns>
+    private async Task<bool> ConnectAndReceiveAsync(CancellationToken ct)
     {
+        var token = await GetBotTokenAsync(ct);
+        if (token is null)
+            return false;
+
         _ws?.Dispose();
         _ws = new ClientWebSocket();
 
@@ -172,7 +186,6 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
 
         await SendRawAsync("CAP REQ :twitch.tv/tags twitch.tv/commands twitch.tv/membership", ct);
 
-        var token = await GetBotTokenAsync(ct);
         await SendRawAsync($"PASS oauth:{token}", ct);
         await SendRawAsync($"NICK {_options.BotUsername}", ct);
 
@@ -192,13 +205,15 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
             {
                 result = await _ws.ReceiveAsync(buffer, ct);
                 if (result.MessageType == WebSocketMessageType.Close)
-                    return;
+                    return true;
                 sb.Append(Encoding.UTF8.GetString(buffer, 0, result.Count));
             } while (!result.EndOfMessage);
 
             foreach (var line in sb.ToString().Split('\n', StringSplitOptions.RemoveEmptyEntries))
                 await HandleIrcLineAsync(line.TrimEnd('\r'), ct);
         }
+
+        return true;
     }
 
     // ─── IRC dispatch ─────────────────────────────────────────────────────────────
@@ -472,7 +487,7 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
 
     // ─── Token access ─────────────────────────────────────────────────────────────
 
-    private async Task<string> GetBotTokenAsync(CancellationToken ct)
+    private async Task<string?> GetBotTokenAsync(CancellationToken ct)
     {
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
@@ -485,11 +500,18 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
 
         if (service?.AccessToken is null)
         {
-            _logger.LogWarning("IRC: No bot token found — connecting anonymously");
-            return "SCHMOOPIIE";
+            _logger.LogWarning("IRC: No bot token found — will retry in 60 s");
+            return null;
         }
 
-        return encryption.TryDecrypt(service.AccessToken) ?? "SCHMOOPIIE";
+        var decrypted = encryption.TryDecrypt(service.AccessToken);
+        if (decrypted is null)
+        {
+            _logger.LogWarning("IRC: Bot token could not be decrypted — will retry in 60 s");
+            return null;
+        }
+
+        return decrypted;
     }
 
     // ─── IRC parser ───────────────────────────────────────────────────────────────

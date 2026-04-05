@@ -133,8 +133,8 @@ public static class DependencyInjection
         services.AddTransient<ICommandCondition, UserRoleCondition>();
         services.AddTransient<ICommandCondition, RandomCondition>();
 
-        // PipelineEngine (singleton — manages per-channel concurrency)
-        services.AddSingleton<IPipelineEngine, PipelineEngine>();
+        // PipelineEngine (scoped — consumes scoped services like IChatProvider, IApplicationDbContext)
+        services.AddScoped<IPipelineEngine, PipelineEngine>();
 
         // Identity / tenant
         services.AddHttpContextAccessor();

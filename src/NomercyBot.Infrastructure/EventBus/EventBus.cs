@@ -38,7 +38,11 @@ public sealed class EventBus : IEventBus
 
         _eventLogger.Log(@event);
 
-        var handlers = ResolveHandlers<TEvent>();
+        // Scope lives for the full duration of handler execution so that scoped
+        // services (DbContext, IPipelineEngine, IChatProvider, …) remain valid.
+        await using var scope = _serviceProvider.CreateAsyncScope();
+        var handlers = scope.ServiceProvider.GetServices<IEventHandler<TEvent>>().ToList();
+
         if (handlers.Count == 0)
         {
             _logger.LogTrace("No handlers registered for {EventType}", eventType);
@@ -66,7 +70,9 @@ public sealed class EventBus : IEventBus
         // completely detached from the caller's context
         _ = Task.Run(async () =>
         {
-            var handlers = ResolveHandlers<TEvent>();
+            await using var scope = _serviceProvider.CreateAsyncScope();
+            var handlers = scope.ServiceProvider.GetServices<IEventHandler<TEvent>>().ToList();
+
             if (handlers.Count == 0)
                 return;
 
@@ -75,16 +81,6 @@ public sealed class EventBus : IEventBus
             );
             await Task.WhenAll(tasks);
         });
-    }
-
-    private List<IEventHandler<TEvent>> ResolveHandlers<TEvent>()
-        where TEvent : class, IDomainEvent
-    {
-        // Create a scope so handlers can resolve scoped services (DbContext, etc.)
-        using var scope = _serviceProvider.CreateScope();
-        var handlers = scope.ServiceProvider.GetServices<IEventHandler<TEvent>>().ToList();
-
-        return handlers;
     }
 
     private async Task ExecuteHandler<TEvent>(
