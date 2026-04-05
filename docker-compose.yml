@@ -12,9 +12,9 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:5000
-      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=nomercybot;Username=${POSTGRES_USER:-nomercybot};Password=${POSTGRES_PASSWORD}
-      - Jwt__Secret=${JWT_SECRET}
-      - Encryption__Key=${ENCRYPTION_KEY}
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=nomercybot;Username=${POSTGRES_USER:-nomercybot};Password=${POSTGRES_PASSWORD:-nomercybot_dev}
+      - Jwt__Secret=${JWT_SECRET:-dev-secret-key-at-least-32-characters-long!!}
+      - Encryption__Key=${ENCRYPTION_KEY:-ZGV2LWVuY3J5cHRpb24ta2V5LWZvci1sb2NhbC1kZXY=}
       - Twitch__ClientId=${TWITCH_CLIENT_ID}
       - Twitch__ClientSecret=${TWITCH_CLIENT_SECRET}
       - Twitch__BotUsername=${TWITCH_BOT_USERNAME}
@@ -42,7 +42,7 @@ services:
     environment:
       POSTGRES_DB: nomercybot
       POSTGRES_USER: ${POSTGRES_USER:-nomercybot}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nomercybot_dev}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
