@@ -30,6 +30,7 @@ project.lock.json
 .env.local
 .env.*.local
 appsettings.Development.json
+appsettings.Production.json
 
 ## OS
 .DS_Store

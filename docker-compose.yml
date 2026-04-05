@@ -11,8 +11,9 @@ services:
       - "5001:5001"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=nomercybot;Username=nomercybot;Password=nomercybot_pass
-      - Jwt__Secret=change-me-docker-secret-key-at-least-32-chars!
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=nomercybot;Username=${POSTGRES_USER:-nomercybot};Password=${POSTGRES_PASSWORD}
+      - Jwt__Secret=${JWT_SECRET}
+      - Encryption__Key=${ENCRYPTION_KEY}
     depends_on:
       postgres:
         condition: service_healthy
@@ -23,8 +24,8 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_DB: nomercybot
-      POSTGRES_USER: nomercybot
-      POSTGRES_PASSWORD: nomercybot_pass
+      POSTGRES_USER: ${POSTGRES_USER:-nomercybot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
