@@ -7,16 +7,23 @@ public class VariableEqualsCondition : IConditionEvaluator
 
     public Task<bool> EvaluateAsync(ConditionDefinition condition, ActionContext ctx)
     {
-        if (condition.Variable == null) return Task.FromResult(false);
+        if (condition.Variable == null)
+            return Task.FromResult(false);
         ctx.Variables.TryGetValue(condition.Variable, out var actual);
         var result = condition.Operator switch
         {
             "not_equals" => actual != condition.Value,
-            "contains" => actual?.Contains(condition.Value ?? "", StringComparison.OrdinalIgnoreCase) ?? false,
-            "starts_with" => actual?.StartsWith(condition.Value ?? "", StringComparison.OrdinalIgnoreCase) ?? false,
+            "contains" => actual?.Contains(
+                condition.Value ?? "",
+                StringComparison.OrdinalIgnoreCase
+            ) ?? false,
+            "starts_with" => actual?.StartsWith(
+                condition.Value ?? "",
+                StringComparison.OrdinalIgnoreCase
+            ) ?? false,
             "is_empty" => string.IsNullOrEmpty(actual),
             "is_not_empty" => !string.IsNullOrEmpty(actual),
-            _ => string.Equals(actual, condition.Value, StringComparison.OrdinalIgnoreCase)
+            _ => string.Equals(actual, condition.Value, StringComparison.OrdinalIgnoreCase),
         };
         return Task.FromResult(result);
     }

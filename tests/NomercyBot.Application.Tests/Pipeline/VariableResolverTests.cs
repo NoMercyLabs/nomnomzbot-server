@@ -46,11 +46,7 @@ public class VariableResolverTests
     [Fact]
     public void Resolve_MultipleVariables_SubstitutesAll()
     {
-        var vars = new Dictionary<string, string>
-        {
-            { "greeting", "Hello" },
-            { "name", "Bob" }
-        };
+        var vars = new Dictionary<string, string> { { "greeting", "Hello" }, { "name", "Bob" } };
         var result = VariableResolver.Resolve("{{greeting}}, {{name}}!", vars);
 
         result.Should().Be("Hello, Bob!");
@@ -73,12 +69,12 @@ public class VariableResolverTests
         var parameters = new Dictionary<string, object?>
         {
             { "message", "Hello {{user}}" },
-            { "channel", "{{channel}}" }
+            { "channel", "{{channel}}" },
         };
         var vars = new Dictionary<string, string>
         {
             { "user", "Alice" },
-            { "channel", "mychannel" }
+            { "channel", "mychannel" },
         };
 
         var result = VariableResolver.ResolveAll(parameters, vars);
@@ -114,7 +110,8 @@ public class VariableResolverTests
     {
         var result = VariableResolver.ResolveAll(
             new Dictionary<string, object?>(),
-            new Dictionary<string, string>());
+            new Dictionary<string, string>()
+        );
 
         result.Should().BeEmpty();
     }

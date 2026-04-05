@@ -42,7 +42,8 @@ public sealed class BotLifecycleService : BackgroundService
 
     public BotLifecycleService(
         IServiceProvider serviceProvider,
-        ILogger<BotLifecycleService> logger)
+        ILogger<BotLifecycleService> logger
+    )
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
@@ -78,8 +79,8 @@ public sealed class BotLifecycleService : BackgroundService
         var eventSub = scope.ServiceProvider.GetRequiredService<ITwitchEventSubService>();
 
         // Get all currently enabled channels
-        var activeChannels = await db.Channels
-            .Where(c => c.Enabled && c.IsOnboarded)
+        var activeChannels = await db
+            .Channels.Where(c => c.Enabled && c.IsOnboarded)
             .Select(c => new { c.Id, c.Name })
             .ToListAsync(ct);
 
@@ -107,12 +108,21 @@ public sealed class BotLifecycleService : BackgroundService
                     await eventSub.SubscribeAsync(channel.Id, eventType, ct);
                 }
 
-                lock (_channelLock) _joinedChannels.Add(channel.Id);
-                _logger.LogInformation("BotLifecycleService: Joined channel #{ChannelName} ({Id})", channel.Name, channel.Id);
+                lock (_channelLock)
+                    _joinedChannels.Add(channel.Id);
+                _logger.LogInformation(
+                    "BotLifecycleService: Joined channel #{ChannelName} ({Id})",
+                    channel.Name,
+                    channel.Id
+                );
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                _logger.LogError(ex, "BotLifecycleService: Failed to join channel #{ChannelName}", channel.Name);
+                _logger.LogError(
+                    ex,
+                    "BotLifecycleService: Failed to join channel #{ChannelName}",
+                    channel.Name
+                );
             }
         }
 
@@ -125,12 +135,17 @@ public sealed class BotLifecycleService : BackgroundService
                 if (channel is not null)
                     await chatService.LeaveChannelAsync(channel.Name, ct);
 
-                lock (_channelLock) _joinedChannels.Remove(channelId);
+                lock (_channelLock)
+                    _joinedChannels.Remove(channelId);
                 _logger.LogInformation("BotLifecycleService: Left channel {ChannelId}", channelId);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                _logger.LogError(ex, "BotLifecycleService: Failed to leave channel {ChannelId}", channelId);
+                _logger.LogError(
+                    ex,
+                    "BotLifecycleService: Failed to leave channel {ChannelId}",
+                    channelId
+                );
             }
         }
     }

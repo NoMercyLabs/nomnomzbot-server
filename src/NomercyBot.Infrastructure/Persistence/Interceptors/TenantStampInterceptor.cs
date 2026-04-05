@@ -21,7 +21,8 @@ public sealed class TenantStampInterceptor : SaveChangesInterceptor
     public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
         DbContextEventData eventData,
         InterceptionResult<int> result,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         if (eventData.Context is not null)
         {
@@ -33,7 +34,8 @@ public sealed class TenantStampInterceptor : SaveChangesInterceptor
 
     public override InterceptionResult<int> SavingChanges(
         DbContextEventData eventData,
-        InterceptionResult<int> result)
+        InterceptionResult<int> result
+    )
     {
         if (eventData.Context is not null)
         {
@@ -54,7 +56,10 @@ public sealed class TenantStampInterceptor : SaveChangesInterceptor
 
         foreach (var entry in context.ChangeTracker.Entries<ITenantScoped>())
         {
-            if (entry.State == EntityState.Added && string.IsNullOrEmpty(entry.Entity.BroadcasterId))
+            if (
+                entry.State == EntityState.Added
+                && string.IsNullOrEmpty(entry.Entity.BroadcasterId)
+            )
             {
                 entry.Entity.BroadcasterId = broadcasterId;
             }

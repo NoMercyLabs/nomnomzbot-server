@@ -13,7 +13,10 @@ public class TokenRefreshService : BackgroundService
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<TokenRefreshService> _logger;
 
-    public TokenRefreshService(IServiceProvider serviceProvider, ILogger<TokenRefreshService> logger)
+    public TokenRefreshService(
+        IServiceProvider serviceProvider,
+        ILogger<TokenRefreshService> logger
+    )
     {
         _serviceProvider = serviceProvider;
         _logger = logger;

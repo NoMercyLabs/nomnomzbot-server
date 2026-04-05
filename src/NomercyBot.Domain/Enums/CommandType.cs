@@ -8,5 +8,5 @@ public enum CommandType
     Text,
     Random,
     Counter,
-    Pipeline
+    Pipeline,
 }

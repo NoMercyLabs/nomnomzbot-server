@@ -8,5 +8,9 @@ namespace NoMercyBot.Domain.Interfaces;
 /// </summary>
 public interface IFeatureGateService
 {
-    Task<bool> IsEnabledAsync(string broadcasterId, string featureKey, CancellationToken cancellationToken = default);
+    Task<bool> IsEnabledAsync(
+        string broadcasterId,
+        string featureKey,
+        CancellationToken cancellationToken = default
+    );
 }

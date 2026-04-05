@@ -20,7 +20,10 @@ public static class ModelBuilderExtensions
     /// Requires ICurrentTenantService to be resolved at query time via a DbContext parameter.
     /// This is a no-op placeholder; tenant filtering is applied per-query or via interceptor.
     /// </summary>
-    public static void ApplyTenantFilter<TEntity>(this ModelBuilder modelBuilder, Expression<Func<TEntity, bool>> filter)
+    public static void ApplyTenantFilter<TEntity>(
+        this ModelBuilder modelBuilder,
+        Expression<Func<TEntity, bool>> filter
+    )
         where TEntity : class, ITenantScoped
     {
         modelBuilder.Entity<TEntity>().HasQueryFilter(filter);

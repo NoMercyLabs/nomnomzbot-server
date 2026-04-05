@@ -15,7 +15,8 @@ public sealed record AutoModResult(
     bool ShouldAct,
     AutoModAction Action,
     int DurationSeconds,
-    string Reason);
+    string Reason
+);
 
 /// <summary>
 /// Action taken by the auto-mod engine.
@@ -91,13 +92,15 @@ public sealed class AutoModerationEngine : IAutoModerationEngine
     private static readonly Regex UrlPattern = new(
         @"(?:https?://|www\.)\S+",
         RegexOptions.IgnoreCase | RegexOptions.Compiled,
-        TimeSpan.FromMilliseconds(250));
+        TimeSpan.FromMilliseconds(250)
+    );
 
     // Captures hostname from a URL string
     private static readonly Regex HostnamePattern = new(
         @"(?:https?://)?(?:www\.)?([^/\s?#]+)",
         RegexOptions.IgnoreCase | RegexOptions.Compiled,
-        TimeSpan.FromMilliseconds(250));
+        TimeSpan.FromMilliseconds(250)
+    );
 
     private readonly ICooldownManager _cooldowns;
     private readonly ILogger<AutoModerationEngine> _logger;
@@ -117,7 +120,8 @@ public sealed class AutoModerationEngine : IAutoModerationEngine
         string userId,
         string message,
         IEnumerable<string> userRoles,
-        AutoModSettings settings)
+        AutoModSettings settings
+    )
     {
         var roles = new HashSet<string>(userRoles, StringComparer.OrdinalIgnoreCase);
 
@@ -130,11 +134,20 @@ public sealed class AutoModerationEngine : IAutoModerationEngine
         {
             if (!_cooldowns.IsOnCooldown(broadcasterId, "slowmode", userId))
             {
-                _cooldowns.SetCooldown(broadcasterId, "slowmode", TimeSpan.FromSeconds(settings.SlowModeSeconds), userId);
+                _cooldowns.SetCooldown(
+                    broadcasterId,
+                    "slowmode",
+                    TimeSpan.FromSeconds(settings.SlowModeSeconds),
+                    userId
+                );
             }
             else
             {
-                _logger.LogDebug("AutoMod: slow mode violation from {UserId} in {BroadcasterId}", userId, broadcasterId);
+                _logger.LogDebug(
+                    "AutoMod: slow mode violation from {UserId} in {BroadcasterId}",
+                    userId,
+                    broadcasterId
+                );
                 return new AutoModResult(true, settings.SlowModeAction, 0, "Slow mode active");
             }
         }
@@ -144,7 +157,11 @@ public sealed class AutoModerationEngine : IAutoModerationEngine
         {
             if (!IsAllowedLink(message, settings.AllowedDomains))
             {
-                _logger.LogDebug("AutoMod: link blocked from {UserId} in {BroadcasterId}", userId, broadcasterId);
+                _logger.LogDebug(
+                    "AutoMod: link blocked from {UserId} in {BroadcasterId}",
+                    userId,
+                    broadcasterId
+                );
                 return new AutoModResult(true, settings.LinkAction, 0, "Links are not permitted");
             }
         }
@@ -160,13 +177,18 @@ public sealed class AutoModerationEngine : IAutoModerationEngine
 
                 if (capsPercent >= settings.CapsThresholdPercent)
                 {
-                    _logger.LogDebug("AutoMod: caps violation ({Pct:F0}%) from {UserId} in {BroadcasterId}",
-                        capsPercent, userId, broadcasterId);
+                    _logger.LogDebug(
+                        "AutoMod: caps violation ({Pct:F0}%) from {UserId} in {BroadcasterId}",
+                        capsPercent,
+                        userId,
+                        broadcasterId
+                    );
                     return new AutoModResult(
                         true,
                         settings.CapsAction,
                         settings.CapsDurationSeconds,
-                        "Excessive capital letters");
+                        "Excessive capital letters"
+                    );
                 }
             }
         }
@@ -182,12 +204,17 @@ public sealed class AutoModerationEngine : IAutoModerationEngine
 
                 if (match)
                 {
-                    _logger.LogDebug("AutoMod: banned phrase matched from {UserId} in {BroadcasterId}", userId, broadcasterId);
+                    _logger.LogDebug(
+                        "AutoMod: banned phrase matched from {UserId} in {BroadcasterId}",
+                        userId,
+                        broadcasterId
+                    );
                     return new AutoModResult(
                         true,
                         settings.BannedPhrasesAction,
                         settings.BannedPhrasesDurationSeconds,
-                        "Banned phrase detected");
+                        "Banned phrase detected"
+                    );
                 }
             }
         }
@@ -199,20 +226,20 @@ public sealed class AutoModerationEngine : IAutoModerationEngine
 
     private static bool IsAllowedLink(string message, HashSet<string> allowedDomains)
     {
-        if (allowedDomains.Count == 0) return false;
+        if (allowedDomains.Count == 0)
+            return false;
 
         foreach (Match match in UrlPattern.Matches(message))
         {
             var hostMatch = HostnamePattern.Match(match.Value);
-            if (!hostMatch.Success) continue;
+            if (!hostMatch.Success)
+                continue;
 
             var hostname = hostMatch.Groups[1].Value.ToLowerInvariant();
 
             // Strip common subdomains for matching
             var parts = hostname.Split('.');
-            var domain = parts.Length >= 2
-                ? string.Join('.', parts[^2..])
-                : hostname;
+            var domain = parts.Length >= 2 ? string.Join('.', parts[^2..]) : hostname;
 
             if (!allowedDomains.Contains(hostname) && !allowedDomains.Contains(domain))
                 return false;
@@ -225,9 +252,12 @@ public sealed class AutoModerationEngine : IAutoModerationEngine
     {
         try
         {
-            return Regex.IsMatch(message, pattern,
+            return Regex.IsMatch(
+                message,
+                pattern,
                 RegexOptions.IgnoreCase,
-                TimeSpan.FromMilliseconds(100));
+                TimeSpan.FromMilliseconds(100)
+            );
         }
         catch (RegexMatchTimeoutException)
         {

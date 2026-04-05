@@ -5,10 +5,23 @@ namespace NoMercyBot.Application.Contracts.Twitch;
 
 public interface ITwitchAuthService
 {
-    Task<TokenResult?> ExchangeCodeAsync(string code, string redirectUri, CancellationToken ct = default);
-    Task<TokenResult?> RefreshTokenAsync(string broadcasterId, string serviceName, CancellationToken ct = default);
+    Task<TokenResult?> ExchangeCodeAsync(
+        string code,
+        string redirectUri,
+        CancellationToken ct = default
+    );
+    Task<TokenResult?> RefreshTokenAsync(
+        string broadcasterId,
+        string serviceName,
+        CancellationToken ct = default
+    );
     Task RefreshExpiringTokensAsync(CancellationToken ct = default);
     Task RevokeTokenAsync(string broadcasterId, string serviceName, CancellationToken ct = default);
 }
 
-public record TokenResult(string AccessToken, string RefreshToken, DateTime ExpiresAt, string[] Scopes);
+public record TokenResult(
+    string AccessToken,
+    string RefreshToken,
+    DateTime ExpiresAt,
+    string[] Scopes
+);

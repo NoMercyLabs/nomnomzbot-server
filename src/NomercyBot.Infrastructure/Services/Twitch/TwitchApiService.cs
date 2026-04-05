@@ -37,7 +37,8 @@ public sealed class TwitchApiService : ITwitchApiService
         ITwitchAuthService authService,
         IHttpClientFactory httpClientFactory,
         IOptions<TwitchOptions> options,
-        ILogger<TwitchApiService> logger)
+        ILogger<TwitchApiService> logger
+    )
     {
         _db = db;
         _encryption = encryption;
@@ -49,47 +50,78 @@ public sealed class TwitchApiService : ITwitchApiService
 
     // ─── Public API ──────────────────────────────────────────────────────────────
 
-    public async Task<TwitchUserInfo?> GetUserInfoAsync(string userId, CancellationToken ct = default)
+    public async Task<TwitchUserInfo?> GetUserInfoAsync(
+        string userId,
+        CancellationToken ct = default
+    )
     {
         var tokenInfo = await GetBotTokenAsync(ct);
-        if (tokenInfo is null) return null;
+        if (tokenInfo is null)
+            return null;
 
         var response = await SendHelixAsync(
             HttpMethod.Get,
             $"{HelixBase}/users?id={Uri.EscapeDataString(userId)}",
             tokenInfo.Value,
             null,
-            ct);
+            ct
+        );
 
-        if (response is null) return null;
+        if (response is null)
+            return null;
 
-        var data = await response.Content.ReadFromJsonAsync<HelixDataResponse<HelixUser>>(cancellationToken: ct);
+        var data = await response.Content.ReadFromJsonAsync<HelixDataResponse<HelixUser>>(
+            cancellationToken: ct
+        );
         var user = data?.Data?.FirstOrDefault();
-        if (user is null) return null;
+        if (user is null)
+            return null;
 
-        return new TwitchUserInfo(user.Id, user.Login, user.DisplayName, user.ProfileImageUrl, user.BroadcasterType);
+        return new TwitchUserInfo(
+            user.Id,
+            user.Login,
+            user.DisplayName,
+            user.ProfileImageUrl,
+            user.BroadcasterType
+        );
     }
 
-    public async Task<TwitchStreamInfo?> GetStreamInfoAsync(string broadcasterId, CancellationToken ct = default)
+    public async Task<TwitchStreamInfo?> GetStreamInfoAsync(
+        string broadcasterId,
+        CancellationToken ct = default
+    )
     {
         var tokenInfo = await GetBotTokenAsync(ct);
-        if (tokenInfo is null) return null;
+        if (tokenInfo is null)
+            return null;
 
         var response = await SendHelixAsync(
             HttpMethod.Get,
             $"{HelixBase}/streams?user_id={Uri.EscapeDataString(broadcasterId)}",
             tokenInfo.Value,
             null,
-            ct);
+            ct
+        );
 
-        if (response is null) return null;
+        if (response is null)
+            return null;
 
-        var data = await response.Content.ReadFromJsonAsync<HelixDataResponse<HelixStream>>(cancellationToken: ct);
+        var data = await response.Content.ReadFromJsonAsync<HelixDataResponse<HelixStream>>(
+            cancellationToken: ct
+        );
         var stream = data?.Data?.FirstOrDefault();
 
         // When the stream is offline, the array is empty
         return stream is not null
-            ? new TwitchStreamInfo(stream.Id, stream.UserId, stream.GameId, stream.GameName, stream.Title, true, stream.ViewerCount)
+            ? new TwitchStreamInfo(
+                stream.Id,
+                stream.UserId,
+                stream.GameId,
+                stream.GameName,
+                stream.Title,
+                true,
+                stream.ViewerCount
+            )
             : new TwitchStreamInfo(string.Empty, broadcasterId, null, null, null, false, 0);
     }
 
@@ -98,7 +130,8 @@ public sealed class TwitchApiService : ITwitchApiService
         string userId,
         int durationSeconds,
         string? reason = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         return await BanOrTimeoutAsync(broadcasterId, userId, durationSeconds, reason, ct);
     }
@@ -107,7 +140,8 @@ public sealed class TwitchApiService : ITwitchApiService
         string broadcasterId,
         string userId,
         string? reason = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         return await BanOrTimeoutAsync(broadcasterId, userId, null, reason, ct);
     }
@@ -115,19 +149,24 @@ public sealed class TwitchApiService : ITwitchApiService
     public async Task<bool> UnbanUserAsync(
         string broadcasterId,
         string userId,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var tokenInfo = await GetModeratorTokenAsync(broadcasterId, ct);
         if (tokenInfo is null)
         {
-            _logger.LogWarning("No moderator token for broadcaster {BroadcasterId}, skipping unban", broadcasterId);
+            _logger.LogWarning(
+                "No moderator token for broadcaster {BroadcasterId}, skipping unban",
+                broadcasterId
+            );
             return false;
         }
 
-        var url = $"{HelixBase}/moderation/bans" +
-                  $"?broadcaster_id={Uri.EscapeDataString(broadcasterId)}" +
-                  $"&moderator_id={Uri.EscapeDataString(broadcasterId)}" +
-                  $"&user_id={Uri.EscapeDataString(userId)}";
+        var url =
+            $"{HelixBase}/moderation/bans"
+            + $"?broadcaster_id={Uri.EscapeDataString(broadcasterId)}"
+            + $"&moderator_id={Uri.EscapeDataString(broadcasterId)}"
+            + $"&user_id={Uri.EscapeDataString(userId)}";
 
         var response = await SendHelixAsync(HttpMethod.Delete, url, tokenInfo.Value, null, ct);
         return response is { IsSuccessStatusCode: true };
@@ -138,38 +177,55 @@ public sealed class TwitchApiService : ITwitchApiService
         string senderUserId,
         string message,
         string? replyParentMessageId = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var tokenInfo = await GetBotTokenAsync(ct);
         if (tokenInfo is null)
         {
-            _logger.LogWarning("No bot token available, cannot send chat message to {BroadcasterId}", broadcasterId);
+            _logger.LogWarning(
+                "No bot token available, cannot send chat message to {BroadcasterId}",
+                broadcasterId
+            );
             return false;
         }
 
         var body = replyParentMessageId is not null
-            ? (object)new
-            {
-                broadcaster_id = broadcasterId,
-                sender_id = senderUserId,
-                message,
-                reply_parent_message_id = replyParentMessageId,
-            }
-            : (object)new
-            {
-                broadcaster_id = broadcasterId,
-                sender_id = senderUserId,
-                message,
-            };
+            ? (object)
+                new
+                {
+                    broadcaster_id = broadcasterId,
+                    sender_id = senderUserId,
+                    message,
+                    reply_parent_message_id = replyParentMessageId,
+                }
+            : (object)
+                new
+                {
+                    broadcaster_id = broadcasterId,
+                    sender_id = senderUserId,
+                    message,
+                };
 
-        var response = await SendHelixAsync(HttpMethod.Post, $"{HelixBase}/chat/messages", tokenInfo.Value, body, ct);
-        if (response is null) return false;
+        var response = await SendHelixAsync(
+            HttpMethod.Post,
+            $"{HelixBase}/chat/messages",
+            tokenInfo.Value,
+            body,
+            ct
+        );
+        if (response is null)
+            return false;
 
         if (!response.IsSuccessStatusCode)
         {
             var err = await response.Content.ReadAsStringAsync(ct);
-            _logger.LogWarning("Helix SendChatMessage failed for {BroadcasterId}: {Status} — {Error}",
-                broadcasterId, response.StatusCode, err);
+            _logger.LogWarning(
+                "Helix SendChatMessage failed for {BroadcasterId}: {Status} — {Error}",
+                broadcasterId,
+                response.StatusCode,
+                err
+            );
             return false;
         }
 
@@ -179,15 +235,18 @@ public sealed class TwitchApiService : ITwitchApiService
     public async Task<bool> DeleteChatMessageAsync(
         string broadcasterId,
         string messageId,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var tokenInfo = await GetModeratorTokenAsync(broadcasterId, ct);
-        if (tokenInfo is null) return false;
+        if (tokenInfo is null)
+            return false;
 
-        var url = $"{HelixBase}/moderation/chat" +
-                  $"?broadcaster_id={Uri.EscapeDataString(broadcasterId)}" +
-                  $"&moderator_id={Uri.EscapeDataString(broadcasterId)}" +
-                  $"&message_id={Uri.EscapeDataString(messageId)}";
+        var url =
+            $"{HelixBase}/moderation/chat"
+            + $"?broadcaster_id={Uri.EscapeDataString(broadcasterId)}"
+            + $"&moderator_id={Uri.EscapeDataString(broadcasterId)}"
+            + $"&message_id={Uri.EscapeDataString(messageId)}";
 
         var response = await SendHelixAsync(HttpMethod.Delete, url, tokenInfo.Value, null, ct);
         return response is { IsSuccessStatusCode: true };
@@ -197,19 +256,24 @@ public sealed class TwitchApiService : ITwitchApiService
         string broadcasterId,
         string toUserId,
         string moderatorId,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var token = await GetModeratorTokenAsync(broadcasterId, ct);
         if (token is null)
         {
-            _logger.LogWarning("No moderator token for broadcaster {BroadcasterId}, skipping shoutout", broadcasterId);
+            _logger.LogWarning(
+                "No moderator token for broadcaster {BroadcasterId}, skipping shoutout",
+                broadcasterId
+            );
             return false;
         }
 
-        var url = $"{HelixBase}/chat/shoutouts" +
-                  $"?from_broadcaster_id={Uri.EscapeDataString(broadcasterId)}" +
-                  $"&to_broadcaster_id={Uri.EscapeDataString(toUserId)}" +
-                  $"&moderator_id={Uri.EscapeDataString(moderatorId)}";
+        var url =
+            $"{HelixBase}/chat/shoutouts"
+            + $"?from_broadcaster_id={Uri.EscapeDataString(broadcasterId)}"
+            + $"&to_broadcaster_id={Uri.EscapeDataString(toUserId)}"
+            + $"&moderator_id={Uri.EscapeDataString(moderatorId)}";
 
         var response = await SendHelixAsync(HttpMethod.Post, url, token.Value, new { }, ct);
         return response?.StatusCode is HttpStatusCode.NoContent or HttpStatusCode.OK;
@@ -222,21 +286,35 @@ public sealed class TwitchApiService : ITwitchApiService
         string userId,
         int? durationSeconds,
         string? reason,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         var tokenInfo = await GetModeratorTokenAsync(broadcasterId, ct);
         if (tokenInfo is null)
         {
-            _logger.LogWarning("No moderator token for broadcaster {BroadcasterId}, skipping ban/timeout", broadcasterId);
+            _logger.LogWarning(
+                "No moderator token for broadcaster {BroadcasterId}, skipping ban/timeout",
+                broadcasterId
+            );
             return false;
         }
 
-        var url = $"{HelixBase}/moderation/bans" +
-                  $"?broadcaster_id={Uri.EscapeDataString(broadcasterId)}" +
-                  $"&moderator_id={Uri.EscapeDataString(broadcasterId)}";
+        var url =
+            $"{HelixBase}/moderation/bans"
+            + $"?broadcaster_id={Uri.EscapeDataString(broadcasterId)}"
+            + $"&moderator_id={Uri.EscapeDataString(broadcasterId)}";
 
         var body = durationSeconds.HasValue
-            ? (object)new { data = new { user_id = userId, duration = durationSeconds.Value, reason = reason ?? string.Empty } }
+            ? (object)
+                new
+                {
+                    data = new
+                    {
+                        user_id = userId,
+                        duration = durationSeconds.Value,
+                        reason = reason ?? string.Empty,
+                    },
+                }
             : (object)new { data = new { user_id = userId, reason = reason ?? string.Empty } };
 
         var response = await SendHelixAsync(HttpMethod.Post, url, tokenInfo.Value, body, ct);
@@ -251,7 +329,8 @@ public sealed class TwitchApiService : ITwitchApiService
         string url,
         (string Token, string? BroadcasterId, string ServiceName) tokenInfo,
         object? body,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         for (var attempt = 0; attempt < 2; attempt++)
         {
@@ -275,10 +354,13 @@ public sealed class TwitchApiService : ITwitchApiService
 
             if (response.StatusCode == HttpStatusCode.TooManyRequests)
             {
-                if (response.Headers.TryGetValues("Ratelimit-Reset", out var values)
-                    && long.TryParse(values.First(), out var resetEpoch))
+                if (
+                    response.Headers.TryGetValues("Ratelimit-Reset", out var values)
+                    && long.TryParse(values.First(), out var resetEpoch)
+                )
                 {
-                    var delay = DateTimeOffset.FromUnixTimeSeconds(resetEpoch) - DateTimeOffset.UtcNow;
+                    var delay =
+                        DateTimeOffset.FromUnixTimeSeconds(resetEpoch) - DateTimeOffset.UtcNow;
                     if (delay > TimeSpan.Zero)
                     {
                         _logger.LogWarning("Helix rate limited, waiting {Delay:g}", delay);
@@ -292,12 +374,23 @@ public sealed class TwitchApiService : ITwitchApiService
                 continue;
             }
 
-            if (response.StatusCode == HttpStatusCode.Unauthorized && attempt == 0
-                && tokenInfo.BroadcasterId is not null)
+            if (
+                response.StatusCode == HttpStatusCode.Unauthorized
+                && attempt == 0
+                && tokenInfo.BroadcasterId is not null
+            )
             {
-                _logger.LogDebug("Helix 401, refreshing token for {BroadcasterId}", tokenInfo.BroadcasterId);
-                var refreshed = await _authService.RefreshTokenAsync(tokenInfo.BroadcasterId, tokenInfo.ServiceName, ct);
-                if (refreshed is null) return response;
+                _logger.LogDebug(
+                    "Helix 401, refreshing token for {BroadcasterId}",
+                    tokenInfo.BroadcasterId
+                );
+                var refreshed = await _authService.RefreshTokenAsync(
+                    tokenInfo.BroadcasterId,
+                    tokenInfo.ServiceName,
+                    ct
+                );
+                if (refreshed is null)
+                    return response;
 
                 tokenInfo = tokenInfo with { Token = refreshed.AccessToken };
                 continue;
@@ -310,31 +403,40 @@ public sealed class TwitchApiService : ITwitchApiService
     }
 
     /// <summary>Get bot account token (Name="twitch_bot", no BroadcasterId).</summary>
-    private async Task<(string Token, string? BroadcasterId, string ServiceName)?> GetBotTokenAsync(CancellationToken ct)
+    private async Task<(string Token, string? BroadcasterId, string ServiceName)?> GetBotTokenAsync(
+        CancellationToken ct
+    )
     {
-        var service = await _db.Services
-            .Where(s => s.Name == "twitch_bot" && s.Enabled && s.AccessToken != null)
+        var service = await _db
+            .Services.Where(s => s.Name == "twitch_bot" && s.Enabled && s.AccessToken != null)
             .OrderByDescending(s => s.TokenExpiry)
             .FirstOrDefaultAsync(ct);
 
-        if (service?.AccessToken is null) return null;
+        if (service?.AccessToken is null)
+            return null;
 
         var token = _encryption.TryDecrypt(service.AccessToken);
-        if (token is null) return null;
+        if (token is null)
+            return null;
 
         return (token, service.BroadcasterId, service.Name);
     }
 
     /// <summary>Get moderator/broadcaster token for a specific channel (Name="twitch").</summary>
-    private async Task<(string Token, string? BroadcasterId, string ServiceName)?> GetModeratorTokenAsync(
-        string broadcasterId,
-        CancellationToken ct)
+    private async Task<(
+        string Token,
+        string? BroadcasterId,
+        string ServiceName
+    )?> GetModeratorTokenAsync(string broadcasterId, CancellationToken ct)
     {
-        var service = await _db.Services
-            .FirstOrDefaultAsync(s => s.BroadcasterId == broadcasterId
-                                      && s.Name == "twitch"
-                                      && s.Enabled
-                                      && s.AccessToken != null, ct);
+        var service = await _db.Services.FirstOrDefaultAsync(
+            s =>
+                s.BroadcasterId == broadcasterId
+                && s.Name == "twitch"
+                && s.Enabled
+                && s.AccessToken != null,
+            ct
+        );
 
         if (service?.AccessToken is null)
         {
@@ -343,7 +445,8 @@ public sealed class TwitchApiService : ITwitchApiService
         }
 
         var token = _encryption.TryDecrypt(service.AccessToken);
-        if (token is null) return null;
+        if (token is null)
+            return null;
 
         return (token, broadcasterId, service.Name);
     }
@@ -358,20 +461,40 @@ public sealed class TwitchApiService : ITwitchApiService
 
     private sealed class HelixUser
     {
-        [JsonPropertyName("id")] public string Id { get; set; } = null!;
-        [JsonPropertyName("login")] public string Login { get; set; } = null!;
-        [JsonPropertyName("display_name")] public string DisplayName { get; set; } = null!;
-        [JsonPropertyName("profile_image_url")] public string? ProfileImageUrl { get; set; }
-        [JsonPropertyName("broadcaster_type")] public string BroadcasterType { get; set; } = null!;
+        [JsonPropertyName("id")]
+        public string Id { get; set; } = null!;
+
+        [JsonPropertyName("login")]
+        public string Login { get; set; } = null!;
+
+        [JsonPropertyName("display_name")]
+        public string DisplayName { get; set; } = null!;
+
+        [JsonPropertyName("profile_image_url")]
+        public string? ProfileImageUrl { get; set; }
+
+        [JsonPropertyName("broadcaster_type")]
+        public string BroadcasterType { get; set; } = null!;
     }
 
     private sealed class HelixStream
     {
-        [JsonPropertyName("id")] public string Id { get; set; } = null!;
-        [JsonPropertyName("user_id")] public string UserId { get; set; } = null!;
-        [JsonPropertyName("game_id")] public string? GameId { get; set; }
-        [JsonPropertyName("game_name")] public string? GameName { get; set; }
-        [JsonPropertyName("title")] public string? Title { get; set; }
-        [JsonPropertyName("viewer_count")] public int ViewerCount { get; set; }
+        [JsonPropertyName("id")]
+        public string Id { get; set; } = null!;
+
+        [JsonPropertyName("user_id")]
+        public string UserId { get; set; } = null!;
+
+        [JsonPropertyName("game_id")]
+        public string? GameId { get; set; }
+
+        [JsonPropertyName("game_name")]
+        public string? GameName { get; set; }
+
+        [JsonPropertyName("title")]
+        public string? Title { get; set; }
+
+        [JsonPropertyName("viewer_count")]
+        public int ViewerCount { get; set; }
     }
 }

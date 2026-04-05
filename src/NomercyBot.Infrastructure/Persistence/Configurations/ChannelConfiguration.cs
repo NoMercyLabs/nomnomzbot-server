@@ -12,65 +12,44 @@ public class ChannelConfiguration : IEntityTypeConfiguration<Channel>
     {
         builder.HasKey(e => e.Id);
 
-        builder.Property(e => e.Id)
-            .IsRequired()
-            .HasMaxLength(50);
+        builder.Property(e => e.Id).IsRequired().HasMaxLength(50);
 
-        builder.Property(e => e.Name)
-            .IsRequired()
-            .HasMaxLength(25);
+        builder.Property(e => e.Name).IsRequired().HasMaxLength(25);
 
-        builder.Property(e => e.Enabled)
-            .HasDefaultValue(true);
+        builder.Property(e => e.Enabled).HasDefaultValue(true);
 
-        builder.Property(e => e.ShoutoutTemplate)
-            .HasMaxLength(450);
+        builder.Property(e => e.ShoutoutTemplate).HasMaxLength(450);
 
-        builder.Property(e => e.ShoutoutInterval)
-            .HasDefaultValue(10);
+        builder.Property(e => e.ShoutoutInterval).HasDefaultValue(10);
 
-        builder.Property(e => e.UsernamePronunciation)
-            .HasMaxLength(100);
+        builder.Property(e => e.UsernamePronunciation).HasMaxLength(100);
 
-        builder.Property(e => e.IsOnboarded)
-            .IsRequired();
+        builder.Property(e => e.IsOnboarded).IsRequired();
 
-        builder.Property(e => e.OverlayToken)
-            .IsRequired()
-            .HasMaxLength(36);
+        builder.Property(e => e.OverlayToken).IsRequired().HasMaxLength(36);
 
-        builder.Property(e => e.IsLive)
-            .IsRequired();
+        builder.Property(e => e.IsLive).IsRequired();
 
-        builder.Property(e => e.Language)
-            .HasMaxLength(50);
+        builder.Property(e => e.Language).HasMaxLength(50);
 
-        builder.Property(e => e.GameId)
-            .HasMaxLength(50);
+        builder.Property(e => e.GameId).HasMaxLength(50);
 
-        builder.Property(e => e.GameName)
-            .HasMaxLength(255);
+        builder.Property(e => e.GameName).HasMaxLength(255);
 
-        builder.Property(e => e.Title)
-            .HasMaxLength(255);
+        builder.Property(e => e.Title).HasMaxLength(255);
 
-        builder.Property(e => e.StreamDelay)
-            .IsRequired();
+        builder.Property(e => e.StreamDelay).IsRequired();
 
-        builder.Property(e => e.Tags)
+        builder.Property(e => e.Tags).HasColumnType("jsonb").HasDefaultValueSql("'[]'::jsonb");
+
+        builder
+            .Property(e => e.ContentLabels)
             .HasColumnType("jsonb")
             .HasDefaultValueSql("'[]'::jsonb");
 
-        builder.Property(e => e.ContentLabels)
-            .HasColumnType("jsonb")
-            .HasDefaultValueSql("'[]'::jsonb");
+        builder.Property(e => e.IsBrandedContent).IsRequired();
 
-        builder.Property(e => e.IsBrandedContent)
-            .IsRequired();
-
-        builder.HasIndex(e => e.OverlayToken)
-            .IsUnique()
-            .HasDatabaseName("IX_Channel_OverlayToken");
+        builder.HasIndex(e => e.OverlayToken).IsUnique().HasDatabaseName("IX_Channel_OverlayToken");
 
         builder.HasQueryFilter(e => e.DeletedAt == null);
     }

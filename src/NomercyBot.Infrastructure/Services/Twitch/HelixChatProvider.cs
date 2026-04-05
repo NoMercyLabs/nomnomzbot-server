@@ -3,11 +3,11 @@
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NoMercyBot.Application.Common.Interfaces;
 using NoMercyBot.Application.Contracts.Twitch;
 using NoMercyBot.Domain.Interfaces;
 using NoMercyBot.Infrastructure.Configuration;
-using Microsoft.Extensions.Options;
 
 namespace NoMercyBot.Infrastructure.Services.Twitch;
 
@@ -33,7 +33,8 @@ public sealed class HelixChatProvider : IChatProvider
         ITwitchApiService api,
         IApplicationDbContext db,
         IOptions<TwitchOptions> options,
-        ILogger<HelixChatProvider> logger)
+        ILogger<HelixChatProvider> logger
+    )
     {
         _api = api;
         _db = db;
@@ -41,46 +42,92 @@ public sealed class HelixChatProvider : IChatProvider
         _logger = logger;
     }
 
-    public async Task SendMessageAsync(string broadcasterId, string message, CancellationToken cancellationToken = default)
+    public async Task SendMessageAsync(
+        string broadcasterId,
+        string message,
+        CancellationToken cancellationToken = default
+    )
     {
         var botUserId = await GetBotUserIdAsync(cancellationToken);
         if (botUserId is null)
         {
-            _logger.LogWarning("HelixChatProvider: no bot user ID, cannot send message to {BroadcasterId}", broadcasterId);
+            _logger.LogWarning(
+                "HelixChatProvider: no bot user ID, cannot send message to {BroadcasterId}",
+                broadcasterId
+            );
             return;
         }
 
         await _api.SendChatMessageAsync(broadcasterId, botUserId, message, null, cancellationToken);
     }
 
-    public async Task SendReplyAsync(string broadcasterId, string replyToMessageId, string message, CancellationToken cancellationToken = default)
+    public async Task SendReplyAsync(
+        string broadcasterId,
+        string replyToMessageId,
+        string message,
+        CancellationToken cancellationToken = default
+    )
     {
         var botUserId = await GetBotUserIdAsync(cancellationToken);
         if (botUserId is null)
         {
-            _logger.LogWarning("HelixChatProvider: no bot user ID, cannot send reply to {BroadcasterId}", broadcasterId);
+            _logger.LogWarning(
+                "HelixChatProvider: no bot user ID, cannot send reply to {BroadcasterId}",
+                broadcasterId
+            );
             return;
         }
 
-        await _api.SendChatMessageAsync(broadcasterId, botUserId, message, replyToMessageId, cancellationToken);
+        await _api.SendChatMessageAsync(
+            broadcasterId,
+            botUserId,
+            message,
+            replyToMessageId,
+            cancellationToken
+        );
     }
 
-    public async Task TimeoutUserAsync(string broadcasterId, string userId, int durationSeconds, string? reason = null, CancellationToken cancellationToken = default)
+    public async Task TimeoutUserAsync(
+        string broadcasterId,
+        string userId,
+        int durationSeconds,
+        string? reason = null,
+        CancellationToken cancellationToken = default
+    )
     {
-        await _api.TimeoutUserAsync(broadcasterId, userId, durationSeconds, reason, cancellationToken);
+        await _api.TimeoutUserAsync(
+            broadcasterId,
+            userId,
+            durationSeconds,
+            reason,
+            cancellationToken
+        );
     }
 
-    public async Task BanUserAsync(string broadcasterId, string userId, string? reason = null, CancellationToken cancellationToken = default)
+    public async Task BanUserAsync(
+        string broadcasterId,
+        string userId,
+        string? reason = null,
+        CancellationToken cancellationToken = default
+    )
     {
         await _api.BanUserAsync(broadcasterId, userId, reason, cancellationToken);
     }
 
-    public async Task UnbanUserAsync(string broadcasterId, string userId, CancellationToken cancellationToken = default)
+    public async Task UnbanUserAsync(
+        string broadcasterId,
+        string userId,
+        CancellationToken cancellationToken = default
+    )
     {
         await _api.UnbanUserAsync(broadcasterId, userId, cancellationToken);
     }
 
-    public async Task DeleteMessageAsync(string broadcasterId, string messageId, CancellationToken cancellationToken = default)
+    public async Task DeleteMessageAsync(
+        string broadcasterId,
+        string messageId,
+        CancellationToken cancellationToken = default
+    )
     {
         await _api.DeleteChatMessageAsync(broadcasterId, messageId, cancellationToken);
     }
@@ -92,8 +139,8 @@ public sealed class HelixChatProvider : IChatProvider
         if (_cachedBotUserId is not null)
             return _cachedBotUserId;
 
-        var service = await _db.Services
-            .Where(s => s.Name == "twitch_bot" && s.Enabled && s.UserId != null)
+        var service = await _db
+            .Services.Where(s => s.Name == "twitch_bot" && s.Enabled && s.UserId != null)
             .FirstOrDefaultAsync(ct);
 
         _cachedBotUserId = service?.UserId;

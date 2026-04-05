@@ -12,25 +12,21 @@ public class ChannelFeatureConfiguration : IEntityTypeConfiguration<ChannelFeatu
     {
         builder.HasKey(e => e.Id);
 
-        builder.Property(e => e.BroadcasterId)
-            .IsRequired()
-            .HasMaxLength(50);
+        builder.Property(e => e.BroadcasterId).IsRequired().HasMaxLength(50);
 
-        builder.Property(e => e.FeatureKey)
-            .IsRequired()
-            .HasMaxLength(50);
+        builder.Property(e => e.FeatureKey).IsRequired().HasMaxLength(50);
 
-        builder.Property(e => e.IsEnabled)
-            .HasDefaultValue(false);
+        builder.Property(e => e.IsEnabled).HasDefaultValue(false);
 
-        builder.Property(e => e.RequiredScopes)
+        builder
+            .Property(e => e.RequiredScopes)
             .HasColumnType("jsonb")
             .HasDefaultValueSql("'[]'::jsonb");
 
-        builder.HasIndex(e => new { e.BroadcasterId, e.FeatureKey })
-            .IsUnique();
+        builder.HasIndex(e => new { e.BroadcasterId, e.FeatureKey }).IsUnique();
 
-        builder.HasOne(e => e.Channel)
+        builder
+            .HasOne(e => e.Channel)
             .WithMany()
             .HasForeignKey(e => e.BroadcasterId)
             .OnDelete(DeleteBehavior.Cascade);

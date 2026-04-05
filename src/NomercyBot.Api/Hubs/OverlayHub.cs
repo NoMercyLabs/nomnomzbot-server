@@ -16,7 +16,11 @@ public class OverlayHub : Hub<IOverlayClient>
     private readonly IApplicationDbContext _db;
     private readonly ILogger<OverlayHub> _logger;
 
-    public OverlayHub(IChannelRegistry registry, IApplicationDbContext db, ILogger<OverlayHub> logger)
+    public OverlayHub(
+        IChannelRegistry registry,
+        IApplicationDbContext db,
+        ILogger<OverlayHub> logger
+    )
     {
         _registry = registry;
         _db = db;
@@ -55,20 +59,29 @@ public class OverlayHub : Hub<IOverlayClient>
     public async Task<JoinWidgetResponse> JoinWidget(string widgetId)
     {
         var broadcasterId = Context.Items["BroadcasterId"] as string;
-        if (broadcasterId == null) return new JoinWidgetResponse(false, "Not authenticated", null);
+        if (broadcasterId == null)
+            return new JoinWidgetResponse(false, "Not authenticated", null);
 
         var groupName = $"widget-{broadcasterId}-{widgetId}";
         await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
         _connectionWidget[Context.ConnectionId] = $"{broadcasterId}-{widgetId}";
-        _logger.LogDebug("Overlay connection {C} joined widget {W}", Context.ConnectionId, widgetId);
+        _logger.LogDebug(
+            "Overlay connection {C} joined widget {W}",
+            Context.ConnectionId,
+            widgetId
+        );
         return new JoinWidgetResponse(true, null, null);
     }
 
     public async Task LeaveWidget(string widgetId)
     {
         var broadcasterId = Context.Items["BroadcasterId"] as string;
-        if (broadcasterId == null) return;
-        await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"widget-{broadcasterId}-{widgetId}");
+        if (broadcasterId == null)
+            return;
+        await Groups.RemoveFromGroupAsync(
+            Context.ConnectionId,
+            $"widget-{broadcasterId}-{widgetId}"
+        );
         _connectionWidget.TryRemove(Context.ConnectionId, out _);
     }
 

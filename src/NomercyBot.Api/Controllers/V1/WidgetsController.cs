@@ -29,17 +29,28 @@ public class WidgetsController : BaseController
     public async Task<IActionResult> ListWidgets(
         string channelId,
         [FromQuery] PageRequestDto request,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
-        var pagination = new PaginationParams(request.Page, request.Take, request.Sort, request.Order);
+        var pagination = new PaginationParams(
+            request.Page,
+            request.Take,
+            request.Sort,
+            request.Order
+        );
         var result = await _widgetService.ListAsync(channelId, pagination, ct);
-        if (result.IsFailure) return ResultResponse(result);
+        if (result.IsFailure)
+            return ResultResponse(result);
         return GetPaginatedResponse(result.Value, request);
     }
 
     [HttpGet("{widgetId}")]
     [ProducesResponseType<StatusResponseDto<WidgetDetail>>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetWidget(string channelId, string widgetId, CancellationToken ct)
+    public async Task<IActionResult> GetWidget(
+        string channelId,
+        string widgetId,
+        CancellationToken ct
+    )
     {
         var result = await _widgetService.GetAsync(channelId, widgetId, ct);
         return ResultResponse(result);
@@ -50,13 +61,22 @@ public class WidgetsController : BaseController
     public async Task<IActionResult> CreateWidget(
         string channelId,
         [FromBody] CreateWidgetRequest request,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         var result = await _widgetService.CreateAsync(channelId, request, ct);
-        if (result.IsFailure) return ResultResponse(result);
+        if (result.IsFailure)
+            return ResultResponse(result);
 
-        return CreatedAtAction(nameof(GetWidget), new { channelId, widgetId = result.Value.Id },
-            new StatusResponseDto<WidgetDetail> { Data = result.Value, Message = "Widget created successfully." });
+        return CreatedAtAction(
+            nameof(GetWidget),
+            new { channelId, widgetId = result.Value.Id },
+            new StatusResponseDto<WidgetDetail>
+            {
+                Data = result.Value,
+                Message = "Widget created successfully.",
+            }
+        );
     }
 
     [HttpPut("{widgetId}")]
@@ -65,19 +85,26 @@ public class WidgetsController : BaseController
         string channelId,
         string widgetId,
         [FromBody] UpdateWidgetRequest request,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         var result = await _widgetService.UpdateAsync(channelId, widgetId, request, ct);
-        if (result.IsFailure) return ResultResponse(result);
+        if (result.IsFailure)
+            return ResultResponse(result);
         return Ok(new StatusResponseDto<WidgetDetail> { Data = result.Value });
     }
 
     [HttpDelete("{widgetId}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public async Task<IActionResult> DeleteWidget(string channelId, string widgetId, CancellationToken ct)
+    public async Task<IActionResult> DeleteWidget(
+        string channelId,
+        string widgetId,
+        CancellationToken ct
+    )
     {
         var result = await _widgetService.DeleteAsync(channelId, widgetId, ct);
-        if (result.IsFailure) return ResultResponse(result);
+        if (result.IsFailure)
+            return ResultResponse(result);
         return NoContent();
     }
 }

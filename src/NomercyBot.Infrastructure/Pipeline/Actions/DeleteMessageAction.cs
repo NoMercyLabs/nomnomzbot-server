@@ -11,7 +11,10 @@ public sealed class DeleteMessageAction : ICommandAction
 
     public DeleteMessageAction(IChatProvider chat) => _chat = chat;
 
-    public async Task<ActionResult> ExecuteAsync(PipelineExecutionContext ctx, ActionDefinition action)
+    public async Task<ActionResult> ExecuteAsync(
+        PipelineExecutionContext ctx,
+        ActionDefinition action
+    )
     {
         var messageId = action.GetString("message_id") ?? ctx.MessageId;
         if (string.IsNullOrEmpty(messageId))

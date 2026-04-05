@@ -9,5 +9,5 @@ public enum UserRole
     Subscriber,
     Vip,
     Moderator,
-    Broadcaster
+    Broadcaster,
 }

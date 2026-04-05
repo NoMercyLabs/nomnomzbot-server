@@ -7,16 +7,23 @@ namespace NoMercyBot.Infrastructure.Persistence.Repositories;
 
 public class ChannelRepository : GenericRepository<Channel>
 {
-    public ChannelRepository(AppDbContext db) : base(db) { }
+    public ChannelRepository(AppDbContext db)
+        : base(db) { }
 
-    public Task<Channel?> GetByBroadcasterIdAsync(string broadcasterId, CancellationToken ct = default)
-        => Set.Include(c => c.User)
-              .FirstOrDefaultAsync(c => c.Id == broadcasterId, ct);
+    public Task<Channel?> GetByBroadcasterIdAsync(
+        string broadcasterId,
+        CancellationToken ct = default
+    ) => Set.Include(c => c.User).FirstOrDefaultAsync(c => c.Id == broadcasterId, ct);
 
-    public Task<List<Channel>> GetEnabledChannelsAsync(CancellationToken ct = default)
-        => Set.Where(c => c.Enabled && c.IsOnboarded).ToListAsync(ct);
+    public Task<List<Channel>> GetEnabledChannelsAsync(CancellationToken ct = default) =>
+        Set.Where(c => c.Enabled && c.IsOnboarded).ToListAsync(ct);
 
-    public Task<List<Channel>> GetPagedAsync(int page, int take, string? search, CancellationToken ct = default)
+    public Task<List<Channel>> GetPagedAsync(
+        int page,
+        int take,
+        string? search,
+        CancellationToken ct = default
+    )
     {
         var query = Set.Include(c => c.User).AsQueryable();
         if (!string.IsNullOrWhiteSpace(search))
@@ -32,6 +39,6 @@ public class ChannelRepository : GenericRepository<Channel>
         return query.CountAsync(ct);
     }
 
-    public Task<Channel?> GetByOverlayTokenAsync(string token, CancellationToken ct = default)
-        => Set.FirstOrDefaultAsync(c => c.OverlayToken == token, ct);
+    public Task<Channel?> GetByOverlayTokenAsync(string token, CancellationToken ct = default) =>
+        Set.FirstOrDefaultAsync(c => c.OverlayToken == token, ct);
 }

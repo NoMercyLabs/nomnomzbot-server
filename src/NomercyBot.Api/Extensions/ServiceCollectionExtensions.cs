@@ -1,10 +1,7 @@
 using System.Text;
-
 using Asp.Versioning;
-
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-
 using NoMercyBot.Api.Configuration;
 using NoMercyBot.Api.HealthChecks;
 
@@ -14,18 +11,21 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddApiServices(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration
+    )
     {
         services.AddControllers();
 
-        services.AddApiVersioning(options =>
+        services
+            .AddApiVersioning(options =>
             {
                 options.DefaultApiVersion = new ApiVersion(1, 0);
                 options.AssumeDefaultVersionWhenUnspecified = true;
                 options.ReportApiVersions = true;
                 options.ApiVersionReader = ApiVersionReader.Combine(
                     new UrlSegmentApiVersionReader(),
-                    new HeaderApiVersionReader("X-Api-Version"));
+                    new HeaderApiVersionReader("X-Api-Version")
+                );
             })
             .AddApiExplorer(options =>
             {
@@ -35,11 +35,15 @@ public static class ServiceCollectionExtensions
 
         services.AddOpenApi();
 
-        services.AddSignalR()
+        services
+            .AddSignalR()
             .AddJsonProtocol(options =>
             {
-                options.PayloadSerializerOptions.PropertyNamingPolicy =
-                    System.Text.Json.JsonNamingPolicy.CamelCase;
+                options.PayloadSerializerOptions.PropertyNamingPolicy = System
+                    .Text
+                    .Json
+                    .JsonNamingPolicy
+                    .CamelCase;
             });
 
         AddAuthentication(services, configuration);
@@ -52,10 +56,12 @@ public static class ServiceCollectionExtensions
 
     private static void AddAuthentication(IServiceCollection services, IConfiguration configuration)
     {
-        var jwtOptions = configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
-                         ?? throw new InvalidOperationException("JWT configuration is missing.");
+        var jwtOptions =
+            configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
+            ?? throw new InvalidOperationException("JWT configuration is missing.");
 
-        services.AddAuthentication(options =>
+        services
+            .AddAuthentication(options =>
             {
                 options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
                 options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -71,8 +77,9 @@ public static class ServiceCollectionExtensions
                     ValidIssuer = jwtOptions.Issuer,
                     ValidAudience = jwtOptions.Audience,
                     IssuerSigningKey = new SymmetricSecurityKey(
-                        Encoding.UTF8.GetBytes(jwtOptions.Secret)),
-                    ClockSkew = TimeSpan.FromMinutes(1)
+                        Encoding.UTF8.GetBytes(jwtOptions.Secret)
+                    ),
+                    ClockSkew = TimeSpan.FromMinutes(1),
                 };
 
                 // Allow SignalR to receive the token from the query string
@@ -83,14 +90,13 @@ public static class ServiceCollectionExtensions
                         var accessToken = context.Request.Query["access_token"];
                         var path = context.HttpContext.Request.Path;
 
-                        if (!string.IsNullOrEmpty(accessToken) &&
-                            path.StartsWithSegments("/hubs"))
+                        if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
                         {
                             context.Token = accessToken;
                         }
 
                         return Task.CompletedTask;
-                    }
+                    },
                 };
             });
 
@@ -99,14 +105,16 @@ public static class ServiceCollectionExtensions
 
     private static void AddCors(IServiceCollection services, IConfiguration configuration)
     {
-        var allowedOrigins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-                             ?? ["http://localhost:3000"];
+        var allowedOrigins =
+            configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+            ?? ["http://localhost:3000"];
 
         services.AddCors(options =>
         {
             options.AddDefaultPolicy(policy =>
             {
-                policy.WithOrigins(allowedOrigins)
+                policy
+                    .WithOrigins(allowedOrigins)
                     .AllowAnyHeader()
                     .AllowAnyMethod()
                     .AllowCredentials();
@@ -123,8 +131,10 @@ public static class ServiceCollectionExtensions
 
     private static void AddHealthChecks(IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetSection(DatabaseOptions.SectionName)
-            .Get<DatabaseOptions>()?.ConnectionString;
+        var connectionString = configuration
+            .GetSection(DatabaseOptions.SectionName)
+            .Get<DatabaseOptions>()
+            ?.ConnectionString;
 
         var builder = services.AddHealthChecks();
 

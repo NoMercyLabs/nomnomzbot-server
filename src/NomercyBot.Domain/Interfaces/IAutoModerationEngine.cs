@@ -6,6 +6,4 @@ namespace NoMercyBot.Domain.Interfaces;
 /// <summary>
 /// Evaluates chat messages against auto-moderation rules for a channel.
 /// </summary>
-public interface IAutoModerationEngine
-{
-}
+public interface IAutoModerationEngine { }

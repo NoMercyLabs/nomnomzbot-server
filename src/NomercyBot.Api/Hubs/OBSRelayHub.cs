@@ -18,7 +18,11 @@ public class OBSRelayHub : Hub<IOBSRelayClient>
     public override async Task OnConnectedAsync()
     {
         var userId = Context.UserIdentifier ?? Context.User?.FindFirst("sub")?.Value;
-        if (userId == null) { Context.Abort(); return; }
+        if (userId == null)
+        {
+            Context.Abort();
+            return;
+        }
         _connectionBroadcaster[Context.ConnectionId] = userId;
         await Groups.AddToGroupAsync(Context.ConnectionId, $"obs-{userId}");
         _logger.LogDebug("OBSRelay connected for {UserId}", userId);
@@ -31,8 +35,9 @@ public class OBSRelayHub : Hub<IOBSRelayClient>
         {
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"obs-{broadcasterId}");
             // Implicitly fire OBSDisconnected event
-            await Clients.Group($"obs-{broadcasterId}").OBSCommand(
-                new OBSCommandDto("", "disconnected", null));
+            await Clients
+                .Group($"obs-{broadcasterId}")
+                .OBSCommand(new OBSCommandDto("", "disconnected", null));
         }
         await base.OnDisconnectedAsync(exception);
     }
@@ -51,11 +56,18 @@ public class OBSRelayHub : Hub<IOBSRelayClient>
 
     public async Task OBSConnected(OBSConnectedDto dto)
     {
-        _logger.LogInformation("OBS WebSocket connected for {B}, version {V}", dto.BroadcasterId, dto.Version);
+        _logger.LogInformation(
+            "OBS WebSocket connected for {B}, version {V}",
+            dto.BroadcasterId,
+            dto.Version
+        );
     }
 
     public async Task OBSDisconnected()
     {
-        _logger.LogInformation("OBS WebSocket disconnected for connection {C}", Context.ConnectionId);
+        _logger.LogInformation(
+            "OBS WebSocket disconnected for connection {C}",
+            Context.ConnectionId
+        );
     }
 }

@@ -9,14 +9,14 @@ namespace NomercyBot.Application.Tests.Pipeline.Actions;
 
 public class StopActionTests
 {
-    private static ActionContext BuildCtx()
-        => new()
+    private static ActionContext BuildCtx() =>
+        new()
         {
             BroadcasterId = "chan1",
             TriggeredByUserId = "user1",
             TriggeredByDisplayName = "User1",
             Parameters = new Dictionary<string, object?>(),
-            Variables = new Dictionary<string, string>()
+            Variables = new Dictionary<string, string>(),
         };
 
     [Fact]

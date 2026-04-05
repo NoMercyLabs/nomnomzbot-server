@@ -76,7 +76,7 @@ public class ErrorsTests
         var errors = new Dictionary<string, string[]>
         {
             { "Name", ["required"] },
-            { "Email", ["invalid format"] }
+            { "Email", ["invalid format"] },
         };
 
         var result = Errors.ValidationFailed(errors);

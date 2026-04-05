@@ -20,7 +20,8 @@ namespace NoMercyBot.Infrastructure.Services.Tts;
 public sealed class EdgeTtsProvider : ITtsProvider
 {
     private const string ProviderName = "edge";
-    private const string WssUrl = "wss://speech.platform.bing.com/consumer/speech/synthesize/realtimetts/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4&ConnectionId=";
+    private const string WssUrl =
+        "wss://speech.platform.bing.com/consumer/speech/synthesize/realtimetts/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4&ConnectionId=";
     private const string TrustedToken = "6A5AA1D4EAFF4E9FB37E23D68491D6F4";
 
     private readonly ILogger<EdgeTtsProvider> _logger;
@@ -33,14 +34,22 @@ public sealed class EdgeTtsProvider : ITtsProvider
     public async Task<TtsSynthesisResult> SynthesizeAsync(
         string text,
         string voiceId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         var connectionId = Guid.NewGuid().ToString("N");
-        var url = $"wss://speech.platform.bing.com/consumer/speech/synthesize/realtimetts/edge/v1?TrustedClientToken={TrustedToken}&ConnectionId={connectionId}";
+        var url =
+            $"wss://speech.platform.bing.com/consumer/speech/synthesize/realtimetts/edge/v1?TrustedClientToken={TrustedToken}&ConnectionId={connectionId}";
 
         using var ws = new ClientWebSocket();
-        ws.Options.SetRequestHeader("Origin", "chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold");
-        ws.Options.SetRequestHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+        ws.Options.SetRequestHeader(
+            "Origin",
+            "chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold"
+        );
+        ws.Options.SetRequestHeader(
+            "User-Agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        );
 
         try
         {
@@ -115,8 +124,17 @@ public sealed class EdgeTtsProvider : ITtsProvider
         {
             if (ws.State == WebSocketState.Open)
             {
-                try { await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Done", CancellationToken.None); }
-                catch { /* ignore close errors */ }
+                try
+                {
+                    await ws.CloseAsync(
+                        WebSocketCloseStatus.NormalClosure,
+                        "Done",
+                        CancellationToken.None
+                    );
+                }
+                catch
+                { /* ignore close errors */
+                }
             }
         }
 
@@ -129,7 +147,9 @@ public sealed class EdgeTtsProvider : ITtsProvider
 
         // Estimate duration: MP3 ~128kbps = 16 KB/s
         int durationMs = (int)(audioData.Length / 16.0 * 1000.0 / 1024.0);
-        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text + voiceId)))[..16];
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text + voiceId)))[
+            ..16
+        ];
 
         return new TtsSynthesisResult
         {
@@ -141,26 +161,148 @@ public sealed class EdgeTtsProvider : ITtsProvider
         };
     }
 
-    public Task<IReadOnlyList<TtsVoiceInfo>> GetVoicesAsync(CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<TtsVoiceInfo>> GetVoicesAsync(
+        CancellationToken cancellationToken = default
+    )
     {
         // Curated subset of popular Edge TTS voices
         IReadOnlyList<TtsVoiceInfo> voices =
         [
-            new TtsVoiceInfo { Id = "en-US-AriaNeural",        Name = "Aria",        DisplayName = "Aria (US)",         Locale = "en-US", Gender = "Female", Provider = ProviderName },
-            new TtsVoiceInfo { Id = "en-US-GuyNeural",         Name = "Guy",         DisplayName = "Guy (US)",          Locale = "en-US", Gender = "Male",   Provider = ProviderName },
-            new TtsVoiceInfo { Id = "en-US-JennyNeural",       Name = "Jenny",       DisplayName = "Jenny (US)",        Locale = "en-US", Gender = "Female", Provider = ProviderName },
-            new TtsVoiceInfo { Id = "en-US-DavisNeural",       Name = "Davis",       DisplayName = "Davis (US)",        Locale = "en-US", Gender = "Male",   Provider = ProviderName },
-            new TtsVoiceInfo { Id = "en-GB-SoniaNeural",       Name = "Sonia",       DisplayName = "Sonia (UK)",        Locale = "en-GB", Gender = "Female", Provider = ProviderName },
-            new TtsVoiceInfo { Id = "en-GB-RyanNeural",        Name = "Ryan",        DisplayName = "Ryan (UK)",         Locale = "en-GB", Gender = "Male",   Provider = ProviderName },
-            new TtsVoiceInfo { Id = "en-AU-NatashaNeural",     Name = "Natasha",     DisplayName = "Natasha (AU)",      Locale = "en-AU", Gender = "Female", Provider = ProviderName },
-            new TtsVoiceInfo { Id = "en-CA-ClaraNeural",       Name = "Clara",       DisplayName = "Clara (CA)",        Locale = "en-CA", Gender = "Female", Provider = ProviderName },
-            new TtsVoiceInfo { Id = "de-DE-KatjaNeural",       Name = "Katja",       DisplayName = "Katja (DE)",        Locale = "de-DE", Gender = "Female", Provider = ProviderName },
-            new TtsVoiceInfo { Id = "de-DE-ConradNeural",      Name = "Conrad",      DisplayName = "Conrad (DE)",       Locale = "de-DE", Gender = "Male",   Provider = ProviderName },
-            new TtsVoiceInfo { Id = "fr-FR-DeniseNeural",      Name = "Denise",      DisplayName = "Denise (FR)",       Locale = "fr-FR", Gender = "Female", Provider = ProviderName },
-            new TtsVoiceInfo { Id = "es-ES-ElviraNeural",      Name = "Elvira",      DisplayName = "Elvira (ES)",       Locale = "es-ES", Gender = "Female", Provider = ProviderName },
-            new TtsVoiceInfo { Id = "ja-JP-NanamiNeural",      Name = "Nanami",      DisplayName = "Nanami (JP)",       Locale = "ja-JP", Gender = "Female", Provider = ProviderName },
-            new TtsVoiceInfo { Id = "ko-KR-SunHiNeural",       Name = "SunHi",       DisplayName = "SunHi (KR)",        Locale = "ko-KR", Gender = "Female", Provider = ProviderName },
-            new TtsVoiceInfo { Id = "pt-BR-FranciscaNeural",   Name = "Francisca",   DisplayName = "Francisca (BR)",    Locale = "pt-BR", Gender = "Female", Provider = ProviderName },
+            new TtsVoiceInfo
+            {
+                Id = "en-US-AriaNeural",
+                Name = "Aria",
+                DisplayName = "Aria (US)",
+                Locale = "en-US",
+                Gender = "Female",
+                Provider = ProviderName,
+            },
+            new TtsVoiceInfo
+            {
+                Id = "en-US-GuyNeural",
+                Name = "Guy",
+                DisplayName = "Guy (US)",
+                Locale = "en-US",
+                Gender = "Male",
+                Provider = ProviderName,
+            },
+            new TtsVoiceInfo
+            {
+                Id = "en-US-JennyNeural",
+                Name = "Jenny",
+                DisplayName = "Jenny (US)",
+                Locale = "en-US",
+                Gender = "Female",
+                Provider = ProviderName,
+            },
+            new TtsVoiceInfo
+            {
+                Id = "en-US-DavisNeural",
+                Name = "Davis",
+                DisplayName = "Davis (US)",
+                Locale = "en-US",
+                Gender = "Male",
+                Provider = ProviderName,
+            },
+            new TtsVoiceInfo
+            {
+                Id = "en-GB-SoniaNeural",
+                Name = "Sonia",
+                DisplayName = "Sonia (UK)",
+                Locale = "en-GB",
+                Gender = "Female",
+                Provider = ProviderName,
+            },
+            new TtsVoiceInfo
+            {
+                Id = "en-GB-RyanNeural",
+                Name = "Ryan",
+                DisplayName = "Ryan (UK)",
+                Locale = "en-GB",
+                Gender = "Male",
+                Provider = ProviderName,
+            },
+            new TtsVoiceInfo
+            {
+                Id = "en-AU-NatashaNeural",
+                Name = "Natasha",
+                DisplayName = "Natasha (AU)",
+                Locale = "en-AU",
+                Gender = "Female",
+                Provider = ProviderName,
+            },
+            new TtsVoiceInfo
+            {
+                Id = "en-CA-ClaraNeural",
+                Name = "Clara",
+                DisplayName = "Clara (CA)",
+                Locale = "en-CA",
+                Gender = "Female",
+                Provider = ProviderName,
+            },
+            new TtsVoiceInfo
+            {
+                Id = "de-DE-KatjaNeural",
+                Name = "Katja",
+                DisplayName = "Katja (DE)",
+                Locale = "de-DE",
+                Gender = "Female",
+                Provider = ProviderName,
+            },
+            new TtsVoiceInfo
+            {
+                Id = "de-DE-ConradNeural",
+                Name = "Conrad",
+                DisplayName = "Conrad (DE)",
+                Locale = "de-DE",
+                Gender = "Male",
+                Provider = ProviderName,
+            },
+            new TtsVoiceInfo
+            {
+                Id = "fr-FR-DeniseNeural",
+                Name = "Denise",
+                DisplayName = "Denise (FR)",
+                Locale = "fr-FR",
+                Gender = "Female",
+                Provider = ProviderName,
+            },
+            new TtsVoiceInfo
+            {
+                Id = "es-ES-ElviraNeural",
+                Name = "Elvira",
+                DisplayName = "Elvira (ES)",
+                Locale = "es-ES",
+                Gender = "Female",
+                Provider = ProviderName,
+            },
+            new TtsVoiceInfo
+            {
+                Id = "ja-JP-NanamiNeural",
+                Name = "Nanami",
+                DisplayName = "Nanami (JP)",
+                Locale = "ja-JP",
+                Gender = "Female",
+                Provider = ProviderName,
+            },
+            new TtsVoiceInfo
+            {
+                Id = "ko-KR-SunHiNeural",
+                Name = "SunHi",
+                DisplayName = "SunHi (KR)",
+                Locale = "ko-KR",
+                Gender = "Female",
+                Provider = ProviderName,
+            },
+            new TtsVoiceInfo
+            {
+                Id = "pt-BR-FranciscaNeural",
+                Name = "Francisca",
+                DisplayName = "Francisca (BR)",
+                Locale = "pt-BR",
+                Gender = "Female",
+                Provider = ProviderName,
+            },
         ];
 
         return Task.FromResult(voices);
@@ -170,27 +312,37 @@ public sealed class EdgeTtsProvider : ITtsProvider
 
     private static string BuildConfigMessage(string connectionId)
     {
-        var timestamp = DateTime.UtcNow.ToString("ddd MMM dd yyyy HH:mm:ss 'GMT+0000 (Coordinated Universal Time)'");
+        var timestamp = DateTime.UtcNow.ToString(
+            "ddd MMM dd yyyy HH:mm:ss 'GMT+0000 (Coordinated Universal Time)'"
+        );
         return $"X-Timestamp:{timestamp}\r\nContent-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n"
-            + JsonSerializer.Serialize(new
-            {
-                context = new
+            + JsonSerializer.Serialize(
+                new
                 {
-                    synthesis = new
+                    context = new
                     {
-                        audio = new
+                        synthesis = new
                         {
-                            metadataoptions = new { sentenceBoundaryEnabled = false, wordBoundaryEnabled = false },
-                            outputFormat = "audio-24khz-48kbitrate-mono-mp3",
+                            audio = new
+                            {
+                                metadataoptions = new
+                                {
+                                    sentenceBoundaryEnabled = false,
+                                    wordBoundaryEnabled = false,
+                                },
+                                outputFormat = "audio-24khz-48kbitrate-mono-mp3",
+                            },
                         },
                     },
-                },
-            });
+                }
+            );
     }
 
     private static string BuildSynthesisMessage(string requestId, string ssml)
     {
-        var timestamp = DateTime.UtcNow.ToString("ddd MMM dd yyyy HH:mm:ss 'GMT+0000 (Coordinated Universal Time)'");
+        var timestamp = DateTime.UtcNow.ToString(
+            "ddd MMM dd yyyy HH:mm:ss 'GMT+0000 (Coordinated Universal Time)'"
+        );
         return $"X-RequestId:{requestId}\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:{timestamp}\r\nPath:ssml\r\n\r\n{ssml}";
     }
 
@@ -198,15 +350,19 @@ public sealed class EdgeTtsProvider : ITtsProvider
     {
         var escaped = System.Security.SecurityElement.Escape(text) ?? text;
         return $"""
-                <speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'>
-                  <voice name='{voiceId}'>
-                    <prosody rate='+0%' pitch='+0Hz'>{escaped}</prosody>
-                  </voice>
-                </speak>
-                """;
+            <speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'>
+              <voice name='{voiceId}'>
+                <prosody rate='+0%' pitch='+0Hz'>{escaped}</prosody>
+              </voice>
+            </speak>
+            """;
     }
 
-    private static async Task SendTextAsync(ClientWebSocket ws, string message, CancellationToken ct)
+    private static async Task SendTextAsync(
+        ClientWebSocket ws,
+        string message,
+        CancellationToken ct
+    )
     {
         var bytes = Encoding.UTF8.GetBytes(message);
         await ws.SendAsync(bytes, WebSocketMessageType.Text, true, ct);
@@ -216,18 +372,24 @@ public sealed class EdgeTtsProvider : ITtsProvider
     {
         for (int i = 0; i < data.Length - 3; i++)
         {
-            if (data[i] == '\r' && data[i + 1] == '\n' && data[i + 2] == '\r' && data[i + 3] == '\n')
+            if (
+                data[i] == '\r'
+                && data[i + 1] == '\n'
+                && data[i + 2] == '\r'
+                && data[i + 3] == '\n'
+            )
                 return i;
         }
         return -1;
     }
 
-    private static TtsSynthesisResult EmptyResult(string voiceId) => new()
-    {
-        AudioData = [],
-        DurationMs = 0,
-        Provider = ProviderName,
-        VoiceId = voiceId,
-        ContentHash = string.Empty,
-    };
+    private static TtsSynthesisResult EmptyResult(string voiceId) =>
+        new()
+        {
+            AudioData = [],
+            DurationMs = 0,
+            Provider = ProviderName,
+            VoiceId = voiceId,
+            ContentHash = string.Empty,
+        };
 }

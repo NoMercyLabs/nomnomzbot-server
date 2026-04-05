@@ -25,15 +25,17 @@ public sealed class TtsService : ITtsService
     private readonly Dictionary<string, byte[]> _cache = new();
     private readonly Lock _cacheLock = new();
 
-    public TtsService(
-        IEnumerable<ITtsProvider> providers,
-        ILogger<TtsService> logger)
+    public TtsService(IEnumerable<ITtsProvider> providers, ILogger<TtsService> logger)
     {
         _providers = providers;
         _logger = logger;
     }
 
-    public async Task<TtsResult> SynthesizeAsync(string text, string voiceId, CancellationToken ct = default)
+    public async Task<TtsResult> SynthesizeAsync(
+        string text,
+        string voiceId,
+        CancellationToken ct = default
+    )
     {
         if (string.IsNullOrWhiteSpace(text))
             return new TtsResult([], 0, voiceId, "none");
@@ -61,7 +63,11 @@ public sealed class TtsService : ITtsService
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _logger.LogError(ex, "TTS synthesis failed for voice {VoiceId}, falling back to Edge TTS", voiceId);
+            _logger.LogError(
+                ex,
+                "TTS synthesis failed for voice {VoiceId}, falling back to Edge TTS",
+                voiceId
+            );
 
             // Fall back to Edge TTS
             var edgeProvider = _providers.OfType<EdgeTtsProvider>().FirstOrDefault();
@@ -89,7 +95,9 @@ public sealed class TtsService : ITtsService
         return new TtsResult(result.AudioData, result.DurationMs, voiceId, result.Provider);
     }
 
-    public async Task<IReadOnlyList<TtsVoiceInfo>> GetAvailableVoicesAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<TtsVoiceInfo>> GetAvailableVoicesAsync(
+        CancellationToken ct = default
+    )
     {
         var allVoices = new List<TtsVoiceInfo>();
 
@@ -102,7 +110,11 @@ public sealed class TtsService : ITtsService
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                _logger.LogWarning(ex, "TTS provider {Provider} failed to return voices", provider.GetType().Name);
+                _logger.LogWarning(
+                    ex,
+                    "TTS provider {Provider} failed to return voices",
+                    provider.GetType().Name
+                );
             }
         }
 
@@ -121,16 +133,19 @@ public sealed class TtsService : ITtsService
         if (Guid.TryParse(voiceId, out _))
         {
             var elevenlabs = _providers.OfType<ElevenLabsTtsProvider>().FirstOrDefault();
-            if (elevenlabs is not null) return elevenlabs;
+            if (elevenlabs is not null)
+                return elevenlabs;
         }
 
         // Azure configured separately per BYOK
         var azure = _providers.OfType<AzureTtsProvider>().FirstOrDefault();
-        if (azure is not null) return azure;
+        if (azure is not null)
+            return azure;
 
         // Default: Edge TTS (free)
         var edge = _providers.OfType<EdgeTtsProvider>().FirstOrDefault();
-        if (edge is not null) return edge;
+        if (edge is not null)
+            return edge;
 
         return _providers.First();
     }

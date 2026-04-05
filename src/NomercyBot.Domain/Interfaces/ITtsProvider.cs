@@ -8,7 +8,11 @@ namespace NoMercyBot.Domain.Interfaces;
 /// </summary>
 public interface ITtsProvider
 {
-    Task<TtsSynthesisResult> SynthesizeAsync(string text, string voiceId, CancellationToken cancellationToken = default);
+    Task<TtsSynthesisResult> SynthesizeAsync(
+        string text,
+        string voiceId,
+        CancellationToken cancellationToken = default
+    );
 
     Task<IReadOnlyList<TtsVoiceInfo>> GetVoicesAsync(CancellationToken cancellationToken = default);
 }

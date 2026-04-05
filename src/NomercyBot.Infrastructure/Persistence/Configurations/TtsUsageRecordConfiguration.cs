@@ -12,23 +12,14 @@ public class TtsUsageRecordConfiguration : IEntityTypeConfiguration<TtsUsageReco
     {
         builder.HasKey(e => e.Id);
 
-        builder.Property(e => e.BroadcasterId)
-            .IsRequired()
-            .HasMaxLength(50);
+        builder.Property(e => e.BroadcasterId).IsRequired().HasMaxLength(50);
 
-        builder.Property(e => e.UserId)
-            .IsRequired()
-            .HasMaxLength(50);
+        builder.Property(e => e.UserId).IsRequired().HasMaxLength(50);
 
-        builder.Property(e => e.CharacterCount)
-            .IsRequired();
+        builder.Property(e => e.CharacterCount).IsRequired();
 
-        builder.Property(e => e.Provider)
-            .IsRequired()
-            .HasMaxLength(50);
+        builder.Property(e => e.Provider).IsRequired().HasMaxLength(50);
 
-        builder.Property(e => e.VoiceId)
-            .IsRequired()
-            .HasMaxLength(255);
+        builder.Property(e => e.VoiceId).IsRequired().HasMaxLength(255);
     }
 }

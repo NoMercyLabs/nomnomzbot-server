@@ -82,9 +82,11 @@ public class ResultTests
     {
         var result = Result.Failure<int>("broken");
 
-        var act = () => { var _ = result.Value; };
-        act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*failed Result*");
+        var act = () =>
+        {
+            var _ = result.Value;
+        };
+        act.Should().Throw<InvalidOperationException>().WithMessage("*failed Result*");
     }
 
     [Fact]
@@ -157,8 +159,13 @@ public class ResultExtensionsTests
     public void Bind_Failure_DoesNotCallBinder()
     {
         var called = false;
-        var result = Result.Failure<string>("original error")
-            .Bind<string, int>(s => { called = true; return Result.Success(s.Length); });
+        var result = Result
+            .Failure<string>("original error")
+            .Bind<string, int>(s =>
+            {
+                called = true;
+                return Result.Success(s.Length);
+            });
 
         called.Should().BeFalse();
         result.IsSuccess.Should().BeFalse();
@@ -170,7 +177,8 @@ public class ResultExtensionsTests
     [Fact]
     public async Task BindAsync_Success_CallsAsyncBinder()
     {
-        var result = await Result.Success(10)
+        var result = await Result
+            .Success(10)
             .BindAsync(x => Task.FromResult(Result.Success(x + 5)));
 
         result.IsSuccess.Should().BeTrue();
@@ -181,8 +189,13 @@ public class ResultExtensionsTests
     public async Task BindAsync_Failure_DoesNotCallBinder()
     {
         var called = false;
-        var result = await Result.Failure<int>("error")
-            .BindAsync(x => { called = true; return Task.FromResult(Result.Success(x)); });
+        var result = await Result
+            .Failure<int>("error")
+            .BindAsync(x =>
+            {
+                called = true;
+                return Task.FromResult(Result.Success(x));
+            });
 
         called.Should().BeFalse();
         result.IsSuccess.Should().BeFalse();
@@ -202,7 +215,11 @@ public class ResultExtensionsTests
     {
         var called = false;
         var result = await Task.FromResult(Result.Failure<int>("fail"))
-            .BindAsync(x => { called = true; return Task.FromResult(Result.Success(x)); });
+            .BindAsync(x =>
+            {
+                called = true;
+                return Task.FromResult(Result.Success(x));
+            });
 
         called.Should().BeFalse();
         result.IsFailure.Should().BeTrue();
@@ -213,9 +230,9 @@ public class ResultExtensionsTests
     [Fact]
     public void Match_Success_CallsOnSuccess()
     {
-        var result = Result.Success(42).Match(
-            onSuccess: v => $"ok:{v}",
-            onFailure: (msg, code) => $"fail:{msg}");
+        var result = Result
+            .Success(42)
+            .Match(onSuccess: v => $"ok:{v}", onFailure: (msg, code) => $"fail:{msg}");
 
         result.Should().Be("ok:42");
     }
@@ -223,9 +240,9 @@ public class ResultExtensionsTests
     [Fact]
     public void Match_Failure_CallsOnFailure()
     {
-        var result = Result.Failure<int>("broke", "CODE").Match(
-            onSuccess: v => $"ok:{v}",
-            onFailure: (msg, code) => $"fail:{msg}|{code}");
+        var result = Result
+            .Failure<int>("broke", "CODE")
+            .Match(onSuccess: v => $"ok:{v}", onFailure: (msg, code) => $"fail:{msg}|{code}");
 
         result.Should().Be("fail:broke|CODE");
     }
@@ -257,11 +274,13 @@ public class ResultExtensionsTests
     public async Task TapAsync_Success_AwaitsActionAndReturnsResult()
     {
         int captured = 0;
-        var result = await Result.Success(99).TapAsync(async v =>
-        {
-            await Task.Delay(1);
-            captured = v;
-        });
+        var result = await Result
+            .Success(99)
+            .TapAsync(async v =>
+            {
+                await Task.Delay(1);
+                captured = v;
+            });
 
         captured.Should().Be(99);
         result.Value.Should().Be(99);

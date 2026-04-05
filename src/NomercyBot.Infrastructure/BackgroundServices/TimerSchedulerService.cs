@@ -29,7 +29,8 @@ public sealed class TimerSchedulerService : BackgroundService
 
     public TimerSchedulerService(
         IServiceProvider serviceProvider,
-        ILogger<TimerSchedulerService> logger)
+        ILogger<TimerSchedulerService> logger
+    )
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
@@ -73,8 +74,8 @@ public sealed class TimerSchedulerService : BackgroundService
         var now = DateTimeOffset.UtcNow;
 
         // Load all timer commands
-        var timerRecords = await db.Records
-            .Where(r => r.RecordType == TimerRecordType)
+        var timerRecords = await db
+            .Records.Where(r => r.RecordType == TimerRecordType)
             .ToListAsync(ct);
 
         foreach (var record in timerRecords)
@@ -82,11 +83,13 @@ public sealed class TimerSchedulerService : BackgroundService
             try
             {
                 var timer = JsonSerializer.Deserialize<TimerCommandData>(record.Data);
-                if (timer is null || !timer.IsEnabled) continue;
+                if (timer is null || !timer.IsEnabled)
+                    continue;
 
                 // Check if interval has elapsed since last fire
                 var elapsed = now - timer.LastFiredAt;
-                if (elapsed.TotalSeconds < timer.IntervalSeconds) continue;
+                if (elapsed.TotalSeconds < timer.IntervalSeconds)
+                    continue;
 
                 // Check chat activity: if no messages in the last interval window, skip
                 DateTimeOffset lastActivity;
@@ -98,8 +101,11 @@ public sealed class TimerSchedulerService : BackgroundService
 
                 if (timer.RequiresActivity && lastActivity < now.AddSeconds(-timer.IntervalSeconds))
                 {
-                    _logger.LogDebug("TimerScheduler: Skipping timer '{Name}' for {BroadcasterId} — no chat activity",
-                        timer.Name, record.BroadcasterId);
+                    _logger.LogDebug(
+                        "TimerScheduler: Skipping timer '{Name}' for {BroadcasterId} — no chat activity",
+                        timer.Name,
+                        record.BroadcasterId
+                    );
                     continue;
                 }
 
@@ -107,7 +113,11 @@ public sealed class TimerSchedulerService : BackgroundService
                 if (!string.IsNullOrWhiteSpace(timer.Message))
                 {
                     await chatService.SendMessageAsync(record.BroadcasterId, timer.Message, ct);
-                    _logger.LogDebug("TimerScheduler: Fired '{Name}' for {BroadcasterId}", timer.Name, record.BroadcasterId);
+                    _logger.LogDebug(
+                        "TimerScheduler: Fired '{Name}' for {BroadcasterId}",
+                        timer.Name,
+                        record.BroadcasterId
+                    );
                 }
 
                 // Update last fired timestamp
@@ -117,7 +127,11 @@ public sealed class TimerSchedulerService : BackgroundService
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                _logger.LogError(ex, "TimerScheduler: Error processing timer record {RecordId}", record.Id);
+                _logger.LogError(
+                    ex,
+                    "TimerScheduler: Error processing timer record {RecordId}",
+                    record.Id
+                );
             }
         }
     }

@@ -19,10 +19,15 @@ public class ChannelService : IChannelService
         _db = db;
     }
 
-    public async Task<Result> JoinAsync(string broadcasterId, CancellationToken cancellationToken = default)
+    public async Task<Result> JoinAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    )
     {
-        var channel = await _db.Channels
-            .FirstOrDefaultAsync(c => c.Id == broadcasterId, cancellationToken);
+        var channel = await _db.Channels.FirstOrDefaultAsync(
+            c => c.Id == broadcasterId,
+            cancellationToken
+        );
 
         if (channel is null)
             return Errors.ChannelNotFound(broadcasterId);
@@ -34,10 +39,15 @@ public class ChannelService : IChannelService
         return Result.Success();
     }
 
-    public async Task<Result> LeaveAsync(string broadcasterId, CancellationToken cancellationToken = default)
+    public async Task<Result> LeaveAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    )
     {
-        var channel = await _db.Channels
-            .FirstOrDefaultAsync(c => c.Id == broadcasterId, cancellationToken);
+        var channel = await _db.Channels.FirstOrDefaultAsync(
+            c => c.Id == broadcasterId,
+            cancellationToken
+        );
 
         if (channel is null)
             return Errors.ChannelNotFound(broadcasterId);
@@ -48,10 +58,13 @@ public class ChannelService : IChannelService
         return Result.Success();
     }
 
-    public async Task<Result<ChannelDto>> GetAsync(string broadcasterId, CancellationToken cancellationToken = default)
+    public async Task<Result<ChannelDto>> GetAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    )
     {
-        var channel = await _db.Channels
-            .Include(c => c.User)
+        var channel = await _db
+            .Channels.Include(c => c.User)
             .FirstOrDefaultAsync(c => c.Id == broadcasterId, cancellationToken);
 
         if (channel is null)
@@ -60,10 +73,12 @@ public class ChannelService : IChannelService
         return Result.Success(ToDto(channel));
     }
 
-    public async Task<Result<IReadOnlyList<ChannelSummaryDto>>> GetAllActiveAsync(CancellationToken cancellationToken = default)
+    public async Task<Result<IReadOnlyList<ChannelSummaryDto>>> GetAllActiveAsync(
+        CancellationToken cancellationToken = default
+    )
     {
-        var channels = await _db.Channels
-            .Include(c => c.User)
+        var channels = await _db
+            .Channels.Include(c => c.User)
             .Where(c => c.Enabled && c.IsOnboarded)
             .OrderBy(c => c.Name)
             .Select(c => new ChannelSummaryDto(
@@ -73,7 +88,8 @@ public class ChannelService : IChannelService
                 c.User.ProfileImageUrl,
                 c.IsLive,
                 "broadcaster",
-                null))
+                null
+            ))
             .ToListAsync(cancellationToken);
 
         return Result.Success<IReadOnlyList<ChannelSummaryDto>>(channels);
@@ -82,11 +98,12 @@ public class ChannelService : IChannelService
     public async Task<Result<PagedList<ChannelSummaryDto>>> GetChannelsAsync(
         string userId,
         PaginationParams pagination,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         // Return channels where the user is the broadcaster or a moderator
-        var query = _db.Channels
-            .Include(c => c.User)
+        var query = _db
+            .Channels.Include(c => c.User)
             .Where(c => c.Id == userId || c.Moderators.Any(m => m.UserId == userId));
 
         var total = await query.CountAsync(cancellationToken);
@@ -102,27 +119,34 @@ public class ChannelService : IChannelService
                 c.User.ProfileImageUrl,
                 c.IsLive,
                 c.Id == userId ? "broadcaster" : "moderator",
-                null))
+                null
+            ))
             .ToListAsync(cancellationToken);
 
-        return Result.Success(new PagedList<ChannelSummaryDto>(items, total, pagination.Page, pagination.PageSize));
+        return Result.Success(
+            new PagedList<ChannelSummaryDto>(items, total, pagination.Page, pagination.PageSize)
+        );
     }
 
     public async Task<Result<ChannelDto>> UpdateSettingsAsync(
         string broadcasterId,
         UpdateChannelSettingsDto request,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
-        var channel = await _db.Channels
-            .Include(c => c.User)
+        var channel = await _db
+            .Channels.Include(c => c.User)
             .FirstOrDefaultAsync(c => c.Id == broadcasterId, cancellationToken);
 
         if (channel is null)
             return Errors.ChannelNotFound<ChannelDto>(broadcasterId);
 
-        if (request.DisplayName is not null) channel.User.DisplayName = request.DisplayName;
-        if (request.Locale is not null) channel.Language = request.Locale;
-        if (request.AutoJoin.HasValue) channel.Enabled = request.AutoJoin.Value;
+        if (request.DisplayName is not null)
+            channel.User.DisplayName = request.DisplayName;
+        if (request.Locale is not null)
+            channel.Language = request.Locale;
+        if (request.AutoJoin.HasValue)
+            channel.Enabled = request.AutoJoin.Value;
 
         await _db.SaveChangesAsync(cancellationToken);
         return Result.Success(ToDto(channel));
@@ -131,10 +155,11 @@ public class ChannelService : IChannelService
     public async Task<Result<ChannelDto>> OnboardAsync(
         string broadcasterId,
         CreateChannelRequest request,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
-        var existing = await _db.Channels
-            .Include(c => c.User)
+        var existing = await _db
+            .Channels.Include(c => c.User)
             .FirstOrDefaultAsync(c => c.Id == broadcasterId, cancellationToken);
 
         if (existing is not null)
@@ -146,9 +171,15 @@ public class ChannelService : IChannelService
         }
 
         // Check if user exists
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == broadcasterId, cancellationToken);
+        var user = await _db.Users.FirstOrDefaultAsync(
+            u => u.Id == broadcasterId,
+            cancellationToken
+        );
         if (user is null)
-            return Result.Failure<ChannelDto>("User not found. Cannot onboard channel.", "NOT_FOUND");
+            return Result.Failure<ChannelDto>(
+                "User not found. Cannot onboard channel.",
+                "NOT_FOUND"
+            );
 
         var channel = new Channel
         {
@@ -166,10 +197,15 @@ public class ChannelService : IChannelService
         return Result.Success(ToDto(channel));
     }
 
-    public async Task<Result> DeleteAsync(string broadcasterId, CancellationToken cancellationToken = default)
+    public async Task<Result> DeleteAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    )
     {
-        var channel = await _db.Channels
-            .FirstOrDefaultAsync(c => c.Id == broadcasterId, cancellationToken);
+        var channel = await _db.Channels.FirstOrDefaultAsync(
+            c => c.Id == broadcasterId,
+            cancellationToken
+        );
 
         if (channel is null)
             return Errors.ChannelNotFound(broadcasterId);
@@ -180,26 +216,31 @@ public class ChannelService : IChannelService
         return Result.Success();
     }
 
-    public async Task<ChannelOverlayInfo?> GetByOverlayTokenAsync(string token, CancellationToken cancellationToken = default)
+    public async Task<ChannelOverlayInfo?> GetByOverlayTokenAsync(
+        string token,
+        CancellationToken cancellationToken = default
+    )
     {
-        return await _db.Channels
-            .Include(c => c.User)
+        return await _db
+            .Channels.Include(c => c.User)
             .Where(c => c.OverlayToken == token)
             .Select(c => new ChannelOverlayInfo(c.Id, c.User.DisplayName))
             .FirstOrDefaultAsync(cancellationToken);
     }
 
-    private static ChannelDto ToDto(Channel c) => new(
-        c.Id,
-        c.Name,
-        c.User?.DisplayName ?? c.Name,
-        c.User?.ProfileImageUrl,
-        c.IsLive,
-        c.IsOnboarded,
-        c.Title,
-        c.GameName,
-        null,
-        c.BotJoinedAt,
-        "free",
-        c.CreatedAt);
+    private static ChannelDto ToDto(Channel c) =>
+        new(
+            c.Id,
+            c.Name,
+            c.User?.DisplayName ?? c.Name,
+            c.User?.ProfileImageUrl,
+            c.IsLive,
+            c.IsOnboarded,
+            c.Title,
+            c.GameName,
+            null,
+            c.BotJoinedAt,
+            "free",
+            c.CreatedAt
+        );
 }

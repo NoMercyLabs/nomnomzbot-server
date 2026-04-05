@@ -9,12 +9,22 @@ public class ActionResult
     public bool StopPipeline { get; init; }
     public string? Output { get; init; }
 
-    public static ActionResult Ok(string? output = null, Dictionary<string, string>? vars = null)
-        => new() { Success = true, Output = output, VariablesSet = vars ?? new() };
+    public static ActionResult Ok(string? output = null, Dictionary<string, string>? vars = null) =>
+        new()
+        {
+            Success = true,
+            Output = output,
+            VariablesSet = vars ?? new(),
+        };
 
-    public static ActionResult Fail(string error)
-        => new() { Success = false, ErrorMessage = error };
+    public static ActionResult Fail(string error) =>
+        new() { Success = false, ErrorMessage = error };
 
-    public static ActionResult Stop(string? output = null)
-        => new() { Success = true, StopPipeline = true, Output = output };
+    public static ActionResult Stop(string? output = null) =>
+        new()
+        {
+            Success = true,
+            StopPipeline = true,
+            Output = output,
+        };
 }

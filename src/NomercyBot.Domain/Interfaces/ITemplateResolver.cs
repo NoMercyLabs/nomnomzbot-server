@@ -17,7 +17,8 @@ public interface ITemplateResolver
         string template,
         IDictionary<string, string> seedVariables,
         string? broadcasterId,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default
+    );
 
     /// <summary>Simple synchronous resolve using only the provided variables (no async DB lookups).</summary>
     string Resolve(string template, IDictionary<string, string> variables);

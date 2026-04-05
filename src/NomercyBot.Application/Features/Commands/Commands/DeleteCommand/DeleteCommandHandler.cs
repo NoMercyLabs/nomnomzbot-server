@@ -16,10 +16,16 @@ public class DeleteCommandHandler
         _db = db;
     }
 
-    public async Task<Result> HandleAsync(string channelId, string commandName, CancellationToken ct = default)
+    public async Task<Result> HandleAsync(
+        string channelId,
+        string commandName,
+        CancellationToken ct = default
+    )
     {
-        var command = await _db.Commands
-            .FirstOrDefaultAsync(c => c.BroadcasterId == channelId && c.Name == commandName, ct);
+        var command = await _db.Commands.FirstOrDefaultAsync(
+            c => c.BroadcasterId == channelId && c.Name == commandName,
+            ct
+        );
 
         if (command is null)
             return Errors.NotFound<object>("Command", commandName);

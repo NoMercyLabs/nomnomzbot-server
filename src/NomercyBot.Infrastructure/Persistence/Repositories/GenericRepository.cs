@@ -5,7 +5,8 @@ using NoMercyBot.Application.Common.Models;
 
 namespace NoMercyBot.Infrastructure.Persistence.Repositories;
 
-public abstract class GenericRepository<T> where T : class
+public abstract class GenericRepository<T>
+    where T : class
 {
     protected readonly AppDbContext Db;
     protected readonly DbSet<T> Set;
@@ -16,44 +17,44 @@ public abstract class GenericRepository<T> where T : class
         Set = db.Set<T>();
     }
 
-    public virtual async Task<T?> GetByIdAsync<TKey>(TKey id, CancellationToken ct = default)
-        => await Set.FindAsync([id], ct);
+    public virtual async Task<T?> GetByIdAsync<TKey>(TKey id, CancellationToken ct = default) =>
+        await Set.FindAsync([id], ct);
 
-    public virtual async Task<IReadOnlyList<T>> GetAllAsync(CancellationToken ct = default)
-        => await Set.ToListAsync(ct);
+    public virtual async Task<IReadOnlyList<T>> GetAllAsync(CancellationToken ct = default) =>
+        await Set.ToListAsync(ct);
 
     public virtual async Task<IReadOnlyList<T>> FindAsync(
         Expression<Func<T, bool>> predicate,
-        CancellationToken ct = default)
-        => await Set.Where(predicate).ToListAsync(ct);
+        CancellationToken ct = default
+    ) => await Set.Where(predicate).ToListAsync(ct);
 
     public virtual async Task<T?> FirstOrDefaultAsync(
         Expression<Func<T, bool>> predicate,
-        CancellationToken ct = default)
-        => await Set.FirstOrDefaultAsync(predicate, ct);
+        CancellationToken ct = default
+    ) => await Set.FirstOrDefaultAsync(predicate, ct);
 
     public virtual async Task<bool> ExistsAsync(
         Expression<Func<T, bool>> predicate,
-        CancellationToken ct = default)
-        => await Set.AnyAsync(predicate, ct);
+        CancellationToken ct = default
+    ) => await Set.AnyAsync(predicate, ct);
 
     public virtual async Task<int> CountAsync(
         Expression<Func<T, bool>>? predicate = null,
-        CancellationToken ct = default)
-        => predicate == null
-            ? await Set.CountAsync(ct)
-            : await Set.CountAsync(predicate, ct);
+        CancellationToken ct = default
+    ) => predicate == null ? await Set.CountAsync(ct) : await Set.CountAsync(predicate, ct);
 
-    public virtual async Task AddAsync(T entity, CancellationToken ct = default)
-        => await Set.AddAsync(entity, ct);
+    public virtual async Task AddAsync(T entity, CancellationToken ct = default) =>
+        await Set.AddAsync(entity, ct);
 
     public virtual void Update(T entity) => Set.Update(entity);
+
     public virtual void Remove(T entity) => Set.Remove(entity);
 
     public virtual async Task<PagedList<T>> GetPagedAsync(
         PaginationParams paging,
         Expression<Func<T, bool>>? filter = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var query = filter != null ? Set.Where(filter) : Set.AsQueryable();
         var total = await query.CountAsync(ct);
@@ -64,6 +65,6 @@ public abstract class GenericRepository<T> where T : class
         return new PagedList<T>(items, total, paging.Page, paging.PageSize);
     }
 
-    public async Task<int> SaveChangesAsync(CancellationToken ct = default)
-        => await Db.SaveChangesAsync(ct);
+    public async Task<int> SaveChangesAsync(CancellationToken ct = default) =>
+        await Db.SaveChangesAsync(ct);
 }

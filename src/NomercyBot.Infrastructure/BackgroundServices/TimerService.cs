@@ -39,7 +39,8 @@ public sealed class TimerService : BackgroundService
         IServiceScopeFactory scopeFactory,
         IChannelRegistry registry,
         ITemplateResolver templateResolver,
-        ILogger<TimerService> logger)
+        ILogger<TimerService> logger
+    )
     {
         _scopeFactory = scopeFactory;
         _registry = registry;
@@ -70,7 +71,8 @@ public sealed class TimerService : BackgroundService
     {
         // Only process channels the bot is actively connected to
         var liveChannels = _registry.GetAll();
-        if (liveChannels.Count == 0) return;
+        if (liveChannels.Count == 0)
+            return;
 
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
@@ -79,10 +81,10 @@ public sealed class TimerService : BackgroundService
         var now = DateTime.UtcNow;
         var broadcasterIds = liveChannels.Select(c => c.BroadcasterId).ToList();
 
-        var timers = await db.Timers
-            .Where(t => t.IsEnabled
-                && t.DeletedAt == null
-                && broadcasterIds.Contains(t.BroadcasterId))
+        var timers = await db
+            .Timers.Where(t =>
+                t.IsEnabled && t.DeletedAt == null && broadcasterIds.Contains(t.BroadcasterId)
+            )
             .ToListAsync(ct);
 
         foreach (var timer in timers)
@@ -103,14 +105,17 @@ public sealed class TimerService : BackgroundService
         IChatProvider chat,
         Domain.Entities.Timer timer,
         DateTime now,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         // Check interval
         var nextFire = (timer.LastFiredAt ?? DateTime.MinValue).AddMinutes(timer.IntervalMinutes);
-        if (now < nextFire) return;
+        if (now < nextFire)
+            return;
 
         var channelCtx = _registry.Get(timer.BroadcasterId);
-        if (channelCtx is null) return;
+        if (channelCtx is null)
+            return;
 
         // Check minimum chat activity since last fire
         if (timer.MinChatActivity > 0)
@@ -121,12 +126,16 @@ public sealed class TimerService : BackgroundService
             {
                 _logger.LogDebug(
                     "Timer {Name} skipped — only {Count}/{Required} messages since last fire",
-                    timer.Name, messagesSinceLastFire, timer.MinChatActivity);
+                    timer.Name,
+                    messagesSinceLastFire,
+                    timer.MinChatActivity
+                );
                 return;
             }
         }
 
-        if (timer.Messages.Count == 0) return;
+        if (timer.Messages.Count == 0)
+            return;
 
         // Pick next message (round-robin)
         var messageTemplate = timer.Messages[timer.NextMessageIndex % timer.Messages.Count];
@@ -136,9 +145,11 @@ public sealed class TimerService : BackgroundService
             messageTemplate,
             new Dictionary<string, string>(),
             timer.BroadcasterId,
-            ct);
+            ct
+        );
 
-        if (string.IsNullOrWhiteSpace(message)) return;
+        if (string.IsNullOrWhiteSpace(message))
+            return;
 
         // Send to chat
         await chat.SendMessageAsync(timer.BroadcasterId, message, cancellationToken: ct);
@@ -153,6 +164,9 @@ public sealed class TimerService : BackgroundService
 
         _logger.LogInformation(
             "Timer {Name} fired in channel {BroadcasterId}: \"{Message}\"",
-            timer.Name, timer.BroadcasterId, message);
+            timer.Name,
+            timer.BroadcasterId,
+            message
+        );
     }
 }

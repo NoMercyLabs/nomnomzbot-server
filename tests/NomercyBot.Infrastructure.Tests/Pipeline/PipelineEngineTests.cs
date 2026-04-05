@@ -29,24 +29,29 @@ public class InfraPipelineEngineTests
             new WaitAction(),
         };
 
-        var conditions = new ICommandCondition[]
-        {
-            new UserRoleCondition(),
-            new RandomCondition()
-        };
+        var conditions = new ICommandCondition[] { new UserRoleCondition(), new RandomCondition() };
 
-        return new PipelineEngine(registry, actions, conditions, NullLogger<PipelineEngine>.Instance);
+        return new PipelineEngine(
+            registry,
+            actions,
+            conditions,
+            NullLogger<PipelineEngine>.Instance
+        );
     }
 
-    private static PipelineRequest BuildRequest(string json, string broadcaster = "chan", string user = "user1")
-        => new()
+    private static PipelineRequest BuildRequest(
+        string json,
+        string broadcaster = "chan",
+        string user = "user1"
+    ) =>
+        new()
         {
             BroadcasterId = broadcaster,
             TriggeredByUserId = user,
             TriggeredByDisplayName = "TestUser",
             PipelineJson = json,
             MessageId = "msg1",
-            RawMessage = ""
+            RawMessage = "",
         };
 
     // ─── Basic execution ──────────────────────────────────────────────────────
@@ -84,7 +89,8 @@ public class InfraPipelineEngineTests
     public async Task ExecuteAsync_UnknownAction_ContinuesExecution()
     {
         var engine = CreateEngine();
-        var json = """{"steps":[{"action":{"type":"does_not_exist"}},{"action":{"type":"stop"}}]}""";
+        var json =
+            """{"steps":[{"action":{"type":"does_not_exist"}},{"action":{"type":"stop"}}]}""";
         var result = await engine.ExecuteAsync(BuildRequest(json));
 
         // Unknown action is logged as warning and fails the step, but execution continues (fail-open)
@@ -98,13 +104,13 @@ public class InfraPipelineEngineTests
     {
         var engine = CreateEngine();
         const string json = """
-        {
-          "steps": [
-            {"action":{"type":"stop"}},
-            {"action":{"type":"stop"}}
-          ]
-        }
-        """;
+            {
+              "steps": [
+                {"action":{"type":"stop"}},
+                {"action":{"type":"stop"}}
+              ]
+            }
+            """;
 
         var result = await engine.ExecuteAsync(BuildRequest(json));
 
@@ -119,13 +125,13 @@ public class InfraPipelineEngineTests
     {
         var engine = CreateEngine();
         const string json = """
-        {
-          "steps": [
-            {"action":{"type":"set_variable","name":"myvar","value":"hello"}},
-            {"action":{"type":"stop"}}
-          ]
-        }
-        """;
+            {
+              "steps": [
+                {"action":{"type":"set_variable","name":"myvar","value":"hello"}},
+                {"action":{"type":"stop"}}
+              ]
+            }
+            """;
 
         var result = await engine.ExecuteAsync(BuildRequest(json));
 
@@ -140,15 +146,15 @@ public class InfraPipelineEngineTests
     {
         var engine = CreateEngine();
         const string json = """
-        {
-          "steps": [
             {
-              "condition": {"type":"user_role","min_role":"moderator"},
-              "action": {"type":"stop"}
+              "steps": [
+                {
+                  "condition": {"type":"user_role","min_role":"moderator"},
+                  "action": {"type":"stop"}
+                }
+              ]
             }
-          ]
-        }
-        """;
+            """;
         // No user.role variable → defaults to viewer → condition false → skip
         var result = await engine.ExecuteAsync(BuildRequest(json));
 
@@ -161,15 +167,15 @@ public class InfraPipelineEngineTests
     {
         var engine = CreateEngine();
         const string json = """
-        {
-          "steps": [
             {
-              "condition": {"type":"user_role","min_role":"moderator"},
-              "action": {"type":"stop"}
+              "steps": [
+                {
+                  "condition": {"type":"user_role","min_role":"moderator"},
+                  "action": {"type":"stop"}
+                }
+              ]
             }
-          ]
-        }
-        """;
+            """;
         var request = new PipelineRequest
         {
             BroadcasterId = "chan",
@@ -178,7 +184,7 @@ public class InfraPipelineEngineTests
             PipelineJson = json,
             MessageId = "m1",
             RawMessage = "",
-            InitialVariables = { { "user.role", "moderator" } }
+            InitialVariables = { { "user.role", "moderator" } },
         };
 
         var result = await engine.ExecuteAsync(request);
@@ -243,8 +249,13 @@ public class InfraPipelineEngineTests
         overflow.ErrorMessage.Should().NotBeNullOrEmpty();
 
         ctsList.ForEach(cts => cts.Cancel());
-        try { await Task.WhenAll(longTasks).WaitAsync(TimeSpan.FromSeconds(5)); }
-        catch { /* expected cancellations */ }
+        try
+        {
+            await Task.WhenAll(longTasks).WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        catch
+        { /* expected cancellations */
+        }
         ctsList.ForEach(cts => cts.Dispose());
     }
 
@@ -255,13 +266,13 @@ public class InfraPipelineEngineTests
     {
         var engine = CreateEngine();
         const string json = """
-        {
-          "steps": [
-            {"action":{"type":"set_variable","name":"x","value":"1"},"stop_on_match":true},
-            {"action":{"type":"set_variable","name":"y","value":"2"}}
-          ]
-        }
-        """;
+            {
+              "steps": [
+                {"action":{"type":"set_variable","name":"x","value":"1"},"stop_on_match":true},
+                {"action":{"type":"set_variable","name":"y","value":"2"}}
+              ]
+            }
+            """;
 
         var result = await engine.ExecuteAsync(BuildRequest(json));
 

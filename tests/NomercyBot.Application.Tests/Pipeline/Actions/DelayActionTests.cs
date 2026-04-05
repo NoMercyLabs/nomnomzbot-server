@@ -9,14 +9,14 @@ namespace NomercyBot.Application.Tests.Pipeline.Actions;
 
 public class DelayActionTests
 {
-    private static ActionContext BuildCtx(Dictionary<string, object?>? parameters = null)
-        => new()
+    private static ActionContext BuildCtx(Dictionary<string, object?>? parameters = null) =>
+        new()
         {
             BroadcasterId = "chan1",
             TriggeredByUserId = "user1",
             TriggeredByDisplayName = "User1",
             Parameters = parameters ?? new Dictionary<string, object?>(),
-            Variables = new Dictionary<string, string>()
+            Variables = new Dictionary<string, string>(),
         };
 
     [Fact]
@@ -82,7 +82,7 @@ public class DelayActionTests
             TriggeredByDisplayName = "u",
             Parameters = ctx.Parameters,
             Variables = ctx.Variables,
-            CancellationToken = cts.Token
+            CancellationToken = cts.Token,
         };
 
         // With very short cancellation, should throw OperationCanceledException

@@ -12,19 +12,12 @@ public class PronounConfiguration : IEntityTypeConfiguration<Pronoun>
     {
         builder.HasKey(e => e.Id);
 
-        builder.Property(e => e.Name)
-            .IsRequired()
-            .HasMaxLength(50);
+        builder.Property(e => e.Name).IsRequired().HasMaxLength(50);
 
-        builder.Property(e => e.Subject)
-            .IsRequired()
-            .HasMaxLength(20);
+        builder.Property(e => e.Subject).IsRequired().HasMaxLength(20);
 
-        builder.Property(e => e.Object)
-            .IsRequired()
-            .HasMaxLength(20);
+        builder.Property(e => e.Object).IsRequired().HasMaxLength(20);
 
-        builder.Property(e => e.Singular)
-            .IsRequired();
+        builder.Property(e => e.Singular).IsRequired();
     }
 }

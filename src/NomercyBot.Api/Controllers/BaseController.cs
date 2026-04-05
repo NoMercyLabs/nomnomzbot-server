@@ -19,28 +19,60 @@ namespace NoMercyBot.Api.Controllers;
 public abstract class BaseController : ControllerBase
 {
     protected IActionResult UnauthenticatedResponse(string? message = null) =>
-        Unauthorized(new StatusResponseDto<object> { Status = "error", Message = message ?? "Unauthorized" });
+        Unauthorized(
+            new StatusResponseDto<object> { Status = "error", Message = message ?? "Unauthorized" }
+        );
 
     protected IActionResult UnauthorizedResponse(string? message = null) =>
-        StatusCode(403, new StatusResponseDto<object> { Status = "error", Message = message ?? "Forbidden" });
+        StatusCode(
+            403,
+            new StatusResponseDto<object> { Status = "error", Message = message ?? "Forbidden" }
+        );
 
     protected IActionResult BadRequestResponse(string? message = null) =>
-        BadRequest(new StatusResponseDto<object> { Status = "error", Message = message ?? "Bad request" });
+        BadRequest(
+            new StatusResponseDto<object> { Status = "error", Message = message ?? "Bad request" }
+        );
 
     protected IActionResult NotFoundResponse(string? message = null) =>
-        NotFound(new StatusResponseDto<object> { Status = "error", Message = message ?? "Not found" });
+        NotFound(
+            new StatusResponseDto<object> { Status = "error", Message = message ?? "Not found" }
+        );
 
     protected IActionResult ConflictResponse(string? message = null) =>
-        Conflict(new StatusResponseDto<object> { Status = "error", Message = message ?? "Conflict" });
+        Conflict(
+            new StatusResponseDto<object> { Status = "error", Message = message ?? "Conflict" }
+        );
 
     protected IActionResult TooManyRequestsResponse(string? message = null) =>
-        StatusCode(429, new StatusResponseDto<object> { Status = "error", Message = message ?? "Too many requests" });
+        StatusCode(
+            429,
+            new StatusResponseDto<object>
+            {
+                Status = "error",
+                Message = message ?? "Too many requests",
+            }
+        );
 
     protected IActionResult InternalServerErrorResponse(string? message = null) =>
-        StatusCode(500, new StatusResponseDto<object> { Status = "error", Message = message ?? "Internal server error" });
+        StatusCode(
+            500,
+            new StatusResponseDto<object>
+            {
+                Status = "error",
+                Message = message ?? "Internal server error",
+            }
+        );
 
     protected IActionResult ServiceUnavailableResponse(string? message = null) =>
-        StatusCode(503, new StatusResponseDto<object> { Status = "error", Message = message ?? "Service unavailable" });
+        StatusCode(
+            503,
+            new StatusResponseDto<object>
+            {
+                Status = "error",
+                Message = message ?? "Service unavailable",
+            }
+        );
 
     protected IActionResult GetPaginatedResponse<T>(IEnumerable<T> data, PageRequestDto request)
     {
@@ -48,12 +80,14 @@ public abstract class BaseController : ControllerBase
         var hasMore = items.Count >= request.Take;
         items = items.Take(request.Take).ToList();
 
-        return Ok(new PaginatedResponse<T>
-        {
-            Data = items,
-            NextPage = hasMore ? request.Page + 1 : null,
-            HasMore = hasMore
-        });
+        return Ok(
+            new PaginatedResponse<T>
+            {
+                Data = items,
+                NextPage = hasMore ? request.Page + 1 : null,
+                HasMore = hasMore,
+            }
+        );
     }
 
     protected IActionResult ResultResponse<T>(NoMercyBot.Application.Common.Models.Result<T> result)
@@ -64,13 +98,16 @@ public abstract class BaseController : ControllerBase
         return result.ErrorCode switch
         {
             "AUTH_REQUIRED" or "TOKEN_EXPIRED" => UnauthenticatedResponse(result.ErrorMessage),
-            "FORBIDDEN" or "FEATURE_DISABLED" or "SCOPE_MISSING" or "BILLING_LIMIT" => UnauthorizedResponse(result.ErrorMessage),
-            "NOT_FOUND" or "CHANNEL_NOT_FOUND" or "CHANNEL_NOT_ONBOARDED" => NotFoundResponse(result.ErrorMessage),
+            "FORBIDDEN" or "FEATURE_DISABLED" or "SCOPE_MISSING" or "BILLING_LIMIT" =>
+                UnauthorizedResponse(result.ErrorMessage),
+            "NOT_FOUND" or "CHANNEL_NOT_FOUND" or "CHANNEL_NOT_ONBOARDED" => NotFoundResponse(
+                result.ErrorMessage
+            ),
             "VALIDATION_FAILED" => BadRequestResponse(result.ErrorMessage),
             "ALREADY_EXISTS" => ConflictResponse(result.ErrorMessage),
             "RATE_LIMITED" => TooManyRequestsResponse(result.ErrorMessage),
             "SERVICE_UNAVAILABLE" => ServiceUnavailableResponse(result.ErrorMessage),
-            _ => InternalServerErrorResponse(result.ErrorMessage)
+            _ => InternalServerErrorResponse(result.ErrorMessage),
         };
     }
 
@@ -82,25 +119,31 @@ public abstract class BaseController : ControllerBase
         return result.ErrorCode switch
         {
             "AUTH_REQUIRED" or "TOKEN_EXPIRED" => UnauthenticatedResponse(result.ErrorMessage),
-            "FORBIDDEN" or "FEATURE_DISABLED" or "SCOPE_MISSING" or "BILLING_LIMIT" => UnauthorizedResponse(result.ErrorMessage),
-            "NOT_FOUND" or "CHANNEL_NOT_FOUND" or "CHANNEL_NOT_ONBOARDED" => NotFoundResponse(result.ErrorMessage),
+            "FORBIDDEN" or "FEATURE_DISABLED" or "SCOPE_MISSING" or "BILLING_LIMIT" =>
+                UnauthorizedResponse(result.ErrorMessage),
+            "NOT_FOUND" or "CHANNEL_NOT_FOUND" or "CHANNEL_NOT_ONBOARDED" => NotFoundResponse(
+                result.ErrorMessage
+            ),
             "VALIDATION_FAILED" => BadRequestResponse(result.ErrorMessage),
             "ALREADY_EXISTS" => ConflictResponse(result.ErrorMessage),
             "RATE_LIMITED" => TooManyRequestsResponse(result.ErrorMessage),
             "SERVICE_UNAVAILABLE" => ServiceUnavailableResponse(result.ErrorMessage),
-            _ => InternalServerErrorResponse(result.ErrorMessage)
+            _ => InternalServerErrorResponse(result.ErrorMessage),
         };
     }
 
     protected IActionResult GetPaginatedResponse<T>(
         NoMercyBot.Application.Common.Models.PagedList<T> pagedList,
-        PageRequestDto request)
+        PageRequestDto request
+    )
     {
-        return Ok(new PaginatedResponse<T>
-        {
-            Data = pagedList.Items,
-            NextPage = pagedList.HasNextPage ? pagedList.Page + 1 : null,
-            HasMore = pagedList.HasNextPage,
-        });
+        return Ok(
+            new PaginatedResponse<T>
+            {
+                Data = pagedList.Items,
+                NextPage = pagedList.HasNextPage ? pagedList.Page + 1 : null,
+                HasMore = pagedList.HasNextPage,
+            }
+        );
     }
 }

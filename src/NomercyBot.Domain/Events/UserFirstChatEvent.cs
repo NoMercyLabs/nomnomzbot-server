@@ -5,7 +5,5 @@ namespace NoMercyBot.Domain.Events;
 
 using NoMercyBot.Domain.Common;
 
-public sealed record UserFirstChatEvent(
-    string ChannelId,
-    string UserId,
-    string Username) : DomainEvent;
+public sealed record UserFirstChatEvent(string ChannelId, string UserId, string Username)
+    : DomainEvent;

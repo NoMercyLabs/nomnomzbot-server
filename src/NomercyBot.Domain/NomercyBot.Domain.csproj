@@ -8,5 +8,4 @@
     <PackageReference Include="Newtonsoft.Json" />
     <PackageReference Include="Ulid" />
   </ItemGroup>
-
 </Project>

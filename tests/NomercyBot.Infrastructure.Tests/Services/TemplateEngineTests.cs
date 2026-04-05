@@ -80,7 +80,11 @@ public class TemplateEngineTests
         var engine = Create();
         // Dictionary<string, string> can't have null values, but a cast to IReadOnlyDictionary could
         var vars = new Dictionary<string, string?> { { "user", null } };
-        var result = engine.Render("Hello {{user}}!", (IReadOnlyDictionary<string, string>)(IDictionary<string, string>)new Dictionary<string, string> { { "user", "" } });
+        var result = engine.Render(
+            "Hello {{user}}!",
+            (IReadOnlyDictionary<string, string>)
+                (IDictionary<string, string>)new Dictionary<string, string> { { "user", "" } }
+        );
 
         result.Should().Be("Hello !");
     }
@@ -152,7 +156,10 @@ public class TemplateEngineTests
     public async Task RenderAsync_IsCompletedSynchronously_NoActualAsync()
     {
         var engine = Create();
-        var task = engine.RenderAsync("Hello {{x}}", new Dictionary<string, object> { { "x", "world" } });
+        var task = engine.RenderAsync(
+            "Hello {{x}}",
+            new Dictionary<string, object> { { "x", "world" } }
+        );
 
         task.IsCompleted.Should().BeTrue();
         var result = await task;

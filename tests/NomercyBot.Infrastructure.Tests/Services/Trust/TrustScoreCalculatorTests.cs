@@ -38,7 +38,12 @@ public class TrustScoreCalculatorTests
     [Fact]
     public void Calculate_ScoreAlwaysInRange_WithViolations()
     {
-        var ctx = new TrustContext { BanCount = 100, TimeoutCount = 100, SkippedByModCount = 100 };
+        var ctx = new TrustContext
+        {
+            BanCount = 100,
+            TimeoutCount = 100,
+            SkippedByModCount = 100,
+        };
         TrustScoreCalculator.Calculate(ctx).Should().BeInRange(0, 100);
     }
 
@@ -67,9 +72,13 @@ public class TrustScoreCalculatorTests
             FollowAgeDays = 30,
         };
 
-        TrustScoreCalculator.Calculate(withoutFollower).Should().BeLessThan(
-            TrustScoreCalculator.Calculate(withFollower),
-            "not following reduces the score by 25%");
+        TrustScoreCalculator
+            .Calculate(withoutFollower)
+            .Should()
+            .BeLessThan(
+                TrustScoreCalculator.Calculate(withFollower),
+                "not following reduces the score by 25%"
+            );
     }
 
     [Fact]
@@ -95,9 +104,13 @@ public class TrustScoreCalculatorTests
             FollowAgeDays = 30,
         };
 
-        TrustScoreCalculator.Calculate(newFollower).Should().BeLessThan(
-            TrustScoreCalculator.Calculate(establishedFollower),
-            "following < 24h triggers follow penalty");
+        TrustScoreCalculator
+            .Calculate(newFollower)
+            .Should()
+            .BeLessThan(
+                TrustScoreCalculator.Calculate(establishedFollower),
+                "following < 24h triggers follow penalty"
+            );
     }
 
     // ─── Reputation boost ────────────────────────────────────────────────────
@@ -126,9 +139,13 @@ public class TrustScoreCalculatorTests
             IsModerator = true,
         };
 
-        TrustScoreCalculator.Calculate(modCtx).Should().BeGreaterThan(
-            TrustScoreCalculator.Calculate(baseCtx),
-            "moderators receive a reputation boost");
+        TrustScoreCalculator
+            .Calculate(modCtx)
+            .Should()
+            .BeGreaterThan(
+                TrustScoreCalculator.Calculate(baseCtx),
+                "moderators receive a reputation boost"
+            );
     }
 
     [Fact]
@@ -154,9 +171,13 @@ public class TrustScoreCalculatorTests
             FollowAgeDays = 30,
         };
 
-        TrustScoreCalculator.Calculate(veteran).Should().BeGreaterThan(
-            TrustScoreCalculator.Calculate(regular),
-            "10+ requests triggers reputation boost");
+        TrustScoreCalculator
+            .Calculate(veteran)
+            .Should()
+            .BeGreaterThan(
+                TrustScoreCalculator.Calculate(regular),
+                "10+ requests triggers reputation boost"
+            );
     }
 
     // ─── Violation penalties ─────────────────────────────────────────────────
@@ -187,9 +208,10 @@ public class TrustScoreCalculatorTests
             TimeoutCount = 3,
         };
 
-        TrustScoreCalculator.Calculate(withViolations).Should().BeLessThan(
-            TrustScoreCalculator.Calculate(good),
-            "timeouts reduce the trust score");
+        TrustScoreCalculator
+            .Calculate(withViolations)
+            .Should()
+            .BeLessThan(TrustScoreCalculator.Calculate(good), "timeouts reduce the trust score");
     }
 
     // ─── YouTube penalties ───────────────────────────────────────────────────
@@ -227,21 +249,25 @@ public class TrustScoreCalculatorTests
             ContentChannelAgeMonths = 0.5,
         };
 
-        TrustScoreCalculator.Calculate(spamYt).Should().BeLessThan(
-            TrustScoreCalculator.Calculate(legitimateYt),
-            "new/spam YouTube channels receive lower trust");
+        TrustScoreCalculator
+            .Calculate(spamYt)
+            .Should()
+            .BeLessThan(
+                TrustScoreCalculator.Calculate(legitimateYt),
+                "new/spam YouTube channels receive lower trust"
+            );
     }
 
     // ─── Tier mapping ────────────────────────────────────────────────────────
 
     [Theory]
-    [InlineData(0.0,   TrustTier.Untrusted)]
-    [InlineData(25.0,  TrustTier.Untrusted)]
-    [InlineData(25.1,  TrustTier.Low)]
-    [InlineData(50.0,  TrustTier.Low)]
-    [InlineData(50.1,  TrustTier.Standard)]
-    [InlineData(75.0,  TrustTier.Standard)]
-    [InlineData(75.1,  TrustTier.Trusted)]
+    [InlineData(0.0, TrustTier.Untrusted)]
+    [InlineData(25.0, TrustTier.Untrusted)]
+    [InlineData(25.1, TrustTier.Low)]
+    [InlineData(50.0, TrustTier.Low)]
+    [InlineData(50.1, TrustTier.Standard)]
+    [InlineData(75.0, TrustTier.Standard)]
+    [InlineData(75.1, TrustTier.Trusted)]
     [InlineData(100.0, TrustTier.Trusted)]
     public void GetTier_MapsScoreToCorrectTier(double score, TrustTier expectedTier)
     {

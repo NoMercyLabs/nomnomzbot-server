@@ -17,14 +17,14 @@ public class UserRoleConditionTests
             TriggeredByUserId = "user",
             TriggeredByDisplayName = "User",
             MessageId = "msg",
-            RawMessage = ""
+            RawMessage = "",
         };
         ctx.Variables["user.role"] = role;
         return ctx;
     }
 
-    private static ConditionDefinition MakeCond(string json)
-        => System.Text.Json.JsonSerializer.Deserialize<ConditionDefinition>(json)!;
+    private static ConditionDefinition MakeCond(string json) =>
+        System.Text.Json.JsonSerializer.Deserialize<ConditionDefinition>(json)!;
 
     [Theory]
     [InlineData("broadcaster", "broadcaster", true)]
@@ -48,7 +48,11 @@ public class UserRoleConditionTests
     [InlineData("moderator", "vip", true)]
     [InlineData("moderator", "subscriber", true)]
     [InlineData("moderator", "viewer", true)]
-    public void Evaluate_ModeratorMeetsModeratorAndBelow(string userRole, string minRole, bool expected)
+    public void Evaluate_ModeratorMeetsModeratorAndBelow(
+        string userRole,
+        string minRole,
+        bool expected
+    )
     {
         var condition = new UserRoleCondition();
         var ctx = BuildCtx(userRole);
@@ -106,7 +110,7 @@ public class UserRoleConditionTests
             TriggeredByUserId = "user",
             TriggeredByDisplayName = "User",
             MessageId = "msg",
-            RawMessage = ""
+            RawMessage = "",
         };
         // No user.role variable — defaults to "viewer"
         var def = MakeCond("""{"type":"user_role","min_role":"moderator"}""");

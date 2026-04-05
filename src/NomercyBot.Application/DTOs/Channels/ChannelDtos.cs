@@ -13,7 +13,8 @@ public sealed record ChannelDto(
     int? ViewerCount,
     DateTime? BotJoinedAt,
     string SubscriptionTier,
-    DateTime CreatedAt);
+    DateTime CreatedAt
+);
 
 /// <summary>Lightweight channel info for lists and dropdowns.</summary>
 public sealed record ChannelSummaryDto(
@@ -23,12 +24,11 @@ public sealed record ChannelSummaryDto(
     string? ProfileImageUrl,
     bool IsLive,
     string Role,
-    int? ViewerCount);
+    int? ViewerCount
+);
 
 /// <summary>Lightweight channel info returned when looking up by overlay token.</summary>
-public sealed record ChannelOverlayInfo(
-    string BroadcasterId,
-    string DisplayName);
+public sealed record ChannelOverlayInfo(string BroadcasterId, string DisplayName);
 
 /// <summary>Request to update channel settings.</summary>
 public sealed record UpdateChannelSettingsDto

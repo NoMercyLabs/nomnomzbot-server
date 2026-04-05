@@ -11,12 +11,10 @@ public static class ClaimsPrincipalExtensions
         principal.FindFirstValue("broadcaster_id");
 
     public static string? GetDisplayName(this ClaimsPrincipal principal) =>
-        principal.FindFirstValue("display_name")
-        ?? principal.FindFirstValue(ClaimTypes.Name);
+        principal.FindFirstValue("display_name") ?? principal.FindFirstValue(ClaimTypes.Name);
 
     public static string GetRequiredUserId(this ClaimsPrincipal principal) =>
-        principal.GetUserId()
-        ?? throw new UnauthorizedAccessException("User ID claim is missing.");
+        principal.GetUserId() ?? throw new UnauthorizedAccessException("User ID claim is missing.");
 
     public static string GetRequiredBroadcasterId(this ClaimsPrincipal principal) =>
         principal.GetBroadcasterId()

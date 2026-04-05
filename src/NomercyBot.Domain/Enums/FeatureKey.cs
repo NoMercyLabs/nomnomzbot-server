@@ -16,5 +16,5 @@ public enum FeatureKey
     Watchstreak,
     Overlays,
     Discord,
-    Obs
+    Obs,
 }

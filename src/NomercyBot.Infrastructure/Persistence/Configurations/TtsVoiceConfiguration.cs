@@ -12,31 +12,18 @@ public class TtsVoiceConfiguration : IEntityTypeConfiguration<TtsVoice>
     {
         builder.HasKey(e => e.Id);
 
-        builder.Property(e => e.Id)
-            .IsRequired()
-            .HasMaxLength(50);
+        builder.Property(e => e.Id).IsRequired().HasMaxLength(50);
 
-        builder.Property(e => e.Name)
-            .IsRequired()
-            .HasMaxLength(100);
+        builder.Property(e => e.Name).IsRequired().HasMaxLength(100);
 
-        builder.Property(e => e.DisplayName)
-            .IsRequired()
-            .HasMaxLength(255);
+        builder.Property(e => e.DisplayName).IsRequired().HasMaxLength(255);
 
-        builder.Property(e => e.Locale)
-            .IsRequired()
-            .HasMaxLength(10);
+        builder.Property(e => e.Locale).IsRequired().HasMaxLength(10);
 
-        builder.Property(e => e.Gender)
-            .IsRequired()
-            .HasMaxLength(10);
+        builder.Property(e => e.Gender).IsRequired().HasMaxLength(10);
 
-        builder.Property(e => e.Provider)
-            .IsRequired()
-            .HasMaxLength(50);
+        builder.Property(e => e.Provider).IsRequired().HasMaxLength(50);
 
-        builder.Property(e => e.IsDefault)
-            .HasDefaultValue(false);
+        builder.Property(e => e.IsDefault).HasDefaultValue(false);
     }
 }

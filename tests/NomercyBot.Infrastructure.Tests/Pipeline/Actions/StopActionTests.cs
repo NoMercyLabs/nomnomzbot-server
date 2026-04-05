@@ -9,14 +9,14 @@ namespace NomercyBot.Infrastructure.Tests.Pipeline.Actions;
 
 public class InfraStopActionTests
 {
-    private static PipelineExecutionContext BuildCtx()
-        => new()
+    private static PipelineExecutionContext BuildCtx() =>
+        new()
         {
             BroadcasterId = "chan",
             TriggeredByUserId = "user",
             TriggeredByDisplayName = "User",
             MessageId = "msg",
-            RawMessage = ""
+            RawMessage = "",
         };
 
     [Fact]
@@ -24,7 +24,9 @@ public class InfraStopActionTests
     {
         var action = new StopAction();
         var ctx = BuildCtx();
-        var def = System.Text.Json.JsonSerializer.Deserialize<ActionDefinition>("""{"type":"stop"}""")!;
+        var def = System.Text.Json.JsonSerializer.Deserialize<ActionDefinition>(
+            """{"type":"stop"}"""
+        )!;
 
         await action.ExecuteAsync(ctx, def);
 
@@ -36,7 +38,9 @@ public class InfraStopActionTests
     {
         var action = new StopAction();
         var ctx = BuildCtx();
-        var def = System.Text.Json.JsonSerializer.Deserialize<ActionDefinition>("""{"type":"stop"}""")!;
+        var def = System.Text.Json.JsonSerializer.Deserialize<ActionDefinition>(
+            """{"type":"stop"}"""
+        )!;
 
         var result = await action.ExecuteAsync(ctx, def);
 

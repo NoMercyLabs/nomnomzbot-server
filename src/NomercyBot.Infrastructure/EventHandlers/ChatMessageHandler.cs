@@ -33,7 +33,8 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         IChatProvider chat,
         IPipelineEngine pipeline,
         ITemplateResolver templateResolver,
-        ILogger<ChatMessageHandler> logger)
+        ILogger<ChatMessageHandler> logger
+    )
     {
         _registry = registry;
         _cooldowns = cooldowns;
@@ -43,9 +44,13 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         _logger = logger;
     }
 
-    public async Task HandleAsync(ChatMessageReceivedEvent @event, CancellationToken cancellationToken)
+    public async Task HandleAsync(
+        ChatMessageReceivedEvent @event,
+        CancellationToken cancellationToken
+    )
     {
-        if (string.IsNullOrWhiteSpace(@event.BroadcasterId)) return;
+        if (string.IsNullOrWhiteSpace(@event.BroadcasterId))
+            return;
 
         // Increment channel message counter (used by TimerService for activity gating; approximate is fine)
         var channelCtx = _registry.Get(@event.BroadcasterId);
@@ -53,57 +58,90 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             channelCtx.MessageCount++;
 
         var text = @event.Message?.Trim();
-        if (string.IsNullOrEmpty(text) || text[0] != '!') return;
+        if (string.IsNullOrEmpty(text) || text[0] != '!')
+            return;
 
         // Parse: !commandname arg1 arg2 ...
         var spaceIdx = text.IndexOf(' ');
         var commandName = (spaceIdx > 0 ? text[1..spaceIdx] : text[1..]).ToLowerInvariant();
         var args = spaceIdx > 0 ? text[(spaceIdx + 1)..].Trim() : string.Empty;
 
-        if (string.IsNullOrEmpty(commandName)) return;
+        if (string.IsNullOrEmpty(commandName))
+            return;
 
         var ctx = _registry.Get(@event.BroadcasterId);
-        if (ctx is null) return; // channel not registered
+        if (ctx is null)
+            return; // channel not registered
 
         ctx.LastActivityAt = DateTimeOffset.UtcNow;
         ctx.SessionChatters.TryAdd(@event.UserId, @event.UserDisplayName);
 
         // Look up command in in-memory cache (O(1), no DB hit)
-        if (!ctx.Commands.TryGetValue(commandName, out var command)) return;
+        if (!ctx.Commands.TryGetValue(commandName, out var command))
+            return;
 
         // Permission check
         if (!HasPermission(@event, command.Permission))
         {
-            _logger.LogDebug("Command {Command} denied for {User} in {Channel}: insufficient permission",
-                commandName, @event.UserDisplayName, @event.BroadcasterId);
+            _logger.LogDebug(
+                "Command {Command} denied for {User} in {Channel}: insufficient permission",
+                commandName,
+                @event.UserDisplayName,
+                @event.BroadcasterId
+            );
             return;
         }
 
         // Global cooldown check
-        if (command.GlobalCooldown > 0
-            && _cooldowns.IsOnCooldown(@event.BroadcasterId, commandName))
+        if (
+            command.GlobalCooldown > 0
+            && _cooldowns.IsOnCooldown(@event.BroadcasterId, commandName)
+        )
         {
-            _logger.LogDebug("Command {Command} on global cooldown in {Channel}", commandName, @event.BroadcasterId);
+            _logger.LogDebug(
+                "Command {Command} on global cooldown in {Channel}",
+                commandName,
+                @event.BroadcasterId
+            );
             return;
         }
 
         // Per-user cooldown check
-        if (command.UserCooldown > 0
-            && _cooldowns.IsOnCooldown(@event.BroadcasterId, commandName, @event.UserId))
+        if (
+            command.UserCooldown > 0
+            && _cooldowns.IsOnCooldown(@event.BroadcasterId, commandName, @event.UserId)
+        )
         {
-            _logger.LogDebug("Command {Command} on user cooldown for {User} in {Channel}",
-                commandName, @event.UserDisplayName, @event.BroadcasterId);
+            _logger.LogDebug(
+                "Command {Command} on user cooldown for {User} in {Channel}",
+                commandName,
+                @event.UserDisplayName,
+                @event.BroadcasterId
+            );
             return;
         }
 
         // Set cooldowns
         if (command.GlobalCooldown > 0)
-            _cooldowns.SetCooldown(@event.BroadcasterId, commandName, TimeSpan.FromSeconds(command.GlobalCooldown));
+            _cooldowns.SetCooldown(
+                @event.BroadcasterId,
+                commandName,
+                TimeSpan.FromSeconds(command.GlobalCooldown)
+            );
         if (command.UserCooldown > 0)
-            _cooldowns.SetCooldown(@event.BroadcasterId, commandName, TimeSpan.FromSeconds(command.UserCooldown), @event.UserId);
+            _cooldowns.SetCooldown(
+                @event.BroadcasterId,
+                commandName,
+                TimeSpan.FromSeconds(command.UserCooldown),
+                @event.UserId
+            );
 
-        _logger.LogInformation("Executing command {Command} for {User} in {Channel}",
-            commandName, @event.UserDisplayName, @event.BroadcasterId);
+        _logger.LogInformation(
+            "Executing command {Command} for {User} in {Channel}",
+            commandName,
+            @event.UserDisplayName,
+            @event.BroadcasterId
+        );
 
         try
         {
@@ -126,19 +164,30 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             {
                 // Simple response command — pick a response (round-robin or random)
                 var response = PickResponse(command.Responses);
-                if (string.IsNullOrEmpty(response)) return;
+                if (string.IsNullOrEmpty(response))
+                    return;
 
                 // Build template context
                 var variables = BuildInitialVariables(@event, args);
-                var resolved = await _templateResolver.ResolveAsync(response, variables, @event.BroadcasterId!, cancellationToken);
+                var resolved = await _templateResolver.ResolveAsync(
+                    response,
+                    variables,
+                    @event.BroadcasterId!,
+                    cancellationToken
+                );
 
                 await _chat.SendMessageAsync(@event.BroadcasterId, resolved, cancellationToken);
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error executing command {Command} for {User} in {Channel}",
-                commandName, @event.UserDisplayName, @event.BroadcasterId);
+            _logger.LogError(
+                ex,
+                "Error executing command {Command} for {User} in {Channel}",
+                commandName,
+                @event.UserDisplayName,
+                @event.BroadcasterId
+            );
         }
     }
 
@@ -149,7 +198,10 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             "broadcaster" => @event.IsBroadcaster,
             "moderator" or "mod" => @event.IsBroadcaster || @event.IsModerator,
             "vip" => @event.IsBroadcaster || @event.IsModerator || @event.IsVip,
-            "subscriber" or "sub" => @event.IsBroadcaster || @event.IsModerator || @event.IsVip || @event.IsSubscriber,
+            "subscriber" or "sub" => @event.IsBroadcaster
+                || @event.IsModerator
+                || @event.IsVip
+                || @event.IsSubscriber,
             "viewer" or "everyone" or "" => true,
             _ => true,
         };
@@ -157,12 +209,17 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
 
     private static string PickResponse(string[] responses)
     {
-        if (responses.Length == 0) return string.Empty;
-        if (responses.Length == 1) return responses[0];
+        if (responses.Length == 0)
+            return string.Empty;
+        if (responses.Length == 1)
+            return responses[0];
         return responses[Random.Shared.Next(responses.Length)];
     }
 
-    private static Dictionary<string, string> BuildInitialVariables(ChatMessageReceivedEvent @event, string args)
+    private static Dictionary<string, string> BuildInitialVariables(
+        ChatMessageReceivedEvent @event,
+        string args
+    )
     {
         var argParts = args.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var target = argParts.Length > 0 ? argParts[0].TrimStart('@') : string.Empty;
@@ -186,10 +243,14 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
 
     private static string GetUserRole(ChatMessageReceivedEvent @event)
     {
-        if (@event.IsBroadcaster) return "broadcaster";
-        if (@event.IsModerator) return "moderator";
-        if (@event.IsVip) return "vip";
-        if (@event.IsSubscriber) return "subscriber";
+        if (@event.IsBroadcaster)
+            return "broadcaster";
+        if (@event.IsModerator)
+            return "moderator";
+        if (@event.IsVip)
+            return "vip";
+        if (@event.IsSubscriber)
+            return "subscriber";
         return "viewer";
     }
 }

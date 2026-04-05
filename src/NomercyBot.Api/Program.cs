@@ -16,21 +16,22 @@ using NoMercyBot.Infrastructure;
 using NoMercyBot.Infrastructure.Persistence;
 using Serilog;
 
-Log.Logger = new LoggerConfiguration()
-    .WriteTo.Console()
-    .CreateBootstrapLogger();
+Log.Logger = new LoggerConfiguration().WriteTo.Console().CreateBootstrapLogger();
 
 try
 {
     var builder = WebApplication.CreateBuilder(args);
 
     // Serilog
-    builder.Host.UseSerilog((ctx, lc) => lc
-        .ReadFrom.Configuration(ctx.Configuration)
-        .Enrich.FromLogContext()
-        .Enrich.WithEnvironmentName()
-        .WriteTo.Console()
-        .WriteTo.File("logs/nomercybot-.log", rollingInterval: RollingInterval.Day));
+    builder.Host.UseSerilog(
+        (ctx, lc) =>
+            lc
+                .ReadFrom.Configuration(ctx.Configuration)
+                .Enrich.FromLogContext()
+                .Enrich.WithEnvironmentName()
+                .WriteTo.Console()
+                .WriteTo.File("logs/nomercybot-.log", rollingInterval: RollingInterval.Day)
+    );
 
     // Application + Infrastructure DI
     builder.Services.AddApplication();
@@ -40,23 +41,27 @@ try
     builder.Services.AddControllers();
 
     // API Versioning
-    builder.Services.AddApiVersioning(options =>
-    {
-        options.DefaultApiVersion = new ApiVersion(1, 0);
-        options.AssumeDefaultVersionWhenUnspecified = true;
-        options.ReportApiVersions = true;
-    }).AddMvc();
+    builder
+        .Services.AddApiVersioning(options =>
+        {
+            options.DefaultApiVersion = new ApiVersion(1, 0);
+            options.AssumeDefaultVersionWhenUnspecified = true;
+            options.ReportApiVersions = true;
+        })
+        .AddMvc();
 
     // SignalR
-    builder.Services.AddSignalR(options =>
-    {
-        options.EnableDetailedErrors = builder.Environment.IsDevelopment();
-        options.MaximumReceiveMessageSize = 128 * 1024;
-        options.KeepAliveInterval = TimeSpan.FromSeconds(15);
-        options.ClientTimeoutInterval = TimeSpan.FromSeconds(60);
-        options.HandshakeTimeout = TimeSpan.FromSeconds(15);
-        options.StatefulReconnectBufferSize = 100_000;
-    }).AddMessagePackProtocol();
+    builder
+        .Services.AddSignalR(options =>
+        {
+            options.EnableDetailedErrors = builder.Environment.IsDevelopment();
+            options.MaximumReceiveMessageSize = 128 * 1024;
+            options.KeepAliveInterval = TimeSpan.FromSeconds(15);
+            options.ClientTimeoutInterval = TimeSpan.FromSeconds(60);
+            options.HandshakeTimeout = TimeSpan.FromSeconds(15);
+            options.StatefulReconnectBufferSize = 100_000;
+        })
+        .AddMessagePackProtocol();
 
     // Hub notifiers
     builder.Services.AddScoped<IDashboardNotifier, DashboardNotifier>();
@@ -66,9 +71,10 @@ try
     builder.Services.AddEventHandlersFromAssembly(typeof(Program).Assembly);
 
     // JWT Auth
-    var jwtSecret = builder.Configuration["Jwt:Secret"] ?? "change-me-in-production-at-least-32-chars!";
-    builder.Services
-        .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    var jwtSecret =
+        builder.Configuration["Jwt:Secret"] ?? "change-me-in-production-at-least-32-chars!";
+    builder
+        .Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         .AddJwtBearer(options =>
         {
             options.TokenValidationParameters = new TokenValidationParameters
@@ -92,7 +98,7 @@ try
                     if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
                         ctx.Token = accessToken;
                     return Task.CompletedTask;
-                }
+                },
             };
         });
 
@@ -102,30 +108,43 @@ try
     builder.Services.AddRateLimiter(options =>
     {
         // General API: 120 req/min per authenticated user or IP
-        options.AddPolicy("api", context =>
-        {
-            var key = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
-                ?? context.Connection.RemoteIpAddress?.ToString()
-                ?? "anonymous";
-            return RateLimitPartition.GetFixedWindowLimiter(key, _ => new FixedWindowRateLimiterOptions
+        options.AddPolicy(
+            "api",
+            context =>
             {
-                PermitLimit = 120,
-                Window = TimeSpan.FromMinutes(1),
-                QueueLimit = 0,
-            });
-        });
+                var key =
+                    context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                    ?? context.Connection.RemoteIpAddress?.ToString()
+                    ?? "anonymous";
+                return RateLimitPartition.GetFixedWindowLimiter(
+                    key,
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 120,
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueLimit = 0,
+                    }
+                );
+            }
+        );
 
         // Auth endpoints: 10 req/min per IP (brute-force protection)
-        options.AddPolicy("auth", context =>
-        {
-            var ip = context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
-            return RateLimitPartition.GetFixedWindowLimiter($"auth:{ip}", _ => new FixedWindowRateLimiterOptions
+        options.AddPolicy(
+            "auth",
+            context =>
             {
-                PermitLimit = 10,
-                Window = TimeSpan.FromMinutes(1),
-                QueueLimit = 0,
-            });
-        });
+                var ip = context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+                return RateLimitPartition.GetFixedWindowLimiter(
+                    $"auth:{ip}",
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 10,
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueLimit = 0,
+                    }
+                );
+            }
+        );
 
         options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     });
@@ -138,9 +157,11 @@ try
     {
         options.AddDefaultPolicy(policy =>
         {
-            policy.WithOrigins(
+            policy
+                .WithOrigins(
                     builder.Configuration.GetSection("Cors:Origins").Get<string[]>()
-                    ?? ["http://localhost:3000", "http://localhost:5173"])
+                        ?? ["http://localhost:3000", "http://localhost:5173"]
+                )
                 .AllowAnyHeader()
                 .AllowAnyMethod()
                 .AllowCredentials();
@@ -148,11 +169,14 @@ try
     });
 
     // Health checks
-    builder.Services.AddHealthChecks()
+    builder
+        .Services.AddHealthChecks()
         .AddNpgSql(
-            builder.Configuration.GetConnectionString("DefaultConnection") ?? "Host=localhost;Database=nomercybot;Username=postgres;Password=postgres",
+            builder.Configuration.GetConnectionString("DefaultConnection")
+                ?? "Host=localhost;Database=nomercybot;Username=postgres;Password=postgres",
             name: "postgresql",
-            tags: ["db", "ready"]);
+            tags: ["db", "ready"]
+        );
 
     var app = builder.Build();
 
@@ -207,32 +231,37 @@ try
     app.MapHub<AdminHub>("/hubs/admin");
 
     // Health check — returns JSON with per-check status
-    app.MapHealthChecks("/health", new HealthCheckOptions
-    {
-        ResponseWriter = async (context, report) =>
+    app.MapHealthChecks(
+        "/health",
+        new HealthCheckOptions
         {
-            context.Response.ContentType = "application/json";
-            await context.Response.WriteAsJsonAsync(new
+            ResponseWriter = async (context, report) =>
             {
-                status = report.Status.ToString().ToLowerInvariant(),
-                checks = report.Entries.Select(e => new
-                {
-                    name = e.Key,
-                    status = e.Value.Status.ToString().ToLowerInvariant(),
-                    description = e.Value.Description,
-                    durationMs = (int)e.Value.Duration.TotalMilliseconds,
-                    tags = e.Value.Tags,
-                }),
-                totalDurationMs = (int)report.TotalDuration.TotalMilliseconds,
-            });
-        },
-        ResultStatusCodes =
-        {
-            [HealthStatus.Healthy] = StatusCodes.Status200OK,
-            [HealthStatus.Degraded] = StatusCodes.Status200OK,
-            [HealthStatus.Unhealthy] = StatusCodes.Status503ServiceUnavailable,
-        },
-    });
+                context.Response.ContentType = "application/json";
+                await context.Response.WriteAsJsonAsync(
+                    new
+                    {
+                        status = report.Status.ToString().ToLowerInvariant(),
+                        checks = report.Entries.Select(e => new
+                        {
+                            name = e.Key,
+                            status = e.Value.Status.ToString().ToLowerInvariant(),
+                            description = e.Value.Description,
+                            durationMs = (int)e.Value.Duration.TotalMilliseconds,
+                            tags = e.Value.Tags,
+                        }),
+                        totalDurationMs = (int)report.TotalDuration.TotalMilliseconds,
+                    }
+                );
+            },
+            ResultStatusCodes =
+            {
+                [HealthStatus.Healthy] = StatusCodes.Status200OK,
+                [HealthStatus.Degraded] = StatusCodes.Status200OK,
+                [HealthStatus.Unhealthy] = StatusCodes.Status503ServiceUnavailable,
+            },
+        }
+    );
 
     // Liveness probe (no dependency checks — just proves the process is alive)
     app.MapGet("/health/live", () => Results.Ok(new { status = "alive" }))

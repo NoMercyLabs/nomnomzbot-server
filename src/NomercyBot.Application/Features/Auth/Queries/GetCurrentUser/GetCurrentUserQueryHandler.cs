@@ -23,9 +23,15 @@ public class GetCurrentUserQueryHandler
         if (!_currentUser.IsAuthenticated || _currentUser.UserId is null)
             return Errors.NotAuthenticated().ToTyped<CurrentUserDto>();
 
-        var user = await _db.Users
-            .Where(u => u.Id == _currentUser.UserId)
-            .Select(u => new CurrentUserDto(u.Id, u.Username, u.DisplayName, u.ProfileImageUrl, u.BroadcasterType))
+        var user = await _db
+            .Users.Where(u => u.Id == _currentUser.UserId)
+            .Select(u => new CurrentUserDto(
+                u.Id,
+                u.Username,
+                u.DisplayName,
+                u.ProfileImageUrl,
+                u.BroadcasterType
+            ))
             .FirstOrDefaultAsync(ct);
 
         return user is null
@@ -34,4 +40,10 @@ public class GetCurrentUserQueryHandler
     }
 }
 
-public record CurrentUserDto(string Id, string Username, string DisplayName, string? ProfileImageUrl, string BroadcasterType);
+public record CurrentUserDto(
+    string Id,
+    string Username,
+    string DisplayName,
+    string? ProfileImageUrl,
+    string BroadcasterType
+);

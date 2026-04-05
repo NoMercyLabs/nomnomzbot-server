@@ -9,7 +9,6 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using NoMercyBot.Api.Middleware;
 using NSubstitute;
-
 // IHostEnvironment is in Microsoft.Extensions.Hosting.Abstractions
 using IHostEnvironment = Microsoft.Extensions.Hosting.IHostEnvironment;
 
@@ -19,11 +18,16 @@ public class GlobalExceptionMiddlewareTests
 {
     private static GlobalExceptionMiddleware CreateMiddleware(
         RequestDelegate next,
-        bool isDevelopment = false)
+        bool isDevelopment = false
+    )
     {
         var env = Substitute.For<IHostEnvironment>();
         env.EnvironmentName.Returns(isDevelopment ? "Development" : "Production");
-        return new GlobalExceptionMiddleware(next, NullLogger<GlobalExceptionMiddleware>.Instance, env);
+        return new GlobalExceptionMiddleware(
+            next,
+            NullLogger<GlobalExceptionMiddleware>.Instance,
+            env
+        );
     }
 
     private static DefaultHttpContext CreateContext()
@@ -37,7 +41,11 @@ public class GlobalExceptionMiddlewareTests
     public async Task InvokeAsync_NoException_PassesThrough()
     {
         var nextCalled = false;
-        var middleware = CreateMiddleware(_ => { nextCalled = true; return Task.CompletedTask; });
+        var middleware = CreateMiddleware(_ =>
+        {
+            nextCalled = true;
+            return Task.CompletedTask;
+        });
         var context = CreateContext();
 
         await middleware.InvokeAsync(context);
@@ -73,7 +81,8 @@ public class GlobalExceptionMiddlewareTests
     {
         var middleware = CreateMiddleware(
             _ => throw new InvalidOperationException("secret internal error"),
-            isDevelopment: false);
+            isDevelopment: false
+        );
 
         var context = CreateContext();
         await middleware.InvokeAsync(context);
@@ -90,7 +99,8 @@ public class GlobalExceptionMiddlewareTests
     {
         var middleware = CreateMiddleware(
             _ => throw new InvalidOperationException("detailed dev error"),
-            isDevelopment: true);
+            isDevelopment: true
+        );
 
         var context = CreateContext();
         await middleware.InvokeAsync(context);

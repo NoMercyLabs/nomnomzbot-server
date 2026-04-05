@@ -5,6 +5,11 @@ namespace NoMercyBot.Application.Common.Interfaces;
 
 public interface IRealTimeNotifier
 {
-    Task NotifyChannelAsync(string channelId, string eventName, object payload, CancellationToken ct = default);
+    Task NotifyChannelAsync(
+        string channelId,
+        string eventName,
+        object payload,
+        CancellationToken ct = default
+    );
     Task NotifyAllAsync(string eventName, object payload, CancellationToken ct = default);
 }

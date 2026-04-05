@@ -8,5 +8,5 @@ public enum SubscriptionTier
     Free,
     Starter,
     Pro,
-    Platform
+    Platform,
 }

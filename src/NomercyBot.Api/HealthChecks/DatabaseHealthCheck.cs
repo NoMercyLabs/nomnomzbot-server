@@ -1,8 +1,6 @@
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
-
 using NoMercyBot.Api.Configuration;
-
 using Npgsql;
 
 namespace NoMercyBot.Api.HealthChecks;
@@ -14,7 +12,8 @@ public sealed class DatabaseHealthCheck(IOptions<DatabaseOptions> options) : IHe
 {
     public async Task<HealthCheckResult> CheckHealthAsync(
         HealthCheckContext context,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         try
         {
@@ -29,9 +28,7 @@ public sealed class DatabaseHealthCheck(IOptions<DatabaseOptions> options) : IHe
         }
         catch (Exception ex)
         {
-            return HealthCheckResult.Unhealthy(
-                "PostgreSQL connection failed.",
-                exception: ex);
+            return HealthCheckResult.Unhealthy("PostgreSQL connection failed.", exception: ex);
         }
     }
 }

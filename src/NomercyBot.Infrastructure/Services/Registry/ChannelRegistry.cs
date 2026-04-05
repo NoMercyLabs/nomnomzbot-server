@@ -55,7 +55,11 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
 
     public int Count => _channels.Count;
 
-    public async Task<ChannelContext> GetOrCreateAsync(string broadcasterId, string channelName, CancellationToken ct = default)
+    public async Task<ChannelContext> GetOrCreateAsync(
+        string broadcasterId,
+        string channelName,
+        CancellationToken ct = default
+    )
     {
         if (_channels.TryGetValue(broadcasterId, out var existing))
         {
@@ -69,12 +73,16 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
         await LoadCommandsAsync(ctx, ct);
 
         _channels[broadcasterId] = ctx;
-        _logger.LogInformation("Registered channel {BroadcasterId} ({ChannelName})", broadcasterId, channelName);
+        _logger.LogInformation(
+            "Registered channel {BroadcasterId} ({ChannelName})",
+            broadcasterId,
+            channelName
+        );
         return ctx;
     }
 
-    public ChannelContext? Get(string broadcasterId)
-        => _channels.TryGetValue(broadcasterId, out var ctx) ? ctx : null;
+    public ChannelContext? Get(string broadcasterId) =>
+        _channels.TryGetValue(broadcasterId, out var ctx) ? ctx : null;
 
     public async Task RemoveAsync(string broadcasterId, CancellationToken ct = default)
     {
@@ -91,7 +99,12 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Error cancelling pipeline {ExecutionId} for channel {BroadcasterId}", executionId, broadcasterId);
+                _logger.LogWarning(
+                    ex,
+                    "Error cancelling pipeline {ExecutionId} for channel {BroadcasterId}",
+                    executionId,
+                    broadcasterId
+                );
             }
         }
 
@@ -99,11 +112,10 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
         _logger.LogInformation("Unregistered channel {BroadcasterId}", broadcasterId);
     }
 
-    public IReadOnlyCollection<ChannelContext> GetAll()
-        => _channels.Values.ToList().AsReadOnly();
+    public IReadOnlyCollection<ChannelContext> GetAll() => _channels.Values.ToList().AsReadOnly();
 
-    public IReadOnlyCollection<ChannelContext> GetLiveChannels()
-        => _channels.Values.Where(c => c.IsLive).ToList().AsReadOnly();
+    public IReadOnlyCollection<ChannelContext> GetLiveChannels() =>
+        _channels.Values.Where(c => c.IsLive).ToList().AsReadOnly();
 
     // -------------------------------------------------------------------------
     // Private helpers
@@ -114,8 +126,10 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-        var commands = await db.Commands
-            .Where(c => c.BroadcasterId == ctx.BroadcasterId && c.IsEnabled && c.DeletedAt == null)
+        var commands = await db
+            .Commands.Where(c =>
+                c.BroadcasterId == ctx.BroadcasterId && c.IsEnabled && c.DeletedAt == null
+            )
             .Select(c => new CachedCommand
             {
                 Name = c.Name,
@@ -126,7 +140,7 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
                 Permission = c.Permission,
                 Type = c.Type,
                 PipelineJson = c.PipelineJson,
-                Aliases = c.Aliases.ToArray()
+                Aliases = c.Aliases.ToArray(),
             })
             .ToListAsync(ct);
 
@@ -137,14 +151,18 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
                 ctx.Commands[alias] = cmd;
         }
 
-        _logger.LogDebug("Loaded {Count} commands for channel {BroadcasterId}", commands.Count, ctx.BroadcasterId);
+        _logger.LogDebug(
+            "Loaded {Count} commands for channel {BroadcasterId}",
+            commands.Count,
+            ctx.BroadcasterId
+        );
     }
 
     private void RunEviction(object? state)
     {
         var threshold = DateTimeOffset.UtcNow - EvictionThreshold;
-        var candidates = _channels.Values
-            .Where(c => !c.IsLive && c.LastActivityAt < threshold)
+        var candidates = _channels
+            .Values.Where(c => !c.IsLive && c.LastActivityAt < threshold)
             .ToList();
 
         foreach (var ctx in candidates)

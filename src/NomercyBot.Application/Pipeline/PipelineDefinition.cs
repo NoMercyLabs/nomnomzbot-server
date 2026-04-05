@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 using System.Text.Json.Serialization;
+
 namespace NoMercyBot.Application.Pipeline;
 
 public class PipelineDefinition

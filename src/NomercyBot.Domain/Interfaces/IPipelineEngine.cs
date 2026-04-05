@@ -3,7 +3,10 @@ namespace NoMercyBot.Domain.Interfaces;
 
 public interface IPipelineEngine
 {
-    Task<PipelineExecutionResult> ExecuteAsync(PipelineRequest request, CancellationToken ct = default);
+    Task<PipelineExecutionResult> ExecuteAsync(
+        PipelineRequest request,
+        CancellationToken ct = default
+    );
     Task CancelAllForChannelAsync(string broadcasterId);
     int GetActiveCountForChannel(string broadcasterId);
 }
@@ -33,7 +36,14 @@ public class PipelineExecutionResult
     public IReadOnlyList<StepExecutionLog> StepLogs { get; init; } = [];
 }
 
-public enum PipelineOutcome { Completed, Stopped, Failed, TimedOut, Cancelled }
+public enum PipelineOutcome
+{
+    Completed,
+    Stopped,
+    Failed,
+    TimedOut,
+    Cancelled,
+}
 
 public class StepExecutionLog
 {

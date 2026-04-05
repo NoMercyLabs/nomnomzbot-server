@@ -7,7 +7,8 @@ public sealed record ModerationRuleListItem(
     bool IsEnabled,
     string Action,
     int? DurationSeconds,
-    DateTime CreatedAt);
+    DateTime CreatedAt
+);
 
 public sealed record ModerationRuleDetail(
     int Id,
@@ -20,7 +21,8 @@ public sealed record ModerationRuleDetail(
     Dictionary<string, object?> Settings,
     List<string> ExemptRoles,
     DateTime CreatedAt,
-    DateTime UpdatedAt);
+    DateTime UpdatedAt
+);
 
 public sealed record ModerationActionLog(
     string Id,
@@ -31,7 +33,8 @@ public sealed record ModerationActionLog(
     string? TargetUsername,
     string? Reason,
     int? DurationSeconds,
-    DateTime Timestamp);
+    DateTime Timestamp
+);
 
 public sealed record CreateModerationRuleRequest
 {
@@ -63,6 +66,4 @@ public sealed record PerformModerationActionRequest
     public int? DurationSeconds { get; init; }
 }
 
-public sealed record ModerationActionResult(
-    bool Success,
-    string? Message);
+public sealed record ModerationActionResult(bool Success, string? Message);

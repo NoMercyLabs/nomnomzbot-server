@@ -14,11 +14,23 @@ public interface IMusicProvider
 
     Task SkipAsync(string broadcasterId, CancellationToken cancellationToken = default);
 
-    Task<TrackInfo?> GetCurrentTrackAsync(string broadcasterId, CancellationToken cancellationToken = default);
+    Task<TrackInfo?> GetCurrentTrackAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    );
 
-    Task<IReadOnlyList<TrackInfo>> SearchAsync(string broadcasterId, string query, int maxResults = 5, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<TrackInfo>> SearchAsync(
+        string broadcasterId,
+        string query,
+        int maxResults = 5,
+        CancellationToken cancellationToken = default
+    );
 
-    Task<bool> AddToQueueAsync(string broadcasterId, string trackUri, CancellationToken cancellationToken = default);
+    Task<bool> AddToQueueAsync(
+        string broadcasterId,
+        string trackUri,
+        CancellationToken cancellationToken = default
+    );
 }
 
 public class TrackInfo

@@ -6,17 +6,11 @@ namespace NoMercyBot.Application.Common.Exceptions;
 public sealed class ForbiddenAccessException : Exception
 {
     public ForbiddenAccessException()
-        : base("You do not have permission to perform this action.")
-    {
-    }
+        : base("You do not have permission to perform this action.") { }
 
     public ForbiddenAccessException(string message)
-        : base(message)
-    {
-    }
+        : base(message) { }
 
     public ForbiddenAccessException(string userId, string resource)
-        : base($"User '{userId}' does not have access to '{resource}'.")
-    {
-    }
+        : base($"User '{userId}' does not have access to '{resource}'.") { }
 }

@@ -7,14 +7,33 @@ namespace NoMercyBot.Application.Contracts.Notifications;
 public interface IRealTimeNotifier
 {
     /// <summary>Send a message to all clients connected to a specific channel.</summary>
-    Task SendToChannelAsync(string broadcasterId, string eventType, object payload, CancellationToken cancellationToken = default);
+    Task SendToChannelAsync(
+        string broadcasterId,
+        string eventType,
+        object payload,
+        CancellationToken cancellationToken = default
+    );
 
     /// <summary>Send a message to a specific connected user.</summary>
-    Task SendToUserAsync(string userId, string eventType, object payload, CancellationToken cancellationToken = default);
+    Task SendToUserAsync(
+        string userId,
+        string eventType,
+        object payload,
+        CancellationToken cancellationToken = default
+    );
 
     /// <summary>Send a message to all connected clients.</summary>
-    Task SendToAllAsync(string eventType, object payload, CancellationToken cancellationToken = default);
+    Task SendToAllAsync(
+        string eventType,
+        object payload,
+        CancellationToken cancellationToken = default
+    );
 
     /// <summary>Send a message to a specific overlay/widget connection group.</summary>
-    Task SendToGroupAsync(string groupName, string eventType, object payload, CancellationToken cancellationToken = default);
+    Task SendToGroupAsync(
+        string groupName,
+        string eventType,
+        object payload,
+        CancellationToken cancellationToken = default
+    );
 }

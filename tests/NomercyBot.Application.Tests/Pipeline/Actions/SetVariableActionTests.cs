@@ -11,25 +11,24 @@ public class SetVariableActionTests
 {
     private static ActionContext BuildCtx(
         Dictionary<string, object?>? parameters = null,
-        Dictionary<string, string>? variables = null)
-        => new()
+        Dictionary<string, string>? variables = null
+    ) =>
+        new()
         {
             BroadcasterId = "chan1",
             TriggeredByUserId = "user1",
             TriggeredByDisplayName = "User1",
             Parameters = parameters ?? new Dictionary<string, object?>(),
-            Variables = variables ?? new Dictionary<string, string>()
+            Variables = variables ?? new Dictionary<string, string>(),
         };
 
     [Fact]
     public async Task ExecuteAsync_WithNameAndValue_Succeeds()
     {
         var action = new SetVariableAction();
-        var ctx = BuildCtx(new Dictionary<string, object?>
-        {
-            { "name", "greeting" },
-            { "value", "Hello" }
-        });
+        var ctx = BuildCtx(
+            new Dictionary<string, object?> { { "name", "greeting" }, { "value", "Hello" } }
+        );
 
         var result = await action.ExecuteAsync(ctx);
 
@@ -78,7 +77,8 @@ public class SetVariableActionTests
         var action = new SetVariableAction();
         var ctx = BuildCtx(
             new Dictionary<string, object?> { { "name", "copy" }, { "value", "{{original}}" } },
-            new Dictionary<string, string> { { "original", "hello" } });
+            new Dictionary<string, string> { { "original", "hello" } }
+        );
 
         var result = await action.ExecuteAsync(ctx);
 

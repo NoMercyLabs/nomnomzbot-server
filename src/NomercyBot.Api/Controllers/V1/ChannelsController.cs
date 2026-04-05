@@ -28,17 +28,25 @@ public class ChannelsController : BaseController
     [ProducesResponseType<PaginatedResponse<ChannelDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListChannels(
         [FromQuery] PageRequestDto request,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
-        var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+        var userId =
+            User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
             ?? User.FindFirst("sub")?.Value;
 
         if (string.IsNullOrEmpty(userId))
             return UnauthenticatedResponse();
 
-        var pagination = new PaginationParams(request.Page, request.Take, request.Sort, request.Order);
+        var pagination = new PaginationParams(
+            request.Page,
+            request.Take,
+            request.Sort,
+            request.Order
+        );
         var result = await _channelService.GetChannelsAsync(userId, pagination, ct);
-        if (result.IsFailure) return ResultResponse(result);
+        if (result.IsFailure)
+            return ResultResponse(result);
         return GetPaginatedResponse(result.Value, request);
     }
 
@@ -54,13 +62,22 @@ public class ChannelsController : BaseController
     [ProducesResponseType<StatusResponseDto<ChannelDto>>(StatusCodes.Status201Created)]
     public async Task<IActionResult> OnboardChannel(
         [FromBody] CreateChannelRequest request,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         var result = await _channelService.OnboardAsync(request.BroadcasterId, request, ct);
-        if (result.IsFailure) return ResultResponse(result);
+        if (result.IsFailure)
+            return ResultResponse(result);
 
-        return CreatedAtAction(nameof(GetChannel), new { channelId = result.Value.Id },
-            new StatusResponseDto<ChannelDto> { Data = result.Value, Message = "Channel onboarded successfully." });
+        return CreatedAtAction(
+            nameof(GetChannel),
+            new { channelId = result.Value.Id },
+            new StatusResponseDto<ChannelDto>
+            {
+                Data = result.Value,
+                Message = "Channel onboarded successfully.",
+            }
+        );
     }
 
     [HttpPut("{channelId}")]
@@ -68,10 +85,12 @@ public class ChannelsController : BaseController
     public async Task<IActionResult> UpdateChannelSettings(
         string channelId,
         [FromBody] UpdateChannelSettingsDto request,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         var result = await _channelService.UpdateSettingsAsync(channelId, request, ct);
-        if (result.IsFailure) return ResultResponse(result);
+        if (result.IsFailure)
+            return ResultResponse(result);
         return Ok(new StatusResponseDto<ChannelDto> { Data = result.Value });
     }
 
@@ -80,7 +99,8 @@ public class ChannelsController : BaseController
     public async Task<IActionResult> JoinChannel(string channelId, CancellationToken ct)
     {
         var result = await _channelService.JoinAsync(channelId, ct);
-        if (result.IsFailure) return ResultResponse(result);
+        if (result.IsFailure)
+            return ResultResponse(result);
         return Ok(new StatusResponseDto<object> { Message = "Bot joined channel." });
     }
 
@@ -89,7 +109,8 @@ public class ChannelsController : BaseController
     public async Task<IActionResult> LeaveChannel(string channelId, CancellationToken ct)
     {
         var result = await _channelService.LeaveAsync(channelId, ct);
-        if (result.IsFailure) return ResultResponse(result);
+        if (result.IsFailure)
+            return ResultResponse(result);
         return Ok(new StatusResponseDto<object> { Message = "Bot left channel." });
     }
 
@@ -98,7 +119,8 @@ public class ChannelsController : BaseController
     public async Task<IActionResult> DeleteChannel(string channelId, CancellationToken ct)
     {
         var result = await _channelService.DeleteAsync(channelId, ct);
-        if (result.IsFailure) return ResultResponse(result);
+        if (result.IsFailure)
+            return ResultResponse(result);
         return NoContent();
     }
 }

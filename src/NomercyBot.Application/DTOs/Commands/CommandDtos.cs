@@ -18,7 +18,8 @@ public sealed record CommandDto(
     List<string> Aliases,
     int UsageCount,
     DateTime CreatedAt,
-    DateTime UpdatedAt);
+    DateTime UpdatedAt
+);
 
 /// <summary>Lightweight command info for list views.</summary>
 public sealed record CommandListItem(
@@ -31,7 +32,8 @@ public sealed record CommandListItem(
     string? Description,
     List<string> Aliases,
     int UsageCount,
-    DateTime CreatedAt);
+    DateTime CreatedAt
+);
 
 /// <summary>Request to create a new command.</summary>
 public sealed record CreateCommandDto

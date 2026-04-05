@@ -16,7 +16,11 @@ public class TtsServiceStub : ITtsService
         _logger = logger;
     }
 
-    public Task<TtsResult> SynthesizeAsync(string text, string voiceId, CancellationToken ct = default)
+    public Task<TtsResult> SynthesizeAsync(
+        string text,
+        string voiceId,
+        CancellationToken ct = default
+    )
     {
         _logger.LogDebug("[STUB] TTS Synthesize: {Text} with {VoiceId}", text, voiceId);
         return Task.FromResult(new TtsResult([], 0, voiceId, "stub"));

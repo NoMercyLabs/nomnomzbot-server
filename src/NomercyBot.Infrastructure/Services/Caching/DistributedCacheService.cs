@@ -22,11 +22,17 @@ public sealed class DistributedCacheService : ICacheService
     public async Task<T?> GetAsync<T>(string key, CancellationToken ct = default)
     {
         var bytes = await _cache.GetAsync(key, ct);
-        if (bytes is null) return default;
+        if (bytes is null)
+            return default;
         return JsonSerializer.Deserialize<T>(bytes);
     }
 
-    public async Task SetAsync<T>(string key, T value, TimeSpan? expiry = null, CancellationToken ct = default)
+    public async Task SetAsync<T>(
+        string key,
+        T value,
+        TimeSpan? expiry = null,
+        CancellationToken ct = default
+    )
     {
         var options = new DistributedCacheEntryOptions();
         if (expiry.HasValue)
@@ -36,7 +42,11 @@ public sealed class DistributedCacheService : ICacheService
 
         var bytes = JsonSerializer.SerializeToUtf8Bytes(value);
         await _cache.SetAsync(key, bytes, options, ct);
-        _logger.LogTrace("Cache SET: {Key} (expiry={Expiry})", key, expiry?.ToString() ?? "sliding:5m");
+        _logger.LogTrace(
+            "Cache SET: {Key} (expiry={Expiry})",
+            key,
+            expiry?.ToString() ?? "sliding:5m"
+        );
     }
 
     public async Task RemoveAsync(string key, CancellationToken ct = default)

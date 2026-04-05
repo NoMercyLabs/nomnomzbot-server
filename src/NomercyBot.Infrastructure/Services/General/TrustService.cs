@@ -39,9 +39,9 @@ public sealed class TrustService : ITrustService
     private const string RecordType = "trust_state";
 
     // Exponential decay lambdas (tune these to taste)
-    private const double LambdaRequest = 0.01;    // slow decay as requests accumulate
-    private const double LambdaAccount = 0.005;   // grows over ~200 days to near-1
-    private const double LambdaContent = 0.5;     // fast decay with each violation
+    private const double LambdaRequest = 0.01; // slow decay as requests accumulate
+    private const double LambdaAccount = 0.005; // grows over ~200 days to near-1
+    private const double LambdaContent = 0.5; // fast decay with each violation
     private const double LambdaPopularity = 0.02; // grows over ~50 days follow age
 
     private const double FollowagePenaltyThresholdDays = 7;
@@ -59,7 +59,8 @@ public sealed class TrustService : ITrustService
     public TrustService(
         IServiceScopeFactory scopeFactory,
         IChannelRegistry registry,
-        ILogger<TrustService> logger)
+        ILogger<TrustService> logger
+    )
     {
         _scopeFactory = scopeFactory;
         _registry = registry;
@@ -69,7 +70,8 @@ public sealed class TrustService : ITrustService
     public async Task<double> GetScoreAsync(
         string broadcasterId,
         string userId,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var state = await GetOrLoadStateAsync(broadcasterId, userId, ct);
         return ComputeScore(state);
@@ -79,7 +81,8 @@ public sealed class TrustService : ITrustService
         string broadcasterId,
         string userId,
         string violationType,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var state = await GetOrLoadStateAsync(broadcasterId, userId, ct);
 
@@ -89,14 +92,20 @@ public sealed class TrustService : ITrustService
         state.LastViolationType = violationType;
 
         await SaveStateAsync(broadcasterId, userId, state, ct);
-        _logger.LogDebug("Trust violation recorded: {User} in {Channel} ({Type}) — new score {Score:F3}",
-            userId, broadcasterId, violationType, ComputeScore(state));
+        _logger.LogDebug(
+            "Trust violation recorded: {User} in {Channel} ({Type}) — new score {Score:F3}",
+            userId,
+            broadcasterId,
+            violationType,
+            ComputeScore(state)
+        );
     }
 
     public async Task RecordPositiveInteractionAsync(
         string broadcasterId,
         string userId,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var state = await GetOrLoadStateAsync(broadcasterId, userId, ct);
 
@@ -143,17 +152,21 @@ public sealed class TrustService : ITrustService
     private async Task<TrustState> GetOrLoadStateAsync(
         string broadcasterId,
         string userId,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         var cacheKey = $"{broadcasterId}:{userId}";
 
-        if (_stateCache.TryGetValue(cacheKey, out var cached)
-            && DateTime.UtcNow - cached.CachedAt < TimeSpan.FromMinutes(10))
+        if (
+            _stateCache.TryGetValue(cacheKey, out var cached)
+            && DateTime.UtcNow - cached.CachedAt < TimeSpan.FromMinutes(10)
+        )
         {
             return cached;
         }
 
-        var state = await LoadFromDbAsync(broadcasterId, userId, ct)
+        var state =
+            await LoadFromDbAsync(broadcasterId, userId, ct)
             ?? await BuildInitialStateAsync(broadcasterId, userId, ct);
 
         state.CachedAt = DateTime.UtcNow;
@@ -164,28 +177,38 @@ public sealed class TrustService : ITrustService
     private async Task<TrustState?> LoadFromDbAsync(
         string broadcasterId,
         string userId,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         try
         {
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-            var record = await db.Records
-                .FirstOrDefaultAsync(r =>
+            var record = await db.Records.FirstOrDefaultAsync(
+                r =>
                     r.BroadcasterId == broadcasterId
                     && r.UserId == userId
-                    && r.RecordType == RecordType, ct);
+                    && r.RecordType == RecordType,
+                ct
+            );
 
-            if (record is null) return null;
+            if (record is null)
+                return null;
 
             var state = JsonSerializer.Deserialize<TrustState>(record.Data);
-            if (state is not null) state.RecordId = record.Id;
+            if (state is not null)
+                state.RecordId = record.Id;
             return state;
         }
         catch (Exception ex)
         {
-            _logger.LogDebug(ex, "Failed to load trust state for {UserId} in {BroadcasterId}", userId, broadcasterId);
+            _logger.LogDebug(
+                ex,
+                "Failed to load trust state for {UserId} in {BroadcasterId}",
+                userId,
+                broadcasterId
+            );
             return null;
         }
     }
@@ -193,7 +216,8 @@ public sealed class TrustService : ITrustService
     private async Task<TrustState> BuildInitialStateAsync(
         string broadcasterId,
         string userId,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         // Try to seed from User entity for account age
         DateTime accountCreated = DateTime.UtcNow.AddDays(-1); // default: 1-day-old account
@@ -227,7 +251,8 @@ public sealed class TrustService : ITrustService
         string broadcasterId,
         string userId,
         TrustState state,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         try
         {

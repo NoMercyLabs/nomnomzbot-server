@@ -23,10 +23,19 @@ public interface ITrustService
     Task<double> GetScoreAsync(string broadcasterId, string userId, CancellationToken ct = default);
 
     /// <summary>Records a violation and reduces the trust score.</summary>
-    Task RecordViolationAsync(string broadcasterId, string userId, string violationType, CancellationToken ct = default);
+    Task RecordViolationAsync(
+        string broadcasterId,
+        string userId,
+        string violationType,
+        CancellationToken ct = default
+    );
 
     /// <summary>Boosts the trust score towards 1.0 (gap-halving on each positive interaction).</summary>
-    Task RecordPositiveInteractionAsync(string broadcasterId, string userId, CancellationToken ct = default);
+    Task RecordPositiveInteractionAsync(
+        string broadcasterId,
+        string userId,
+        CancellationToken ct = default
+    );
 }
 
 public sealed class TrustScore

@@ -12,19 +12,14 @@ public class UserTtsVoiceConfiguration : IEntityTypeConfiguration<UserTtsVoice>
     {
         builder.HasKey(e => e.Id);
 
-        builder.Property(e => e.BroadcasterId)
-            .IsRequired()
-            .HasMaxLength(50);
+        builder.Property(e => e.BroadcasterId).IsRequired().HasMaxLength(50);
 
-        builder.Property(e => e.UserId)
-            .IsRequired()
-            .HasMaxLength(50);
+        builder.Property(e => e.UserId).IsRequired().HasMaxLength(50);
 
-        builder.Property(e => e.VoiceId)
-            .IsRequired()
-            .HasMaxLength(255);
+        builder.Property(e => e.VoiceId).IsRequired().HasMaxLength(255);
 
-        builder.HasIndex(e => new { e.BroadcasterId, e.UserId })
+        builder
+            .HasIndex(e => new { e.BroadcasterId, e.UserId })
             .IsUnique()
             .HasDatabaseName("IX_UserTtsVoice_BroadcasterId_UserId");
     }

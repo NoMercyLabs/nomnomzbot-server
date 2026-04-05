@@ -87,16 +87,16 @@ public enum TrustTier
 public static class TrustScoreCalculator
 {
     // ─── Weights (must sum to 1.0) ────────────────────────────────────────────
-    private const double RequestCountWeight     = 0.25;
-    private const double AccountAgeWeight       = 0.25;
-    private const double ContentAgeWeight       = 0.30;
+    private const double RequestCountWeight = 0.25;
+    private const double AccountAgeWeight = 0.25;
+    private const double ContentAgeWeight = 0.30;
     private const double ContentPopularityWeight = 0.20;
 
     // ─── Decay rates (higher = faster saturation toward 100) ─────────────────
-    private const double RequestCountDecay      = 0.599;   // ~5 requests → ~95%
-    private const double AccountAgeDecay        = 0.499;   // ~6 months   → ~95%
-    private const double ContentAgeDecay        = 0.999;   // ~3 months   → ~95%
-    private const double ContentPopularityDecay = 0.0003;  // ~10K views  → ~95%
+    private const double RequestCountDecay = 0.599; // ~5 requests → ~95%
+    private const double AccountAgeDecay = 0.499; // ~6 months   → ~95%
+    private const double ContentAgeDecay = 0.999; // ~3 months   → ~95%
+    private const double ContentPopularityDecay = 0.0003; // ~10K views  → ~95%
 
     /// <summary>
     /// Calculate a trust score from 0 to 100 for the given context.
@@ -104,17 +104,19 @@ public static class TrustScoreCalculator
     public static double Calculate(TrustContext ctx)
     {
         // Step 1: Metric scores (0–100 each) via exponential decay
-        double requestScore    = 100.0 * (1.0 - Math.Exp(-RequestCountDecay      * ctx.SuccessfulRequestCount));
-        double accountScore    = 100.0 * (1.0 - Math.Exp(-AccountAgeDecay        * ctx.AccountAgeMonths));
-        double contentScore    = 100.0 * (1.0 - Math.Exp(-ContentAgeDecay        * ctx.ContentAgeMonths));
-        double popularityScore = 100.0 * (1.0 - Math.Exp(-ContentPopularityDecay * ctx.ContentViewCount));
+        double requestScore =
+            100.0 * (1.0 - Math.Exp(-RequestCountDecay * ctx.SuccessfulRequestCount));
+        double accountScore = 100.0 * (1.0 - Math.Exp(-AccountAgeDecay * ctx.AccountAgeMonths));
+        double contentScore = 100.0 * (1.0 - Math.Exp(-ContentAgeDecay * ctx.ContentAgeMonths));
+        double popularityScore =
+            100.0 * (1.0 - Math.Exp(-ContentPopularityDecay * ctx.ContentViewCount));
 
         // Step 2: Weighted sum
         double score =
-            requestScore    * RequestCountWeight     +
-            accountScore    * AccountAgeWeight       +
-            contentScore    * ContentAgeWeight       +
-            popularityScore * ContentPopularityWeight;
+            requestScore * RequestCountWeight
+            + accountScore * AccountAgeWeight
+            + contentScore * ContentAgeWeight
+            + popularityScore * ContentPopularityWeight;
 
         // Step 3: Follow penalty — not following or <24h follow
         if (!ctx.IsFollowing || ctx.FollowAgeDays < 1.0)
@@ -139,18 +141,19 @@ public static class TrustScoreCalculator
 
         // Step 6: Violation penalties (applied after boosts)
         score -= ctx.SkippedByModCount * 5.0;
-        score -= ctx.TimeoutCount      * 10.0;
-        score -= ctx.BanCount          * 30.0;
+        score -= ctx.TimeoutCount * 10.0;
+        score -= ctx.BanCount * 30.0;
 
         return Math.Clamp(score, 0.0, 100.0);
     }
 
     /// <summary>Maps a numeric score to its corresponding trust tier.</summary>
-    public static TrustTier GetTier(double score) => score switch
-    {
-        <= 25.0 => TrustTier.Untrusted,
-        <= 50.0 => TrustTier.Low,
-        <= 75.0 => TrustTier.Standard,
-        _       => TrustTier.Trusted,
-    };
+    public static TrustTier GetTier(double score) =>
+        score switch
+        {
+            <= 25.0 => TrustTier.Untrusted,
+            <= 50.0 => TrustTier.Low,
+            <= 75.0 => TrustTier.Standard,
+            _ => TrustTier.Trusted,
+        };
 }

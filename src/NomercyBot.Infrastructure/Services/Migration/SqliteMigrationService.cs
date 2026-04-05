@@ -31,9 +31,7 @@ public sealed class SqliteMigrationService
     private readonly IApplicationDbContext _db;
     private readonly ILogger<SqliteMigrationService> _logger;
 
-    public SqliteMigrationService(
-        IApplicationDbContext db,
-        ILogger<SqliteMigrationService> logger)
+    public SqliteMigrationService(IApplicationDbContext db, ILogger<SqliteMigrationService> logger)
     {
         _db = db;
         _logger = logger;
@@ -49,15 +47,22 @@ public sealed class SqliteMigrationService
     public async Task<MigrationResult> MigrateAsync(
         string sqliteFilePath,
         string broadcasterId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         if (!File.Exists(sqliteFilePath))
             return new MigrationResult(false, $"SQLite file not found: {sqliteFilePath}");
 
         // Ensure the target channel exists
-        var channelExists = await _db.Channels.AnyAsync(c => c.Id == broadcasterId, cancellationToken);
+        var channelExists = await _db.Channels.AnyAsync(
+            c => c.Id == broadcasterId,
+            cancellationToken
+        );
         if (!channelExists)
-            return new MigrationResult(false, $"Channel {broadcasterId} not found. Complete onboarding first.");
+            return new MigrationResult(
+                false,
+                $"Channel {broadcasterId} not found. Complete onboarding first."
+            );
 
         var counts = new MigrationCounts();
 
@@ -68,13 +73,22 @@ public sealed class SqliteMigrationService
         // Migration steps are independent — failures are logged but don't abort others
         counts.Users = await MigrateUsersAsync(conn, cancellationToken);
         counts.Commands = await MigrateCommandsAsync(conn, broadcasterId, cancellationToken);
-        counts.ChatMessages = await MigrateChatMessagesAsync(conn, broadcasterId, cancellationToken);
+        counts.ChatMessages = await MigrateChatMessagesAsync(
+            conn,
+            broadcasterId,
+            cancellationToken
+        );
         counts.Records = await MigrateRecordsAsync(conn, broadcasterId, cancellationToken);
 
         _logger.LogInformation(
-            "Migration complete for {BroadcasterId}: {Users} users, {Commands} commands, " +
-            "{Messages} messages, {Records} records",
-            broadcasterId, counts.Users, counts.Commands, counts.ChatMessages, counts.Records);
+            "Migration complete for {BroadcasterId}: {Users} users, {Commands} commands, "
+                + "{Messages} messages, {Records} records",
+            broadcasterId,
+            counts.Users,
+            counts.Commands,
+            counts.ChatMessages,
+            counts.Records
+        );
 
         return new MigrationResult(true, "Migration completed successfully.", counts);
     }
@@ -99,14 +113,16 @@ public sealed class SqliteMigrationService
             var existing = await _db.Users.FirstOrDefaultAsync(u => u.Id == id, ct);
             if (existing is null)
             {
-                _db.Users.Add(new User
-                {
-                    Id = id,
-                    Username = username,
-                    DisplayName = displayName,
-                    ProfileImageUrl = profileUrl,
-                    Enabled = true,
-                });
+                _db.Users.Add(
+                    new User
+                    {
+                        Id = id,
+                        Username = username,
+                        DisplayName = displayName,
+                        ProfileImageUrl = profileUrl,
+                        Enabled = true,
+                    }
+                );
                 count++;
             }
         }
@@ -119,12 +135,17 @@ public sealed class SqliteMigrationService
 
     // ─── Commands ─────────────────────────────────────────────────────────────
 
-    private async Task<int> MigrateCommandsAsync(SqliteConnection conn, string broadcasterId, CancellationToken ct)
+    private async Task<int> MigrateCommandsAsync(
+        SqliteConnection conn,
+        string broadcasterId,
+        CancellationToken ct
+    )
     {
         int count = 0;
 
         await using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT Name, Response, CooldownSeconds, IsEnabled FROM Commands WHERE IsEnabled = 1";
+        cmd.CommandText =
+            "SELECT Name, Response, CooldownSeconds, IsEnabled FROM Commands WHERE IsEnabled = 1";
 
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
@@ -133,21 +154,26 @@ public sealed class SqliteMigrationService
             var response = reader.IsDBNull(1) ? null : reader.GetString(1);
             var cooldown = reader.IsDBNull(2) ? 0 : reader.GetInt32(2);
 
-            var existing = await _db.Commands.AnyAsync(c => c.BroadcasterId == broadcasterId && c.Name == name, ct);
+            var existing = await _db.Commands.AnyAsync(
+                c => c.BroadcasterId == broadcasterId && c.Name == name,
+                ct
+            );
             if (!existing)
             {
-                _db.Commands.Add(new Command
-                {
-                    BroadcasterId = broadcasterId,
-                    Name = name,
-                    Response = response,
-                    CooldownSeconds = cooldown,
-                    IsEnabled = true,
-                    Type = "chat",
-                    Permission = "everyone",
-                    Responses = [],
-                    Aliases = [],
-                });
+                _db.Commands.Add(
+                    new Command
+                    {
+                        BroadcasterId = broadcasterId,
+                        Name = name,
+                        Response = response,
+                        CooldownSeconds = cooldown,
+                        IsEnabled = true,
+                        Type = "chat",
+                        Permission = "everyone",
+                        Responses = [],
+                        Aliases = [],
+                    }
+                );
                 count++;
             }
         }
@@ -160,18 +186,25 @@ public sealed class SqliteMigrationService
 
     // ─── Chat messages ────────────────────────────────────────────────────────
 
-    private async Task<int> MigrateChatMessagesAsync(SqliteConnection conn, string broadcasterId, CancellationToken ct)
+    private async Task<int> MigrateChatMessagesAsync(
+        SqliteConnection conn,
+        string broadcasterId,
+        CancellationToken ct
+    )
     {
         int count = 0;
 
         // Check if ChatMessages table exists in the old DB
         await using var checkCmd = conn.CreateCommand();
-        checkCmd.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name='ChatMessages'";
+        checkCmd.CommandText =
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='ChatMessages'";
         var tableExists = await checkCmd.ExecuteScalarAsync(ct) is not null;
-        if (!tableExists) return 0;
+        if (!tableExists)
+            return 0;
 
         await using var cmd = conn.CreateCommand();
-        cmd.CommandText = @"
+        cmd.CommandText =
+            @"
             SELECT Id, UserId, Username, DisplayName, Message, CreatedAt
             FROM ChatMessages
             ORDER BY CreatedAt ASC
@@ -191,22 +224,25 @@ public sealed class SqliteMigrationService
 
             // Skip if already migrated
             var exists = await _db.ChatMessages.AnyAsync(m => m.Id == msgId, ct);
-            if (exists) continue;
+            if (exists)
+                continue;
 
-            batch.Add(new ChatMessage
-            {
-                Id = msgId,
-                BroadcasterId = broadcasterId,
-                UserId = userId,
-                Username = username,
-                DisplayName = displayName,
-                Message = message,
-                UserType = "viewer",
-                MessageType = "text",
-                Fragments = [],
-                Badges = [],
-                CreatedAt = createdAt,
-            });
+            batch.Add(
+                new ChatMessage
+                {
+                    Id = msgId,
+                    BroadcasterId = broadcasterId,
+                    UserId = userId,
+                    Username = username,
+                    DisplayName = displayName,
+                    Message = message,
+                    UserType = "viewer",
+                    MessageType = "text",
+                    Fragments = [],
+                    Badges = [],
+                    CreatedAt = createdAt,
+                }
+            );
 
             if (batch.Count >= 500)
             {
@@ -229,14 +265,20 @@ public sealed class SqliteMigrationService
 
     // ─── Records (watch streaks, usage stats) ─────────────────────────────────
 
-    private async Task<int> MigrateRecordsAsync(SqliteConnection conn, string broadcasterId, CancellationToken ct)
+    private async Task<int> MigrateRecordsAsync(
+        SqliteConnection conn,
+        string broadcasterId,
+        CancellationToken ct
+    )
     {
         int count = 0;
 
         await using var checkCmd = conn.CreateCommand();
-        checkCmd.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name='Records'";
+        checkCmd.CommandText =
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='Records'";
         var tableExists = await checkCmd.ExecuteScalarAsync(ct) is not null;
-        if (!tableExists) return 0;
+        if (!tableExists)
+            return 0;
 
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = "SELECT RecordType, Data, UserId FROM Records";
@@ -248,13 +290,15 @@ public sealed class SqliteMigrationService
             var data = reader.GetString(1);
             var userId = reader.IsDBNull(2) ? broadcasterId : reader.GetString(2);
 
-            _db.Records.Add(new Record
-            {
-                BroadcasterId = broadcasterId,
-                RecordType = recordType,
-                Data = data,
-                UserId = userId,
-            });
+            _db.Records.Add(
+                new Record
+                {
+                    BroadcasterId = broadcasterId,
+                    RecordType = recordType,
+                    Data = data,
+                    UserId = userId,
+                }
+            );
             count++;
         }
 

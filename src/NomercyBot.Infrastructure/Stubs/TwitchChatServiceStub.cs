@@ -21,9 +21,19 @@ public class TwitchChatServiceStub : ITwitchChatService
         return Task.CompletedTask;
     }
 
-    public Task SendReplyAsync(string channelId, string replyToMessageId, string message, CancellationToken ct = default)
+    public Task SendReplyAsync(
+        string channelId,
+        string replyToMessageId,
+        string message,
+        CancellationToken ct = default
+    )
     {
-        _logger.LogDebug("[STUB] SendReply to {ChannelId} re:{ReplyId}: {Message}", channelId, replyToMessageId, message);
+        _logger.LogDebug(
+            "[STUB] SendReply to {ChannelId} re:{ReplyId}: {Message}",
+            channelId,
+            replyToMessageId,
+            message
+        );
         return Task.CompletedTask;
     }
 

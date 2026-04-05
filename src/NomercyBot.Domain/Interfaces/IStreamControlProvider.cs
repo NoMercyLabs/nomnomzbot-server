@@ -8,11 +8,26 @@ namespace NoMercyBot.Domain.Interfaces;
 /// </summary>
 public interface IStreamControlProvider
 {
-    Task UpdateTitleAsync(string broadcasterId, string title, CancellationToken cancellationToken = default);
+    Task UpdateTitleAsync(
+        string broadcasterId,
+        string title,
+        CancellationToken cancellationToken = default
+    );
 
-    Task UpdateGameAsync(string broadcasterId, string gameId, CancellationToken cancellationToken = default);
+    Task UpdateGameAsync(
+        string broadcasterId,
+        string gameId,
+        CancellationToken cancellationToken = default
+    );
 
-    Task<string?> CreateClipAsync(string broadcasterId, CancellationToken cancellationToken = default);
+    Task<string?> CreateClipAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    );
 
-    Task StartCommercialAsync(string broadcasterId, int durationSeconds, CancellationToken cancellationToken = default);
+    Task StartCommercialAsync(
+        string broadcasterId,
+        int durationSeconds,
+        CancellationToken cancellationToken = default
+    );
 }

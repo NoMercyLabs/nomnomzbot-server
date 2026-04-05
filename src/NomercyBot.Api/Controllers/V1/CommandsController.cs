@@ -29,17 +29,28 @@ public class CommandsController : BaseController
     public async Task<IActionResult> ListCommands(
         string channelId,
         [FromQuery] PageRequestDto request,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
-        var pagination = new PaginationParams(request.Page, request.Take, request.Sort, request.Order);
+        var pagination = new PaginationParams(
+            request.Page,
+            request.Take,
+            request.Sort,
+            request.Order
+        );
         var result = await _commandService.ListAsync(channelId, pagination, ct);
-        if (result.IsFailure) return ResultResponse(result);
+        if (result.IsFailure)
+            return ResultResponse(result);
         return GetPaginatedResponse(result.Value, request);
     }
 
     [HttpGet("{commandName}")]
     [ProducesResponseType<StatusResponseDto<CommandDto>>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetCommand(string channelId, string commandName, CancellationToken ct)
+    public async Task<IActionResult> GetCommand(
+        string channelId,
+        string commandName,
+        CancellationToken ct
+    )
     {
         var result = await _commandService.GetAsync(channelId, commandName, ct);
         return ResultResponse(result);
@@ -50,13 +61,22 @@ public class CommandsController : BaseController
     public async Task<IActionResult> CreateCommand(
         string channelId,
         [FromBody] CreateCommandDto request,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         var result = await _commandService.CreateAsync(channelId, request, ct);
-        if (result.IsFailure) return ResultResponse(result);
+        if (result.IsFailure)
+            return ResultResponse(result);
 
-        return CreatedAtAction(nameof(GetCommand), new { channelId, commandName = result.Value.Name },
-            new StatusResponseDto<CommandDto> { Data = result.Value, Message = "Command created successfully." });
+        return CreatedAtAction(
+            nameof(GetCommand),
+            new { channelId, commandName = result.Value.Name },
+            new StatusResponseDto<CommandDto>
+            {
+                Data = result.Value,
+                Message = "Command created successfully.",
+            }
+        );
     }
 
     [HttpPut("{commandName}")]
@@ -65,19 +85,26 @@ public class CommandsController : BaseController
         string channelId,
         string commandName,
         [FromBody] UpdateCommandDto request,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         var result = await _commandService.UpdateAsync(channelId, commandName, request, ct);
-        if (result.IsFailure) return ResultResponse(result);
+        if (result.IsFailure)
+            return ResultResponse(result);
         return Ok(new StatusResponseDto<CommandDto> { Data = result.Value });
     }
 
     [HttpDelete("{commandName}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public async Task<IActionResult> DeleteCommand(string channelId, string commandName, CancellationToken ct)
+    public async Task<IActionResult> DeleteCommand(
+        string channelId,
+        string commandName,
+        CancellationToken ct
+    )
     {
         var result = await _commandService.DeleteAsync(channelId, commandName, ct);
-        if (result.IsFailure) return ResultResponse(result);
+        if (result.IsFailure)
+            return ResultResponse(result);
         return NoContent();
     }
 }

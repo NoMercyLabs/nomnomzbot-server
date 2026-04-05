@@ -33,7 +33,8 @@ public sealed class TwitchAuthService : ITwitchAuthService
         IEncryptionService encryption,
         IHttpClientFactory httpClientFactory,
         IOptions<TwitchOptions> options,
-        ILogger<TwitchAuthService> logger)
+        ILogger<TwitchAuthService> logger
+    )
     {
         _db = db;
         _encryption = encryption;
@@ -46,16 +47,22 @@ public sealed class TwitchAuthService : ITwitchAuthService
     /// Exchange an authorization code for access + refresh tokens.
     /// Does NOT persist to DB — caller is responsible for saving the returned result.
     /// </summary>
-    public async Task<TokenResult?> ExchangeCodeAsync(string code, string redirectUri, CancellationToken ct = default)
+    public async Task<TokenResult?> ExchangeCodeAsync(
+        string code,
+        string redirectUri,
+        CancellationToken ct = default
+    )
     {
-        var form = new FormUrlEncodedContent(new Dictionary<string, string>
-        {
-            ["client_id"] = _options.ClientId,
-            ["client_secret"] = _options.ClientSecret,
-            ["code"] = code,
-            ["grant_type"] = "authorization_code",
-            ["redirect_uri"] = redirectUri,
-        });
+        var form = new FormUrlEncodedContent(
+            new Dictionary<string, string>
+            {
+                ["client_id"] = _options.ClientId,
+                ["client_secret"] = _options.ClientSecret,
+                ["code"] = code,
+                ["grant_type"] = "authorization_code",
+                ["redirect_uri"] = redirectUri,
+            }
+        );
 
         var resp = await _http.PostAsync(TokenEndpoint, form, ct);
         if (!resp.IsSuccessStatusCode)
@@ -65,61 +72,85 @@ public sealed class TwitchAuthService : ITwitchAuthService
         }
 
         var json = await resp.Content.ReadFromJsonAsync<TwitchTokenResponse>(cancellationToken: ct);
-        if (json is null) return null;
+        if (json is null)
+            return null;
 
         return new TokenResult(
             json.AccessToken,
             json.RefreshToken,
             DateTime.UtcNow.AddSeconds(json.ExpiresIn),
-            json.Scope ?? []);
+            json.Scope ?? []
+        );
     }
 
     /// <summary>
     /// Refresh the token for a specific broadcaster / service combination.
     /// Persists updated tokens back to the Service entity.
     /// </summary>
-    public async Task<TokenResult?> RefreshTokenAsync(string broadcasterId, string serviceName, CancellationToken ct = default)
+    public async Task<TokenResult?> RefreshTokenAsync(
+        string broadcasterId,
+        string serviceName,
+        CancellationToken ct = default
+    )
     {
-        var service = await _db.Services
-            .FirstOrDefaultAsync(s => s.BroadcasterId == broadcasterId && s.Name == serviceName, ct);
+        var service = await _db.Services.FirstOrDefaultAsync(
+            s => s.BroadcasterId == broadcasterId && s.Name == serviceName,
+            ct
+        );
 
         if (service?.RefreshToken is null)
         {
-            _logger.LogDebug("No refresh token found for {BroadcasterId}/{Service}", broadcasterId, serviceName);
+            _logger.LogDebug(
+                "No refresh token found for {BroadcasterId}/{Service}",
+                broadcasterId,
+                serviceName
+            );
             return null;
         }
 
         var refreshToken = _encryption.TryDecrypt(service.RefreshToken);
         if (refreshToken is null)
         {
-            _logger.LogWarning("Could not decrypt refresh token for {BroadcasterId}/{Service}", broadcasterId, serviceName);
+            _logger.LogWarning(
+                "Could not decrypt refresh token for {BroadcasterId}/{Service}",
+                broadcasterId,
+                serviceName
+            );
             return null;
         }
 
-        var form = new FormUrlEncodedContent(new Dictionary<string, string>
-        {
-            ["client_id"] = _options.ClientId,
-            ["client_secret"] = _options.ClientSecret,
-            ["refresh_token"] = refreshToken,
-            ["grant_type"] = "refresh_token",
-        });
+        var form = new FormUrlEncodedContent(
+            new Dictionary<string, string>
+            {
+                ["client_id"] = _options.ClientId,
+                ["client_secret"] = _options.ClientSecret,
+                ["refresh_token"] = refreshToken,
+                ["grant_type"] = "refresh_token",
+            }
+        );
 
         var resp = await _http.PostAsync(TokenEndpoint, form, ct);
         if (!resp.IsSuccessStatusCode)
         {
-            _logger.LogWarning("Token refresh failed for {BroadcasterId}/{Service}: {Status}",
-                broadcasterId, serviceName, resp.StatusCode);
+            _logger.LogWarning(
+                "Token refresh failed for {BroadcasterId}/{Service}: {Status}",
+                broadcasterId,
+                serviceName,
+                resp.StatusCode
+            );
             return null;
         }
 
         var json = await resp.Content.ReadFromJsonAsync<TwitchTokenResponse>(cancellationToken: ct);
-        if (json is null) return null;
+        if (json is null)
+            return null;
 
         var result = new TokenResult(
             json.AccessToken,
             json.RefreshToken,
             DateTime.UtcNow.AddSeconds(json.ExpiresIn),
-            json.Scope ?? []);
+            json.Scope ?? []
+        );
 
         service.AccessToken = _encryption.Encrypt(result.AccessToken);
         service.RefreshToken = _encryption.Encrypt(result.RefreshToken);
@@ -127,8 +158,12 @@ public sealed class TwitchAuthService : ITwitchAuthService
         service.Scopes = result.Scopes;
         await _db.SaveChangesAsync(ct);
 
-        _logger.LogInformation("Refreshed token for {BroadcasterId}/{Service}, expires {ExpiresAt:u}",
-            broadcasterId, serviceName, result.ExpiresAt);
+        _logger.LogInformation(
+            "Refreshed token for {BroadcasterId}/{Service}, expires {ExpiresAt:u}",
+            broadcasterId,
+            serviceName,
+            result.ExpiresAt
+        );
 
         return result;
     }
@@ -141,12 +176,14 @@ public sealed class TwitchAuthService : ITwitchAuthService
     {
         var threshold = DateTime.UtcNow.AddMinutes(30);
 
-        var expiring = await _db.Services
-            .Where(s => s.Enabled
-                        && s.RefreshToken != null
-                        && s.TokenExpiry != null
-                        && s.TokenExpiry < threshold
-                        && s.BroadcasterId != null)
+        var expiring = await _db
+            .Services.Where(s =>
+                s.Enabled
+                && s.RefreshToken != null
+                && s.TokenExpiry != null
+                && s.TokenExpiry < threshold
+                && s.BroadcasterId != null
+            )
             .Select(s => new { s.BroadcasterId, s.Name })
             .ToListAsync(ct);
 
@@ -160,8 +197,12 @@ public sealed class TwitchAuthService : ITwitchAuthService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to refresh token for {BroadcasterId}/{Service}",
-                    entry.BroadcasterId, entry.Name);
+                _logger.LogError(
+                    ex,
+                    "Failed to refresh token for {BroadcasterId}/{Service}",
+                    entry.BroadcasterId,
+                    entry.Name
+                );
             }
         }
     }
@@ -169,23 +210,32 @@ public sealed class TwitchAuthService : ITwitchAuthService
     /// <summary>
     /// Revoke the token for a broadcaster / service and clear the stored values.
     /// </summary>
-    public async Task RevokeTokenAsync(string broadcasterId, string serviceName, CancellationToken ct = default)
+    public async Task RevokeTokenAsync(
+        string broadcasterId,
+        string serviceName,
+        CancellationToken ct = default
+    )
     {
-        var service = await _db.Services
-            .FirstOrDefaultAsync(s => s.BroadcasterId == broadcasterId && s.Name == serviceName, ct);
+        var service = await _db.Services.FirstOrDefaultAsync(
+            s => s.BroadcasterId == broadcasterId && s.Name == serviceName,
+            ct
+        );
 
-        if (service is null) return;
+        if (service is null)
+            return;
 
         if (service.AccessToken is not null)
         {
             var accessToken = _encryption.TryDecrypt(service.AccessToken);
             if (accessToken is not null)
             {
-                var form = new FormUrlEncodedContent(new Dictionary<string, string>
-                {
-                    ["client_id"] = _options.ClientId,
-                    ["token"] = accessToken,
-                });
+                var form = new FormUrlEncodedContent(
+                    new Dictionary<string, string>
+                    {
+                        ["client_id"] = _options.ClientId,
+                        ["token"] = accessToken,
+                    }
+                );
 
                 try
                 {
@@ -193,8 +243,12 @@ public sealed class TwitchAuthService : ITwitchAuthService
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Token revocation request failed for {BroadcasterId}/{Service}",
-                        broadcasterId, serviceName);
+                    _logger.LogWarning(
+                        ex,
+                        "Token revocation request failed for {BroadcasterId}/{Service}",
+                        broadcasterId,
+                        serviceName
+                    );
                 }
             }
         }
@@ -205,7 +259,11 @@ public sealed class TwitchAuthService : ITwitchAuthService
         service.Scopes = [];
         await _db.SaveChangesAsync(ct);
 
-        _logger.LogInformation("Revoked and cleared token for {BroadcasterId}/{Service}", broadcasterId, serviceName);
+        _logger.LogInformation(
+            "Revoked and cleared token for {BroadcasterId}/{Service}",
+            broadcasterId,
+            serviceName
+        );
     }
 
     // ─── Internal response model ────────────────────────────────────────────────

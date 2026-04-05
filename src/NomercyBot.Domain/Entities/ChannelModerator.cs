@@ -23,7 +23,11 @@ public class ChannelModerator : SoftDeletableEntity, ITenantScoped
     [MaxLength(50)]
     public string? GrantedBy { get; set; }
 
-    string ITenantScoped.BroadcasterId { get => ChannelId; set => ChannelId = value; }
+    string ITenantScoped.BroadcasterId
+    {
+        get => ChannelId;
+        set => ChannelId = value;
+    }
 
     [ForeignKey(nameof(ChannelId))]
     public virtual Channel Channel { get; set; } = null!;

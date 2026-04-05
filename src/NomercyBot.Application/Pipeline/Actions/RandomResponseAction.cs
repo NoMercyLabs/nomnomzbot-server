@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 using NoMercyBot.Domain.Interfaces;
+
 namespace NoMercyBot.Application.Pipeline.Actions;
 
 public class RandomResponseAction : ICommandAction
@@ -17,14 +18,26 @@ public class RandomResponseAction : ICommandAction
             return ActionResult.Fail("'responses' parameter is required");
 
         List<string> responses;
-        if (respObj is System.Text.Json.JsonElement je && je.ValueKind == System.Text.Json.JsonValueKind.Array)
-            responses = je.EnumerateArray().Select(e => e.GetString() ?? "").Where(s => s != "").ToList();
+        if (
+            respObj is System.Text.Json.JsonElement je
+            && je.ValueKind == System.Text.Json.JsonValueKind.Array
+        )
+            responses = je.EnumerateArray()
+                .Select(e => e.GetString() ?? "")
+                .Where(s => s != "")
+                .ToList();
         else
-            responses = respObj?.ToString()?.Split('\n').Where(s => !string.IsNullOrWhiteSpace(s)).ToList() ?? [];
+            responses =
+                respObj?.ToString()?.Split('\n').Where(s => !string.IsNullOrWhiteSpace(s)).ToList()
+                ?? [];
 
-        if (responses.Count == 0) return ActionResult.Fail("'responses' list is empty");
+        if (responses.Count == 0)
+            return ActionResult.Fail("'responses' list is empty");
 
-        var msg = VariableResolver.Resolve(responses[Random.Shared.Next(responses.Count)], ctx.Variables);
+        var msg = VariableResolver.Resolve(
+            responses[Random.Shared.Next(responses.Count)],
+            ctx.Variables
+        );
         await _chat.SendMessageAsync(ctx.BroadcasterId, msg, ctx.CancellationToken);
         return ActionResult.Ok(msg);
     }

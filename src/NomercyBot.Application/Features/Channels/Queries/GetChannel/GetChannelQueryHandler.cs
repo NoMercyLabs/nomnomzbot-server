@@ -16,10 +16,13 @@ public class GetChannelQueryHandler
         _db = db;
     }
 
-    public async Task<Result<ChannelDto>> HandleAsync(GetChannelQuery query, CancellationToken ct = default)
+    public async Task<Result<ChannelDto>> HandleAsync(
+        GetChannelQuery query,
+        CancellationToken ct = default
+    )
     {
-        var channel = await _db.Channels
-            .Include(c => c.User)
+        var channel = await _db
+            .Channels.Include(c => c.User)
             .Where(c => c.Id == query.ChannelId)
             .Select(c => new ChannelDto(
                 c.Id,
@@ -32,7 +35,8 @@ public class GetChannelQueryHandler
                 c.GameName,
                 c.BotJoinedAt,
                 "free",
-                c.CreatedAt))
+                c.CreatedAt
+            ))
             .FirstOrDefaultAsync(ct);
 
         return channel is null

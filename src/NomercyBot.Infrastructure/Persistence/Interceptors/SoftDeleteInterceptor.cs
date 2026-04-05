@@ -13,7 +13,8 @@ public sealed class SoftDeleteInterceptor : SaveChangesInterceptor
     public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
         DbContextEventData eventData,
         InterceptionResult<int> result,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         if (eventData.Context is not null)
         {
@@ -25,7 +26,8 @@ public sealed class SoftDeleteInterceptor : SaveChangesInterceptor
 
     public override InterceptionResult<int> SavingChanges(
         DbContextEventData eventData,
-        InterceptionResult<int> result)
+        InterceptionResult<int> result
+    )
     {
         if (eventData.Context is not null)
         {

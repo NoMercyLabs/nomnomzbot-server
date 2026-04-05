@@ -8,7 +8,8 @@ public sealed record UserDto(
     string? ProfileImageUrl,
     string? Email,
     DateTime CreatedAt,
-    DateTime LastLoginAt);
+    DateTime LastLoginAt
+);
 
 /// <summary>User profile information for display.</summary>
 public sealed record UserProfileDto(
@@ -19,14 +20,16 @@ public sealed record UserProfileDto(
     string? Email,
     string? Pronoun,
     DateTime CreatedAt,
-    DateTime LastLoginAt);
+    DateTime LastLoginAt
+);
 
 /// <summary>Lightweight user info for search results and dropdowns.</summary>
 public sealed record UserSearchResult(
     string Id,
     string Username,
     string DisplayName,
-    string? ProfileImageUrl);
+    string? ProfileImageUrl
+);
 
 /// <summary>Request to update a user profile.</summary>
 public sealed record UpdateUserProfileRequest

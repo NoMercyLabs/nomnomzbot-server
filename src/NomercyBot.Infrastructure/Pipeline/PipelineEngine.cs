@@ -44,7 +44,8 @@ public sealed class PipelineEngine : IPipelineEngine
         IChannelRegistry registry,
         IEnumerable<ICommandAction> actions,
         IEnumerable<ICommandCondition> conditions,
-        ILogger<PipelineEngine> logger)
+        ILogger<PipelineEngine> logger
+    )
     {
         _registry = registry;
         _actions = actions;
@@ -52,24 +53,36 @@ public sealed class PipelineEngine : IPipelineEngine
         _logger = logger;
     }
 
-    public int GetActiveCountForChannel(string broadcasterId)
-        => _activeCount.GetValueOrDefault(broadcasterId, 0);
+    public int GetActiveCountForChannel(string broadcasterId) =>
+        _activeCount.GetValueOrDefault(broadcasterId, 0);
 
     public async Task CancelAllForChannelAsync(string broadcasterId)
     {
         var ctx = _registry.Get(broadcasterId);
-        if (ctx is null) return;
+        if (ctx is null)
+            return;
 
         foreach (var (id, cts) in ctx.ActivePipelines)
         {
-            try { await cts.CancelAsync(); }
-            catch { /* best-effort */ }
+            try
+            {
+                await cts.CancelAsync();
+            }
+            catch
+            { /* best-effort */
+            }
         }
 
-        _logger.LogInformation("Cancelled all pipelines for channel {BroadcasterId}", broadcasterId);
+        _logger.LogInformation(
+            "Cancelled all pipelines for channel {BroadcasterId}",
+            broadcasterId
+        );
     }
 
-    public async Task<PipelineExecutionResult> ExecuteAsync(PipelineRequest request, CancellationToken ct = default)
+    public async Task<PipelineExecutionResult> ExecuteAsync(
+        PipelineRequest request,
+        CancellationToken ct = default
+    )
     {
         var startedAt = DateTimeOffset.UtcNow;
 
@@ -83,7 +96,8 @@ public sealed class PipelineEngine : IPipelineEngine
                 ExecutionId = Guid.NewGuid().ToString("N")[..12],
                 Outcome = PipelineOutcome.Failed,
                 Duration = TimeSpan.Zero,
-                ErrorMessage = $"Channel {request.BroadcasterId} has too many active pipelines ({MaxConcurrentPerChannel} max)",
+                ErrorMessage =
+                    $"Channel {request.BroadcasterId} has too many active pipelines ({MaxConcurrentPerChannel} max)",
             };
         }
 
@@ -93,7 +107,8 @@ public sealed class PipelineEngine : IPipelineEngine
         {
             definition = JsonSerializer.Deserialize<PipelineDefinition>(
                 request.PipelineJson,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+            );
         }
         catch (Exception ex)
         {
@@ -148,8 +163,11 @@ public sealed class PipelineEngine : IPipelineEngine
         }
         catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested)
         {
-            _logger.LogWarning("Pipeline {ExecutionId} timed out in channel {BroadcasterId}",
-                execCtx.ExecutionId, request.BroadcasterId);
+            _logger.LogWarning(
+                "Pipeline {ExecutionId} timed out in channel {BroadcasterId}",
+                execCtx.ExecutionId,
+                request.BroadcasterId
+            );
             return new PipelineExecutionResult
             {
                 ExecutionId = execCtx.ExecutionId,
@@ -185,7 +203,8 @@ public sealed class PipelineEngine : IPipelineEngine
         PipelineExecutionContext ctx,
         PipelineDefinition definition,
         DateTimeOffset startedAt,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         var executed = 0;
         var skipped = 0;
@@ -202,14 +221,16 @@ public sealed class PipelineEngine : IPipelineEngine
             if (step.Condition is not null && !EvaluateCondition(ctx, step.Condition))
             {
                 skipped++;
-                ctx.StepLogs.Add(new StepExecutionLog
-                {
-                    StepIndex = i,
-                    ActionType = step.Action.Type,
-                    Succeeded = true,
-                    Duration = DateTimeOffset.UtcNow - stepStart,
-                    Output = "Condition not met — step skipped",
-                });
+                ctx.StepLogs.Add(
+                    new StepExecutionLog
+                    {
+                        StepIndex = i,
+                        ActionType = step.Action.Type,
+                        Succeeded = true,
+                        Duration = DateTimeOffset.UtcNow - stepStart,
+                        Output = "Condition not met — step skipped",
+                    }
+                );
                 continue;
             }
 
@@ -225,31 +246,41 @@ public sealed class PipelineEngine : IPipelineEngine
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Pipeline action {ActionType} failed at step {StepIndex}", step.Action.Type, i);
-                ctx.StepLogs.Add(new StepExecutionLog
-                {
-                    StepIndex = i,
-                    ActionType = step.Action.Type,
-                    Succeeded = false,
-                    Duration = DateTimeOffset.UtcNow - stepStart,
-                    ErrorMessage = ex.Message,
-                });
+                _logger.LogError(
+                    ex,
+                    "Pipeline action {ActionType} failed at step {StepIndex}",
+                    step.Action.Type,
+                    i
+                );
+                ctx.StepLogs.Add(
+                    new StepExecutionLog
+                    {
+                        StepIndex = i,
+                        ActionType = step.Action.Type,
+                        Succeeded = false,
+                        Duration = DateTimeOffset.UtcNow - stepStart,
+                        ErrorMessage = ex.Message,
+                    }
+                );
                 // Continue to next step on action failure (fail-open)
                 executed++;
                 continue;
             }
 
-            ctx.StepLogs.Add(new StepExecutionLog
-            {
-                StepIndex = i,
-                ActionType = step.Action.Type,
-                Succeeded = actionResult.Succeeded,
-                Duration = DateTimeOffset.UtcNow - stepStart,
-                Output = actionResult.Output,
-                ErrorMessage = actionResult.ErrorMessage,
-            });
+            ctx.StepLogs.Add(
+                new StepExecutionLog
+                {
+                    StepIndex = i,
+                    ActionType = step.Action.Type,
+                    Succeeded = actionResult.Succeeded,
+                    Duration = DateTimeOffset.UtcNow - stepStart,
+                    Output = actionResult.Output,
+                    ErrorMessage = actionResult.ErrorMessage,
+                }
+            );
 
-            if (actionResult.Succeeded) executed++;
+            if (actionResult.Succeeded)
+                executed++;
 
             // Check stop flag
             if (ctx.ShouldStop || (step.StopOnMatch && actionResult.Succeeded))
@@ -271,11 +302,15 @@ public sealed class PipelineEngine : IPipelineEngine
     private bool EvaluateCondition(PipelineExecutionContext ctx, ConditionDefinition condition)
     {
         var evaluator = _conditions.FirstOrDefault(c =>
-            string.Equals(c.ConditionType, condition.Type, StringComparison.OrdinalIgnoreCase));
+            string.Equals(c.ConditionType, condition.Type, StringComparison.OrdinalIgnoreCase)
+        );
 
         if (evaluator is null)
         {
-            _logger.LogWarning("Unknown condition type '{Type}' — treating as true", condition.Type);
+            _logger.LogWarning(
+                "Unknown condition type '{Type}' — treating as true",
+                condition.Type
+            );
             return true;
         }
 
@@ -285,10 +320,12 @@ public sealed class PipelineEngine : IPipelineEngine
     private async Task<ActionResult> ExecuteActionAsync(
         PipelineExecutionContext ctx,
         ActionDefinition action,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         var executor = _actions.FirstOrDefault(a =>
-            string.Equals(a.ActionType, action.Type, StringComparison.OrdinalIgnoreCase));
+            string.Equals(a.ActionType, action.Type, StringComparison.OrdinalIgnoreCase)
+        );
 
         if (executor is null)
         {

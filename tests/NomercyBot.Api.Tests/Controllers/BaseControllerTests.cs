@@ -14,14 +14,25 @@ namespace NomercyBot.Api.Tests.Controllers;
 internal sealed class TestController : BaseController
 {
     public IActionResult TestUnauthenticated(string? msg = null) => UnauthenticatedResponse(msg);
+
     public IActionResult TestUnauthorized(string? msg = null) => UnauthorizedResponse(msg);
+
     public IActionResult TestBadRequest(string? msg = null) => BadRequestResponse(msg);
+
     public IActionResult TestNotFound(string? msg = null) => NotFoundResponse(msg);
+
     public IActionResult TestConflict(string? msg = null) => ConflictResponse(msg);
+
     public IActionResult TestTooManyRequests(string? msg = null) => TooManyRequestsResponse(msg);
-    public IActionResult TestInternalServerError(string? msg = null) => InternalServerErrorResponse(msg);
-    public IActionResult TestServiceUnavailable(string? msg = null) => ServiceUnavailableResponse(msg);
+
+    public IActionResult TestInternalServerError(string? msg = null) =>
+        InternalServerErrorResponse(msg);
+
+    public IActionResult TestServiceUnavailable(string? msg = null) =>
+        ServiceUnavailableResponse(msg);
+
     public IActionResult TestResultResponse<T>(Result<T> result) => ResultResponse(result);
+
     public IActionResult TestResultResponse(Result result) => ResultResponse(result);
 }
 
@@ -116,7 +127,8 @@ public class BaseControllerTests
     public void ResultResponseT_AuthRequired_Returns401()
     {
         var ctrl = CreateController();
-        var result = ctrl.TestResultResponse(Errors.NotAuthenticated().ToTyped<string>()) as ObjectResult;
+        var result =
+            ctrl.TestResultResponse(Errors.NotAuthenticated().ToTyped<string>()) as ObjectResult;
 
         result!.StatusCode.Should().Be(401);
     }
@@ -134,7 +146,9 @@ public class BaseControllerTests
     public void ResultResponseT_ValidationFailed_Returns400()
     {
         var ctrl = CreateController();
-        var result = ctrl.TestResultResponse(Errors.ValidationFailed("bad").ToTyped<string>()) as ObjectResult;
+        var result =
+            ctrl.TestResultResponse(Errors.ValidationFailed("bad").ToTyped<string>())
+            as ObjectResult;
 
         result!.StatusCode.Should().Be(400);
     }
@@ -143,7 +157,9 @@ public class BaseControllerTests
     public void ResultResponseT_AlreadyExists_Returns409()
     {
         var ctrl = CreateController();
-        var result = ctrl.TestResultResponse(Errors.AlreadyExists("User", "alice").ToTyped<string>()) as ObjectResult;
+        var result =
+            ctrl.TestResultResponse(Errors.AlreadyExists("User", "alice").ToTyped<string>())
+            as ObjectResult;
 
         result!.StatusCode.Should().Be(409);
     }
@@ -152,8 +168,10 @@ public class BaseControllerTests
     public void ResultResponseT_RateLimited_Returns429()
     {
         var ctrl = CreateController();
-        var result = ctrl.TestResultResponse(
-            Errors.RateLimited("login", TimeSpan.FromSeconds(30)).ToTyped<string>()) as ObjectResult;
+        var result =
+            ctrl.TestResultResponse(
+                Errors.RateLimited("login", TimeSpan.FromSeconds(30)).ToTyped<string>()
+            ) as ObjectResult;
 
         result!.StatusCode.Should().Be(429);
     }
@@ -162,8 +180,9 @@ public class BaseControllerTests
     public void ResultResponseT_ServiceUnavailable_Returns503()
     {
         var ctrl = CreateController();
-        var result = ctrl.TestResultResponse(
-            Errors.ExternalServiceUnavailable("Spotify").ToTyped<string>()) as ObjectResult;
+        var result =
+            ctrl.TestResultResponse(Errors.ExternalServiceUnavailable("Spotify").ToTyped<string>())
+            as ObjectResult;
 
         result!.StatusCode.Should().Be(503);
     }
@@ -172,8 +191,9 @@ public class BaseControllerTests
     public void ResultResponseT_Forbidden_Returns403()
     {
         var ctrl = CreateController();
-        var result = ctrl.TestResultResponse(
-            Errors.InsufficientPermission("delete").ToTyped<string>()) as ObjectResult;
+        var result =
+            ctrl.TestResultResponse(Errors.InsufficientPermission("delete").ToTyped<string>())
+            as ObjectResult;
 
         result!.StatusCode.Should().Be(403);
     }
@@ -222,7 +242,8 @@ public class BaseControllerTests
     public void ResultResponse_FeatureDisabled_Returns403()
     {
         var ctrl = CreateController();
-        var result = ctrl.TestResultResponse(Errors.FeatureNotEnabled("SongRequests")) as ObjectResult;
+        var result =
+            ctrl.TestResultResponse(Errors.FeatureNotEnabled("SongRequests")) as ObjectResult;
 
         result!.StatusCode.Should().Be(403);
     }

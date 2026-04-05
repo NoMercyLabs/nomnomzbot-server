@@ -12,29 +12,21 @@ public class DeletionAuditLogConfiguration : IEntityTypeConfiguration<DeletionAu
     {
         builder.HasKey(e => e.Id);
 
-        builder.Property(e => e.RequestType)
-            .IsRequired()
-            .HasMaxLength(30);
+        builder.Property(e => e.RequestType).IsRequired().HasMaxLength(30);
 
-        builder.Property(e => e.SubjectIdHash)
-            .IsRequired()
-            .HasMaxLength(64);
+        builder.Property(e => e.SubjectIdHash).IsRequired().HasMaxLength(64);
 
-        builder.Property(e => e.RequestedBy)
-            .IsRequired()
-            .HasMaxLength(20);
+        builder.Property(e => e.RequestedBy).IsRequired().HasMaxLength(20);
 
-        builder.Property(e => e.TablesAffected)
+        builder
+            .Property(e => e.TablesAffected)
             .HasColumnType("jsonb")
             .HasDefaultValueSql("'[]'::jsonb");
 
-        builder.Property(e => e.RowsDeleted)
-            .IsRequired();
+        builder.Property(e => e.RowsDeleted).IsRequired();
 
-        builder.Property(e => e.CompletedAt)
-            .IsRequired();
+        builder.Property(e => e.CompletedAt).IsRequired();
 
-        builder.Property(e => e.CreatedAt)
-            .IsRequired();
+        builder.Property(e => e.CreatedAt).IsRequired();
     }
 }

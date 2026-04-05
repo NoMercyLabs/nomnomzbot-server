@@ -105,7 +105,7 @@ public class ChatMessageFragmentTests
             EmoteId = "25",
             EmoteSetId = "0",
             EmoteOwnerId = "broadcaster123",
-            EmoteFormats = ["static", "animated"]
+            EmoteFormats = ["static", "animated"],
         };
 
         fragment.Type.Should().Be("emote");
@@ -124,7 +124,7 @@ public class ChatMessageFragmentTests
             Text = "Cheer100",
             CheermotePrefix = "Cheer",
             CheermoteBits = 100,
-            CheermoteTier = 1
+            CheermoteTier = 1,
         };
 
         fragment.Type.Should().Be("cheermote");
@@ -142,7 +142,7 @@ public class ChatMessageFragmentTests
             Text = "@someuser",
             MentionUserId = "uid999",
             MentionUserLogin = "someuser",
-            MentionUserName = "SomeUser"
+            MentionUserName = "SomeUser",
         };
 
         fragment.Type.Should().Be("mention");

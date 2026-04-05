@@ -15,7 +15,10 @@ public class StreamMonitorService : BackgroundService
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<StreamMonitorService> _logger;
 
-    public StreamMonitorService(IServiceProvider serviceProvider, ILogger<StreamMonitorService> logger)
+    public StreamMonitorService(
+        IServiceProvider serviceProvider,
+        ILogger<StreamMonitorService> logger
+    )
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
@@ -45,8 +48,8 @@ public class StreamMonitorService : BackgroundService
         var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
         var twitchApi = scope.ServiceProvider.GetRequiredService<ITwitchApiService>();
 
-        var channels = await db.Channels
-            .Where(c => c.Enabled)
+        var channels = await db
+            .Channels.Where(c => c.Enabled)
             .Select(c => new { c.Id, c.IsLive })
             .ToListAsync(ct);
 
@@ -62,7 +65,11 @@ public class StreamMonitorService : BackgroundService
                 {
                     entity.IsLive = isNowLive;
                     await db.SaveChangesAsync(ct);
-                    _logger.LogInformation("Channel {ChannelId} is now {Status}", channel.Id, isNowLive ? "LIVE" : "OFFLINE");
+                    _logger.LogInformation(
+                        "Channel {ChannelId} is now {Status}",
+                        channel.Id,
+                        isNowLive ? "LIVE" : "OFFLINE"
+                    );
                 }
             }
         }

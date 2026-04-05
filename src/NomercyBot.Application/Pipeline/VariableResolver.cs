@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 using System.Text.RegularExpressions;
+
 namespace NoMercyBot.Application.Pipeline;
 
 public static partial class VariableResolver
@@ -9,17 +10,23 @@ public static partial class VariableResolver
 
     public static string Resolve(string template, IDictionary<string, string> variables)
     {
-        if (string.IsNullOrEmpty(template)) return template;
-        return VariablePattern().Replace(template, m =>
-        {
-            var key = m.Groups[1].Value;
-            return variables.TryGetValue(key, out var value) ? value : string.Empty;
-        });
+        if (string.IsNullOrEmpty(template))
+            return template;
+        return VariablePattern()
+            .Replace(
+                template,
+                m =>
+                {
+                    var key = m.Groups[1].Value;
+                    return variables.TryGetValue(key, out var value) ? value : string.Empty;
+                }
+            );
     }
 
     public static IReadOnlyDictionary<string, string> ResolveAll(
         IReadOnlyDictionary<string, object?> parameters,
-        IDictionary<string, string> variables)
+        IDictionary<string, string> variables
+    )
     {
         var result = new Dictionary<string, string>();
         foreach (var (k, v) in parameters)

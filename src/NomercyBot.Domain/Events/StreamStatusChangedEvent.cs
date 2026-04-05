@@ -5,7 +5,5 @@ namespace NoMercyBot.Domain.Events;
 
 using NoMercyBot.Domain.Common;
 
-public sealed record StreamStatusChangedEvent(
-    string ChannelId,
-    bool IsLive,
-    string? StreamId) : DomainEvent;
+public sealed record StreamStatusChangedEvent(string ChannelId, bool IsLive, string? StreamId)
+    : DomainEvent;

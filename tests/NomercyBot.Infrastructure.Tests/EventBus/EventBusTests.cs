@@ -8,7 +8,6 @@ using NoMercyBot.Domain.Events;
 using NoMercyBot.Domain.Interfaces;
 using NoMercyBot.Infrastructure.EventBus;
 using NSubstitute;
-
 // ReSharper disable InconsistentNaming
 
 using InfraEventBus = NoMercyBot.Infrastructure.EventBus.EventBus;
@@ -26,8 +25,8 @@ internal sealed class TestEvent : DomainEventBase
 
 internal sealed class FailingHandler : IEventHandler<TestEvent>
 {
-    public Task HandleAsync(TestEvent @event, CancellationToken ct)
-        => throw new InvalidOperationException("intentional failure");
+    public Task HandleAsync(TestEvent @event, CancellationToken ct) =>
+        throw new InvalidOperationException("intentional failure");
 }
 
 // ─── Tracking handler ────────────────────────────────────────────────────────
@@ -58,7 +57,9 @@ internal sealed class SlowCancellableHandler : IEventHandler<TestEvent>
 
 public class EventBusTests
 {
-    private static (InfraEventBus bus, TrackingHandler tracker) BuildBus(bool addFailingHandler = false)
+    private static (InfraEventBus bus, TrackingHandler tracker) BuildBus(
+        bool addFailingHandler = false
+    )
     {
         var tracker = new TrackingHandler();
         var services = new ServiceCollection();
@@ -81,8 +82,7 @@ public class EventBusTests
 
         await bus.PublishAsync(new TestEvent { Payload = "hello" });
 
-        tracker.Received.Should().ContainSingle()
-            .Which.Should().Be("hello");
+        tracker.Received.Should().ContainSingle().Which.Should().Be("hello");
     }
 
     [Fact]
@@ -113,8 +113,7 @@ public class EventBusTests
         var act = async () => await bus.PublishAsync(new TestEvent { Payload = "resilient" });
 
         await act.Should().NotThrowAsync();
-        tracker.Received.Should().ContainSingle()
-            .Which.Should().Be("resilient");
+        tracker.Received.Should().ContainSingle().Which.Should().Be("resilient");
     }
 
     [Fact]
@@ -163,7 +162,8 @@ public class EventBusTests
         using var cts = new CancellationTokenSource();
         cts.Cancel();
 
-        var act = async () => await bus.PublishAsync(new TestEvent { Payload = "cancelled" }, cts.Token);
+        var act = async () =>
+            await bus.PublishAsync(new TestEvent { Payload = "cancelled" }, cts.Token);
 
         // The bus swallows OperationCanceledException from handlers
         await act.Should().NotThrowAsync();

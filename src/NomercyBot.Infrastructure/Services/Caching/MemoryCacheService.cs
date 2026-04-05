@@ -25,7 +25,12 @@ public sealed class MemoryCacheService : ICacheService
         return Task.FromResult(value);
     }
 
-    public Task SetAsync<T>(string key, T value, TimeSpan? expiration = null, CancellationToken cancellationToken = default)
+    public Task SetAsync<T>(
+        string key,
+        T value,
+        TimeSpan? expiration = null,
+        CancellationToken cancellationToken = default
+    )
     {
         var options = new MemoryCacheEntryOptions();
 
@@ -40,7 +45,11 @@ public sealed class MemoryCacheService : ICacheService
         }
 
         _cache.Set(key, value, options);
-        _logger.LogTrace("Cache SET: {Key} (expiration={Expiration})", key, expiration?.ToString() ?? "sliding:5m");
+        _logger.LogTrace(
+            "Cache SET: {Key} (expiration={Expiration})",
+            key,
+            expiration?.ToString() ?? "sliding:5m"
+        );
 
         return Task.CompletedTask;
     }
@@ -52,22 +61,30 @@ public sealed class MemoryCacheService : ICacheService
         return Task.CompletedTask;
     }
 
-    public Task<T> GetOrCreateAsync<T>(string key, Func<Task<T>> factory, TimeSpan? expiration = null, CancellationToken cancellationToken = default)
+    public Task<T> GetOrCreateAsync<T>(
+        string key,
+        Func<Task<T>> factory,
+        TimeSpan? expiration = null,
+        CancellationToken cancellationToken = default
+    )
     {
-        return _cache.GetOrCreateAsync(key, async entry =>
-        {
-            if (expiration.HasValue)
+        return _cache.GetOrCreateAsync(
+            key,
+            async entry =>
             {
-                entry.SetAbsoluteExpiration(expiration.Value);
-            }
-            else
-            {
-                entry.SetSlidingExpiration(TimeSpan.FromMinutes(5));
-            }
+                if (expiration.HasValue)
+                {
+                    entry.SetAbsoluteExpiration(expiration.Value);
+                }
+                else
+                {
+                    entry.SetSlidingExpiration(TimeSpan.FromMinutes(5));
+                }
 
-            _logger.LogTrace("Cache MISS: {Key}, executing factory", key);
-            return await factory();
-        })!;
+                _logger.LogTrace("Cache MISS: {Key}, executing factory", key);
+                return await factory();
+            }
+        )!;
     }
 
     public Task<bool> ExistsAsync(string key, CancellationToken cancellationToken = default)

@@ -21,16 +21,22 @@ public class Result
 
     public static Result Success() => new(true, null, null, null);
 
-    public static Result Failure(string errorMessage, string? errorCode = null, string? errorDetail = null)
-        => new(false, errorMessage, errorDetail, errorCode);
+    public static Result Failure(
+        string errorMessage,
+        string? errorCode = null,
+        string? errorDetail = null
+    ) => new(false, errorMessage, errorDetail, errorCode);
 
     public static Result<T> Success<T>(T value) => Result<T>.Success(value);
 
-    public static Result<T> Failure<T>(string errorMessage, string? errorCode = null, string? errorDetail = null)
-        => Result<T>.Failure(errorMessage, errorCode, errorDetail);
+    public static Result<T> Failure<T>(
+        string errorMessage,
+        string? errorCode = null,
+        string? errorDetail = null
+    ) => Result<T>.Failure(errorMessage, errorCode, errorDetail);
 
-    public Result<T> WithValue<T>(T value)
-        => IsSuccess
+    public Result<T> WithValue<T>(T value) =>
+        IsSuccess
             ? Result<T>.Success(value)
             : Result<T>.Failure(ErrorMessage!, ErrorCode, ErrorDetail);
 }
@@ -39,11 +45,20 @@ public class Result<T> : Result
 {
     private readonly T? _value;
 
-    public T Value => IsSuccess
-        ? _value!
-        : throw new InvalidOperationException($"Cannot access Value on a failed Result. Error: {ErrorMessage}");
+    public T Value =>
+        IsSuccess
+            ? _value!
+            : throw new InvalidOperationException(
+                $"Cannot access Value on a failed Result. Error: {ErrorMessage}"
+            );
 
-    private Result(bool isSuccess, T? value, string? errorMessage, string? errorDetail, string? errorCode)
+    private Result(
+        bool isSuccess,
+        T? value,
+        string? errorMessage,
+        string? errorDetail,
+        string? errorCode
+    )
         : base(isSuccess, errorMessage, errorDetail, errorCode)
     {
         _value = value;
@@ -51,6 +66,9 @@ public class Result<T> : Result
 
     public static Result<T> Success(T value) => new(true, value, null, null, null);
 
-    public new static Result<T> Failure(string errorMessage, string? errorCode = null, string? errorDetail = null)
-        => new(false, default, errorMessage, errorDetail, errorCode);
+    public static new Result<T> Failure(
+        string errorMessage,
+        string? errorCode = null,
+        string? errorDetail = null
+    ) => new(false, default, errorMessage, errorDetail, errorCode);
 }

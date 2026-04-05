@@ -9,15 +9,15 @@ namespace NomercyBot.Infrastructure.Tests.Pipeline.Actions;
 
 public class WaitActionTests
 {
-    private static PipelineExecutionContext BuildCtx(CancellationToken ct = default)
-        => new()
+    private static PipelineExecutionContext BuildCtx(CancellationToken ct = default) =>
+        new()
         {
             BroadcasterId = "chan",
             TriggeredByUserId = "user",
             TriggeredByDisplayName = "User",
             MessageId = "msg",
             RawMessage = "",
-            CancellationToken = ct
+            CancellationToken = ct,
         };
 
     private static ActionDefinition BuildAction(string json)

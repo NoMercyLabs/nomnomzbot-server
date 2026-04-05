@@ -42,7 +42,10 @@ public class ChannelManagerService : BackgroundService
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<ChannelManagerService> _logger;
 
-    public ChannelManagerService(IServiceProvider serviceProvider, ILogger<ChannelManagerService> logger)
+    public ChannelManagerService(
+        IServiceProvider serviceProvider,
+        ILogger<ChannelManagerService> logger
+    )
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
@@ -58,8 +61,8 @@ public class ChannelManagerService : BackgroundService
         var eventSubService = scope.ServiceProvider.GetRequiredService<ITwitchEventSubService>();
         var registry = scope.ServiceProvider.GetRequiredService<IChannelRegistry>();
 
-        var channels = await db.Channels
-            .Where(c => c.Enabled && c.IsOnboarded)
+        var channels = await db
+            .Channels.Where(c => c.Enabled && c.IsOnboarded)
             .Select(c => new { c.Id, c.Name })
             .ToListAsync(stoppingToken);
 
@@ -81,15 +84,23 @@ public class ChannelManagerService : BackgroundService
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogWarning(ex, "Failed to subscribe {EventType} for channel {ChannelName}",
-                            eventType, channel.Name);
+                        _logger.LogWarning(
+                            ex,
+                            "Failed to subscribe {EventType} for channel {ChannelName}",
+                            eventType,
+                            channel.Name
+                        );
                     }
                 }
 
                 // 3. Register channel in registry (loads commands into memory)
                 await registry.GetOrCreateAsync(channel.Id, channel.Name, stoppingToken);
 
-                _logger.LogInformation("Channel #{ChannelName} ({ChannelId}) joined and subscribed", channel.Name, channel.Id);
+                _logger.LogInformation(
+                    "Channel #{ChannelName} ({ChannelId}) joined and subscribed",
+                    channel.Name,
+                    channel.Id
+                );
             }
             catch (Exception ex)
             {
@@ -97,6 +108,9 @@ public class ChannelManagerService : BackgroundService
             }
         }
 
-        _logger.LogInformation("ChannelManagerService startup complete — {Count} channels active", channels.Count);
+        _logger.LogInformation(
+            "ChannelManagerService startup complete — {Count} channels active",
+            channels.Count
+        );
     }
 }

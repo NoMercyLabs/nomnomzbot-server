@@ -22,12 +22,15 @@ public class CommandService : ICommandService
     public async Task<Result<CommandDto>> CreateAsync(
         string broadcasterId,
         CreateCommandDto request,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         var normalizedName = request.Name.ToLowerInvariant();
 
-        var exists = await _db.Commands
-            .AnyAsync(c => c.BroadcasterId == broadcasterId && c.Name == normalizedName, cancellationToken);
+        var exists = await _db.Commands.AnyAsync(
+            c => c.BroadcasterId == broadcasterId && c.Name == normalizedName,
+            cancellationToken
+        );
 
         if (exists)
             return Errors.AlreadyExists("command", request.Name).ToTyped<CommandDto>();
@@ -57,23 +60,35 @@ public class CommandService : ICommandService
         string broadcasterId,
         string commandName,
         UpdateCommandDto request,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
-        var command = await _db.Commands
-            .FirstOrDefaultAsync(c => c.BroadcasterId == broadcasterId && c.Name == commandName, cancellationToken);
+        var command = await _db.Commands.FirstOrDefaultAsync(
+            c => c.BroadcasterId == broadcasterId && c.Name == commandName,
+            cancellationToken
+        );
 
         if (command is null)
             return Errors.NotFound<CommandDto>("Command", commandName);
 
-        if (request.Type is not null) command.Type = request.Type;
-        if (request.Permission is not null) command.Permission = request.Permission;
-        if (request.Response is not null) command.Response = request.Response;
-        if (request.Responses is not null) command.Responses = request.Responses;
-        if (request.CooldownSeconds.HasValue) command.CooldownSeconds = request.CooldownSeconds.Value;
-        if (request.CooldownPerUser.HasValue) command.CooldownPerUser = request.CooldownPerUser.Value;
-        if (request.Description is not null) command.Description = request.Description;
-        if (request.Aliases is not null) command.Aliases = request.Aliases;
-        if (request.IsEnabled.HasValue) command.IsEnabled = request.IsEnabled.Value;
+        if (request.Type is not null)
+            command.Type = request.Type;
+        if (request.Permission is not null)
+            command.Permission = request.Permission;
+        if (request.Response is not null)
+            command.Response = request.Response;
+        if (request.Responses is not null)
+            command.Responses = request.Responses;
+        if (request.CooldownSeconds.HasValue)
+            command.CooldownSeconds = request.CooldownSeconds.Value;
+        if (request.CooldownPerUser.HasValue)
+            command.CooldownPerUser = request.CooldownPerUser.Value;
+        if (request.Description is not null)
+            command.Description = request.Description;
+        if (request.Aliases is not null)
+            command.Aliases = request.Aliases;
+        if (request.IsEnabled.HasValue)
+            command.IsEnabled = request.IsEnabled.Value;
 
         await _db.SaveChangesAsync(cancellationToken);
 
@@ -83,10 +98,13 @@ public class CommandService : ICommandService
     public async Task<Result> DeleteAsync(
         string broadcasterId,
         string commandName,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
-        var command = await _db.Commands
-            .FirstOrDefaultAsync(c => c.BroadcasterId == broadcasterId && c.Name == commandName, cancellationToken);
+        var command = await _db.Commands.FirstOrDefaultAsync(
+            c => c.BroadcasterId == broadcasterId && c.Name == commandName,
+            cancellationToken
+        );
 
         if (command is null)
             return Result.Failure($"Command '{commandName}' was not found.", "NOT_FOUND");
@@ -100,10 +118,13 @@ public class CommandService : ICommandService
     public async Task<Result<CommandDto>> GetAsync(
         string broadcasterId,
         string commandName,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
-        var command = await _db.Commands
-            .FirstOrDefaultAsync(c => c.BroadcasterId == broadcasterId && c.Name == commandName, cancellationToken);
+        var command = await _db.Commands.FirstOrDefaultAsync(
+            c => c.BroadcasterId == broadcasterId && c.Name == commandName,
+            cancellationToken
+        );
 
         if (command is null)
             return Errors.NotFound<CommandDto>("Command", commandName);
@@ -114,7 +135,8 @@ public class CommandService : ICommandService
     public async Task<Result<PagedList<CommandListItem>>> ListAsync(
         string broadcasterId,
         PaginationParams pagination,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         var query = _db.Commands.Where(c => c.BroadcasterId == broadcasterId);
         var total = await query.CountAsync(cancellationToken);
@@ -133,10 +155,13 @@ public class CommandService : ICommandService
                 c.Description,
                 c.Aliases,
                 0,
-                c.CreatedAt))
+                c.CreatedAt
+            ))
             .ToListAsync(cancellationToken);
 
-        return Result.Success(new PagedList<CommandListItem>(items, total, pagination.Page, pagination.PageSize));
+        return Result.Success(
+            new PagedList<CommandListItem>(items, total, pagination.Page, pagination.PageSize)
+        );
     }
 
     public async Task<Result<string>> ExecuteAsync(
@@ -144,38 +169,41 @@ public class CommandService : ICommandService
         string commandName,
         string userId,
         string? input = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
-        var command = await _db.Commands
-            .FirstOrDefaultAsync(c => c.BroadcasterId == broadcasterId
-                && c.Name == commandName
-                && c.IsEnabled, cancellationToken);
+        var command = await _db.Commands.FirstOrDefaultAsync(
+            c => c.BroadcasterId == broadcasterId && c.Name == commandName && c.IsEnabled,
+            cancellationToken
+        );
 
         if (command is null)
             return Errors.NotFound<string>("Command", commandName);
 
-        var response = command.Response
-            ?? (command.Responses.Count > 0 ? command.Responses[0] : null);
+        var response =
+            command.Response ?? (command.Responses.Count > 0 ? command.Responses[0] : null);
 
         return Result.Success(response ?? string.Empty);
     }
 
-    private static CommandDto ToDto(Command c) => new(
-        c.Id,
-        c.Name,
-        c.Type,
-        c.Permission,
-        c.IsEnabled,
-        c.Response,
-        c.Responses,
-        c.PipelineJson is not null
-            ? System.Text.Json.JsonSerializer.Deserialize<object>(c.PipelineJson)
-            : null,
-        c.CooldownSeconds,
-        c.CooldownPerUser,
-        c.Description,
-        c.Aliases,
-        0,
-        c.CreatedAt,
-        c.UpdatedAt);
+    private static CommandDto ToDto(Command c) =>
+        new(
+            c.Id,
+            c.Name,
+            c.Type,
+            c.Permission,
+            c.IsEnabled,
+            c.Response,
+            c.Responses,
+            c.PipelineJson is not null
+                ? System.Text.Json.JsonSerializer.Deserialize<object>(c.PipelineJson)
+                : null,
+            c.CooldownSeconds,
+            c.CooldownPerUser,
+            c.Description,
+            c.Aliases,
+            0,
+            c.CreatedAt,
+            c.UpdatedAt
+        );
 }

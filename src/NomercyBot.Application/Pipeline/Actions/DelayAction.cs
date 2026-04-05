@@ -9,8 +9,10 @@ public class DelayAction : ICommandAction
 
     public async Task<ActionResult> ExecuteAsync(ActionContext ctx)
     {
-        if (!ctx.Parameters.TryGetValue("seconds", out var secObj)
-            || !double.TryParse(secObj?.ToString(), out var secs))
+        if (
+            !ctx.Parameters.TryGetValue("seconds", out var secObj)
+            || !double.TryParse(secObj?.ToString(), out var secs)
+        )
             return ActionResult.Fail("'seconds' parameter is required");
 
         secs = Math.Clamp(secs, 0.1, 30.0);

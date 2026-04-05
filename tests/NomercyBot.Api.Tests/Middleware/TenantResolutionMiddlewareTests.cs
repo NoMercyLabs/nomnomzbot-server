@@ -101,7 +101,11 @@ public class TenantResolutionMiddlewareTests
     public async Task InvokeAsync_AlwaysCallsNext()
     {
         var nextCalled = false;
-        var middleware = CreateMiddleware(_ => { nextCalled = true; return Task.CompletedTask; });
+        var middleware = CreateMiddleware(_ =>
+        {
+            nextCalled = true;
+            return Task.CompletedTask;
+        });
         var tenantService = Substitute.For<ICurrentTenantService>();
         var context = new DefaultHttpContext();
 

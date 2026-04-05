@@ -43,7 +43,9 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
     private Task? _receiveLoop;
 
     // Channels that should be joined; re-joined after reconnect
-    private readonly ConcurrentDictionary<string, byte> _joinedChannels = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, byte> _joinedChannels = new(
+        StringComparer.OrdinalIgnoreCase
+    );
 
     // Send-side rate limiting
     private readonly SemaphoreSlim _sendLock = new(1, 1);
@@ -54,7 +56,8 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
         IServiceScopeFactory scopeFactory,
         IEventBus eventBus,
         IOptions<TwitchOptions> options,
-        ILogger<TwitchIrcService> logger)
+        ILogger<TwitchIrcService> logger
+    )
     {
         _scopeFactory = scopeFactory;
         _eventBus = eventBus;
@@ -81,23 +84,36 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
 
         if (_receiveLoop is not null)
         {
-            try { await _receiveLoop; }
+            try
+            {
+                await _receiveLoop;
+            }
             catch (OperationCanceledException) { }
         }
     }
 
     // ─── ITwitchChatService ───────────────────────────────────────────────────────
 
-    public async Task SendMessageAsync(string channelId, string message, CancellationToken ct = default)
+    public async Task SendMessageAsync(
+        string channelId,
+        string message,
+        CancellationToken ct = default
+    )
     {
         await SendRawWithRateLimitAsync($"PRIVMSG #{channelId.ToLowerInvariant()} :{message}", ct);
     }
 
-    public async Task SendReplyAsync(string channelId, string replyToMessageId, string message, CancellationToken ct = default)
+    public async Task SendReplyAsync(
+        string channelId,
+        string replyToMessageId,
+        string message,
+        CancellationToken ct = default
+    )
     {
         await SendRawWithRateLimitAsync(
             $"@reply-parent-msg-id={replyToMessageId} PRIVMSG #{channelId.ToLowerInvariant()} :{message}",
-            ct);
+            ct
+        );
     }
 
     public async Task JoinChannelAsync(string channelName, CancellationToken ct = default)
@@ -137,7 +153,8 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
                 _logger.LogError(ex, "IRC connection dropped, reconnecting in {Delay:g}", delay);
             }
 
-            if (ct.IsCancellationRequested) break;
+            if (ct.IsCancellationRequested)
+                break;
 
             await Task.Delay(delay, ct);
             delay = TimeSpan.FromSeconds(Math.Min(delay.TotalSeconds * 2, 64));
@@ -174,7 +191,8 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
             do
             {
                 result = await _ws.ReceiveAsync(buffer, ct);
-                if (result.MessageType == WebSocketMessageType.Close) return;
+                if (result.MessageType == WebSocketMessageType.Close)
+                    return;
                 sb.Append(Encoding.UTF8.GetString(buffer, 0, result.Count));
             } while (!result.EndOfMessage);
 
@@ -187,7 +205,8 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
 
     private async Task HandleIrcLineAsync(string line, CancellationToken ct)
     {
-        if (string.IsNullOrEmpty(line)) return;
+        if (string.IsNullOrEmpty(line))
+            return;
 
         if (line.StartsWith("PING"))
         {
@@ -215,13 +234,16 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
             case "CLEARMSG":
                 tags.TryGetValue("target-msg-id", out var targetMsgId);
                 tags.TryGetValue("login", out var deletedUserLogin);
-                await _eventBus.PublishAsync(new ChatMessageDeletedEvent
-                {
-                    BroadcasterId = parameters.Count > 0 ? parameters[0].TrimStart('#') : null,
-                    MessageId = targetMsgId ?? string.Empty,
-                    DeletedByUserId = string.Empty,   // IRC does not expose the moderator's ID
-                    TargetUserId = deletedUserLogin ?? string.Empty,
-                }, ct);
+                await _eventBus.PublishAsync(
+                    new ChatMessageDeletedEvent
+                    {
+                        BroadcasterId = parameters.Count > 0 ? parameters[0].TrimStart('#') : null,
+                        MessageId = targetMsgId ?? string.Empty,
+                        DeletedByUserId = string.Empty, // IRC does not expose the moderator's ID
+                        TargetUserId = deletedUserLogin ?? string.Empty,
+                    },
+                    ct
+                );
                 break;
 
             case "RECONNECT":
@@ -238,9 +260,11 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
     private async Task HandlePrivMsgAsync(
         Dictionary<string, string> tags,
         List<string> parameters,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
-        if (parameters.Count < 2) return;
+        if (parameters.Count < 2)
+            return;
 
         var channel = parameters[0].TrimStart('#');
         var messageText = parameters[1];
@@ -257,34 +281,47 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
         tags.TryGetValue("reply-parent-msg-id", out var replyParentId);
 
         var badgeDict = ParseBadges(badgesRaw);
-        var badgeList = badgeDict.Select(kv => new NoMercyBot.Domain.ValueObjects.ChatBadge(kv.Key, kv.Value)).ToList();
+        var badgeList = badgeDict
+            .Select(kv => new NoMercyBot.Domain.ValueObjects.ChatBadge(kv.Key, kv.Value))
+            .ToList();
         int.TryParse(bitsRaw, out var bits);
 
         var isBroadcaster = badgeDict.ContainsKey("broadcaster");
 
-        await _eventBus.PublishAsync(new ChatMessageReceivedEvent
-        {
-            BroadcasterId = channel,
-            MessageId = messageId ?? string.Empty,
-            UserId = userId ?? string.Empty,
-            UserDisplayName = displayName ?? login ?? string.Empty,
-            UserLogin = login ?? string.Empty,
-            Message = messageText,
-            Fragments = [new NoMercyBot.Domain.ValueObjects.ChatMessageFragment { Type = "text", Text = messageText }],
-            IsSubscriber = subRaw == "1" || badgeDict.ContainsKey("subscriber"),
-            IsVip = vipRaw == "1" || badgeDict.ContainsKey("vip"),
-            IsModerator = modRaw == "1" || badgeDict.ContainsKey("moderator"),
-            IsBroadcaster = isBroadcaster,
-            Badges = badgeList,
-            Bits = bits,
-            ReplyParentMessageId = replyParentId,
-        }, ct);
+        await _eventBus.PublishAsync(
+            new ChatMessageReceivedEvent
+            {
+                BroadcasterId = channel,
+                MessageId = messageId ?? string.Empty,
+                UserId = userId ?? string.Empty,
+                UserDisplayName = displayName ?? login ?? string.Empty,
+                UserLogin = login ?? string.Empty,
+                Message = messageText,
+                Fragments =
+                [
+                    new NoMercyBot.Domain.ValueObjects.ChatMessageFragment
+                    {
+                        Type = "text",
+                        Text = messageText,
+                    },
+                ],
+                IsSubscriber = subRaw == "1" || badgeDict.ContainsKey("subscriber"),
+                IsVip = vipRaw == "1" || badgeDict.ContainsKey("vip"),
+                IsModerator = modRaw == "1" || badgeDict.ContainsKey("moderator"),
+                IsBroadcaster = isBroadcaster,
+                Badges = badgeList,
+                Bits = bits,
+                ReplyParentMessageId = replyParentId,
+            },
+            ct
+        );
     }
 
     private async Task HandleUserNoticeAsync(
         Dictionary<string, string> tags,
         List<string> parameters,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         tags.TryGetValue("msg-id", out var msgId);
         tags.TryGetValue("user-id", out var userId);
@@ -298,13 +335,16 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
         {
             case "sub":
             case "resub":
-                await _eventBus.PublishAsync(new NewSubscriptionEvent
-                {
-                    BroadcasterId = channel,
-                    UserId = userId ?? string.Empty,
-                    UserDisplayName = displayName ?? login ?? string.Empty,
-                    Tier = tier ?? "1000",
-                }, ct);
+                await _eventBus.PublishAsync(
+                    new NewSubscriptionEvent
+                    {
+                        BroadcasterId = channel,
+                        UserId = userId ?? string.Empty,
+                        UserDisplayName = displayName ?? login ?? string.Empty,
+                        Tier = tier ?? "1000",
+                    },
+                    ct
+                );
                 break;
 
             case "subgift":
@@ -313,30 +353,36 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
                 int.TryParse(giftCountRaw, out var giftCount);
                 var isAnon = login == "ananonymousgifter";
 
-                await _eventBus.PublishAsync(new GiftSubscriptionEvent
-                {
-                    BroadcasterId = channel,
-                    GifterUserId = userId ?? string.Empty,
-                    GifterDisplayName = displayName ?? login ?? string.Empty,
-                    Tier = tier ?? "1000",
-                    GiftCount = Math.Max(giftCount, 1),
-                    IsAnonymous = isAnon,
-                    Recipients = [],
-                }, ct);
+                await _eventBus.PublishAsync(
+                    new GiftSubscriptionEvent
+                    {
+                        BroadcasterId = channel,
+                        GifterUserId = userId ?? string.Empty,
+                        GifterDisplayName = displayName ?? login ?? string.Empty,
+                        Tier = tier ?? "1000",
+                        GiftCount = Math.Max(giftCount, 1),
+                        IsAnonymous = isAnon,
+                        Recipients = [],
+                    },
+                    ct
+                );
                 break;
 
             case "raid":
                 tags.TryGetValue("msg-param-viewerCount", out var viewerCountRaw);
                 int.TryParse(viewerCountRaw, out var viewerCount);
 
-                await _eventBus.PublishAsync(new RaidEvent
-                {
-                    BroadcasterId = channel,
-                    FromUserId = userId ?? string.Empty,
-                    FromDisplayName = displayName ?? login ?? string.Empty,
-                    FromLogin = login ?? string.Empty,
-                    ViewerCount = viewerCount,
-                }, ct);
+                await _eventBus.PublishAsync(
+                    new RaidEvent
+                    {
+                        BroadcasterId = channel,
+                        FromUserId = userId ?? string.Empty,
+                        FromDisplayName = displayName ?? login ?? string.Empty,
+                        FromLogin = login ?? string.Empty,
+                        ViewerCount = viewerCount,
+                    },
+                    ct
+                );
                 break;
         }
     }
@@ -348,7 +394,12 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
         tags.TryGetValue("ban-duration", out var duration);
 
         if (target is not null)
-            _logger.LogDebug("IRC CLEARCHAT #{Channel}: {User} (duration={Duration})", channel, target, duration ?? "perm");
+            _logger.LogDebug(
+                "IRC CLEARCHAT #{Channel}: {User} (duration={Duration})",
+                channel,
+                target,
+                duration ?? "perm"
+            );
         else
             _logger.LogDebug("IRC CLEARCHAT #{Channel}: full chat cleared", channel);
     }
@@ -390,7 +441,8 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
 
     private async Task SendRawAsync(string line, CancellationToken ct)
     {
-        if (_ws is not { State: WebSocketState.Open }) return;
+        if (_ws is not { State: WebSocketState.Open })
+            return;
 
         var bytes = Encoding.UTF8.GetBytes(line + "\r\n");
         await _ws.SendAsync(bytes, WebSocketMessageType.Text, true, ct);
@@ -404,8 +456,8 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
         var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
         var encryption = scope.ServiceProvider.GetRequiredService<IEncryptionService>();
 
-        var service = await db.Services
-            .Where(s => s.Name == "twitch_bot" && s.Enabled && s.AccessToken != null)
+        var service = await db
+            .Services.Where(s => s.Name == "twitch_bot" && s.Enabled && s.AccessToken != null)
             .OrderByDescending(s => s.TokenExpiry)
             .FirstOrDefaultAsync(ct);
 
@@ -420,8 +472,12 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
 
     // ─── IRC parser ───────────────────────────────────────────────────────────────
 
-    private static (Dictionary<string, string> Tags, string Prefix, string Command, List<string> Parameters)
-        ParseIrcLine(string line)
+    private static (
+        Dictionary<string, string> Tags,
+        string Prefix,
+        string Command,
+        List<string> Parameters
+    ) ParseIrcLine(string line)
     {
         var tags = new Dictionary<string, string>(StringComparer.Ordinal);
         var prefix = string.Empty;
@@ -431,7 +487,8 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
         if (line.Length > 0 && line[0] == '@')
         {
             var end = line.IndexOf(' ', 1);
-            if (end < 0) return (tags, prefix, line, []);
+            if (end < 0)
+                return (tags, prefix, line, []);
 
             foreach (var tag in line[1..end].Split(';'))
             {
@@ -445,7 +502,8 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
             pos = end + 1;
         }
 
-        while (pos < line.Length && line[pos] == ' ') pos++;
+        while (pos < line.Length && line[pos] == ' ')
+            pos++;
 
         // :prefix
         if (pos < line.Length && line[pos] == ':')
@@ -455,7 +513,8 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
             pos = end >= 0 ? end + 1 : line.Length;
         }
 
-        while (pos < line.Length && line[pos] == ' ') pos++;
+        while (pos < line.Length && line[pos] == ' ')
+            pos++;
 
         // command
         var cmdEnd = line.IndexOf(' ', pos);
@@ -466,8 +525,10 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
         var parameters = new List<string>();
         while (pos < line.Length)
         {
-            while (pos < line.Length && line[pos] == ' ') pos++;
-            if (pos >= line.Length) break;
+            while (pos < line.Length && line[pos] == ' ')
+                pos++;
+            if (pos >= line.Length)
+                break;
 
             if (line[pos] == ':')
             {
@@ -476,7 +537,11 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
             }
 
             var end = line.IndexOf(' ', pos);
-            if (end < 0) { parameters.Add(line[pos..]); break; }
+            if (end < 0)
+            {
+                parameters.Add(line[pos..]);
+                break;
+            }
             parameters.Add(line[pos..end]);
             pos = end + 1;
         }
@@ -487,7 +552,8 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
     private static IReadOnlyDictionary<string, string> ParseBadges(string? raw)
     {
         var result = new Dictionary<string, string>(StringComparer.Ordinal);
-        if (string.IsNullOrEmpty(raw)) return result;
+        if (string.IsNullOrEmpty(raw))
+            return result;
 
         foreach (var badge in raw.Split(','))
         {

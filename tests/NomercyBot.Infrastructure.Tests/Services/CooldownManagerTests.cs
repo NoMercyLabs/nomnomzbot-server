@@ -138,7 +138,7 @@ public class CooldownManagerTests
     public void ClearCooldown_PerUser_OnlyClearsUserKey()
     {
         var mgr = Create();
-        mgr.SetCooldown("chan", "!so", TimeSpan.FromSeconds(60));          // global
+        mgr.SetCooldown("chan", "!so", TimeSpan.FromSeconds(60)); // global
         mgr.SetCooldown("chan", "!so", TimeSpan.FromSeconds(60), "user1"); // per-user
 
         mgr.ClearCooldown("chan", "!so", "user1");
@@ -181,12 +181,16 @@ public class CooldownManagerTests
     public async Task CooldownManager_ConcurrentAccess_DoesNotThrow()
     {
         var mgr = Create();
-        var tasks = Enumerable.Range(0, 50).Select(i => Task.Run(() =>
-        {
-            mgr.SetCooldown("chan", $"!cmd{i % 5}", TimeSpan.FromSeconds(10), $"user{i}");
-            mgr.IsOnCooldown("chan", $"!cmd{i % 5}", $"user{i}");
-            mgr.GetRemainingCooldown("chan", $"!cmd{i % 5}", $"user{i}");
-        }));
+        var tasks = Enumerable
+            .Range(0, 50)
+            .Select(i =>
+                Task.Run(() =>
+                {
+                    mgr.SetCooldown("chan", $"!cmd{i % 5}", TimeSpan.FromSeconds(10), $"user{i}");
+                    mgr.IsOnCooldown("chan", $"!cmd{i % 5}", $"user{i}");
+                    mgr.GetRemainingCooldown("chan", $"!cmd{i % 5}", $"user{i}");
+                })
+            );
 
         var act = () => Task.WhenAll(tasks);
         await act.Should().NotThrowAsync();

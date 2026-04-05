@@ -22,7 +22,9 @@ public sealed class JwtTokenService : IJwtTokenService
         var jwtSection = configuration.GetSection("Jwt");
         _issuer = jwtSection["Issuer"] ?? "NomercyBot";
         _audience = jwtSection["Audience"] ?? "NomercyBot";
-        _key = Encoding.UTF8.GetBytes(jwtSection["Key"] ?? throw new InvalidOperationException("JWT Key is not configured."));
+        _key = Encoding.UTF8.GetBytes(
+            jwtSection["Key"] ?? throw new InvalidOperationException("JWT Key is not configured.")
+        );
         _expiration = TimeSpan.FromMinutes(double.Parse(jwtSection["ExpirationMinutes"] ?? "60"));
     }
 
@@ -33,7 +35,11 @@ public sealed class JwtTokenService : IJwtTokenService
             new(ClaimTypes.NameIdentifier, userId),
             new(ClaimTypes.Name, username),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
+            new(
+                JwtRegisteredClaimNames.Iat,
+                DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(),
+                ClaimValueTypes.Integer64
+            ),
         };
 
         if (roles is not null)
@@ -52,7 +58,8 @@ public sealed class JwtTokenService : IJwtTokenService
             audience: _audience,
             claims: claims,
             expires: DateTime.UtcNow.Add(_expiration),
-            signingCredentials: credentials);
+            signingCredentials: credentials
+        );
 
         return new JwtSecurityTokenHandler().WriteToken(token);
     }

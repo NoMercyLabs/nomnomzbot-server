@@ -33,18 +33,19 @@ public sealed class GdprService
     /// </summary>
     public async Task<Result<string>> ExportUserDataAsync(
         string userId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
-        var user = await _db.Users
-            .Include(u => u.Pronoun)
+        var user = await _db
+            .Users.Include(u => u.Pronoun)
             .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 
         if (user is null)
             return Result.Failure<string>($"User '{userId}' was not found.", "NOT_FOUND");
 
         // Collect personal data across entities
-        var chatMessages = await _db.ChatMessages
-            .Where(m => m.UserId == userId)
+        var chatMessages = await _db
+            .ChatMessages.Where(m => m.UserId == userId)
             .OrderByDescending(m => m.CreatedAt)
             .Select(m => new
             {
@@ -57,14 +58,26 @@ public sealed class GdprService
             .Take(10_000)
             .ToListAsync(cancellationToken);
 
-        var records = await _db.Records
-            .Where(r => r.UserId == userId)
-            .Select(r => new { r.BroadcasterId, r.RecordType, r.Data, r.CreatedAt })
+        var records = await _db
+            .Records.Where(r => r.UserId == userId)
+            .Select(r => new
+            {
+                r.BroadcasterId,
+                r.RecordType,
+                r.Data,
+                r.CreatedAt,
+            })
             .ToListAsync(cancellationToken);
 
-        var services = await _db.Services
-            .Where(s => s.UserId == userId || s.BroadcasterId == userId)
-            .Select(s => new { s.Name, s.BroadcasterId, s.Scopes, s.TokenExpiry })
+        var services = await _db
+            .Services.Where(s => s.UserId == userId || s.BroadcasterId == userId)
+            .Select(s => new
+            {
+                s.Name,
+                s.BroadcasterId,
+                s.Scopes,
+                s.TokenExpiry,
+            })
             .ToListAsync(cancellationToken);
 
         var export = new
@@ -87,7 +100,10 @@ public sealed class GdprService
             ConnectedServices = services,
         };
 
-        var json = JsonSerializer.Serialize(export, new JsonSerializerOptions { WriteIndented = true });
+        var json = JsonSerializer.Serialize(
+            export,
+            new JsonSerializerOptions { WriteIndented = true }
+        );
 
         _logger.LogInformation("GDPR: Exported data for user {UserId}", userId);
         return Result.Success(json);
@@ -104,29 +120,29 @@ public sealed class GdprService
     /// </summary>
     public async Task<Result> DeleteUserDataAsync(
         string userId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
-        var user = await _db.Users
-            .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 
         if (user is null)
             return Result.Failure($"User '{userId}' was not found.", "NOT_FOUND");
 
         // Hard delete: chat messages
-        var messages = await _db.ChatMessages
-            .Where(m => m.UserId == userId)
+        var messages = await _db
+            .ChatMessages.Where(m => m.UserId == userId)
             .ToListAsync(cancellationToken);
         _db.ChatMessages.RemoveRange(messages);
 
         // Hard delete: records
-        var records = await _db.Records
-            .Where(r => r.UserId == userId)
+        var records = await _db
+            .Records.Where(r => r.UserId == userId)
             .ToListAsync(cancellationToken);
         _db.Records.RemoveRange(records);
 
         // Hard delete: service tokens (revoke and remove)
-        var services = await _db.Services
-            .Where(s => s.UserId == userId)
+        var services = await _db
+            .Services.Where(s => s.UserId == userId)
             .ToListAsync(cancellationToken);
         _db.Services.RemoveRange(services);
 
@@ -140,18 +156,20 @@ public sealed class GdprService
 
         // Log deletion audit (hash the userId for privacy — audit trail without storing PII)
         var idHash = Convert.ToHexString(
-            System.Security.Cryptography.SHA256.HashData(
-                System.Text.Encoding.UTF8.GetBytes(userId)))[..16];
+            System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(userId))
+        )[..16];
 
-        _db.DeletionAuditLogs.Add(new Domain.Entities.DeletionAuditLog
-        {
-            RequestType = "GDPR_ERASURE",
-            SubjectIdHash = idHash,
-            RequestedBy = userId,
-            TablesAffected = ["ChatMessages", "Records", "Services", "Users"],
-            RowsDeleted = messages.Count + records.Count + services.Count,
-            CompletedAt = DateTime.UtcNow,
-        });
+        _db.DeletionAuditLogs.Add(
+            new Domain.Entities.DeletionAuditLog
+            {
+                RequestType = "GDPR_ERASURE",
+                SubjectIdHash = idHash,
+                RequestedBy = userId,
+                TablesAffected = ["ChatMessages", "Records", "Services", "Users"],
+                RowsDeleted = messages.Count + records.Count + services.Count,
+                CompletedAt = DateTime.UtcNow,
+            }
+        );
 
         await _db.SaveChangesAsync(cancellationToken);
 

@@ -20,22 +20,28 @@ public sealed partial class TemplateEngine : ITemplateEngine
             return string.Empty;
         }
 
-        return TemplatePattern().Replace(template, match =>
-        {
-            var variableName = match.Groups[1].Value.Trim();
-
-            // Case-insensitive lookup
-            foreach (var kvp in variables)
-            {
-                if (string.Equals(kvp.Key, variableName, StringComparison.OrdinalIgnoreCase))
+        return TemplatePattern()
+            .Replace(
+                template,
+                match =>
                 {
-                    return kvp.Value ?? string.Empty;
-                }
-            }
+                    var variableName = match.Groups[1].Value.Trim();
 
-            // Unknown variable -- leave placeholder intact
-            return match.Value;
-        });
+                    // Case-insensitive lookup
+                    foreach (var kvp in variables)
+                    {
+                        if (
+                            string.Equals(kvp.Key, variableName, StringComparison.OrdinalIgnoreCase)
+                        )
+                        {
+                            return kvp.Value ?? string.Empty;
+                        }
+                    }
+
+                    // Unknown variable -- leave placeholder intact
+                    return match.Value;
+                }
+            );
     }
 
     /// <summary>
@@ -43,18 +49,27 @@ public sealed partial class TemplateEngine : ITemplateEngine
     /// </summary>
     public string Render(string template, string variableName, string variableValue)
     {
-        return Render(template, (IReadOnlyDictionary<string, string>)new Dictionary<string, string> { { variableName, variableValue } });
+        return Render(
+            template,
+            (IReadOnlyDictionary<string, string>)
+                new Dictionary<string, string> { { variableName, variableValue } }
+        );
     }
 
     /// <summary>
     /// Async render for templates that require data lookups.
     /// Converts all object values to strings synchronously.
     /// </summary>
-    public Task<string> RenderAsync(string template, IDictionary<string, object> variables, CancellationToken cancellationToken = default)
+    public Task<string> RenderAsync(
+        string template,
+        IDictionary<string, object> variables,
+        CancellationToken cancellationToken = default
+    )
     {
         var stringVars = variables.ToDictionary(
             kvp => kvp.Key,
-            kvp => kvp.Value?.ToString() ?? string.Empty);
+            kvp => kvp.Value?.ToString() ?? string.Empty
+        );
         return Task.FromResult(Render(template, stringVars));
     }
 

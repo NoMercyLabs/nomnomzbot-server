@@ -39,7 +39,10 @@ public sealed class YouTubeMusicProvider : IMusicProvider
         return Task.CompletedTask;
     }
 
-    public Task<TrackInfo?> GetCurrentTrackAsync(string broadcasterId, CancellationToken cancellationToken = default)
+    public Task<TrackInfo?> GetCurrentTrackAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    )
     {
         _logger.LogDebug("YouTubeMusicProvider.GetCurrentTrackAsync not yet implemented");
         return Task.FromResult<TrackInfo?>(null);
@@ -49,13 +52,18 @@ public sealed class YouTubeMusicProvider : IMusicProvider
         string broadcasterId,
         string query,
         int maxResults = 5,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         _logger.LogDebug("YouTubeMusicProvider.SearchAsync not yet implemented");
         return Task.FromResult<IReadOnlyList<TrackInfo>>([]);
     }
 
-    public Task<bool> AddToQueueAsync(string broadcasterId, string trackUri, CancellationToken cancellationToken = default)
+    public Task<bool> AddToQueueAsync(
+        string broadcasterId,
+        string trackUri,
+        CancellationToken cancellationToken = default
+    )
     {
         _logger.LogDebug("YouTubeMusicProvider.AddToQueueAsync not yet implemented");
         return Task.FromResult(false);

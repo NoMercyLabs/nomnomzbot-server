@@ -19,13 +19,15 @@ public sealed class EventLogger
     /// <summary>
     /// Logs a domain event with structured properties for correlation and filtering.
     /// </summary>
-    public void Log<TEvent>(TEvent @event) where TEvent : IDomainEvent
+    public void Log<TEvent>(TEvent @event)
+        where TEvent : IDomainEvent
     {
         _logger.LogInformation(
             "DomainEvent {EventType} published. EventId={EventId}, BroadcasterId={BroadcasterId}, Timestamp={Timestamp}",
             typeof(TEvent).Name,
             @event.EventId,
             @event.BroadcasterId ?? "(platform)",
-            @event.Timestamp);
+            @event.Timestamp
+        );
     }
 }

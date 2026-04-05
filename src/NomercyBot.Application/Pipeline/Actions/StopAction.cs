@@ -7,6 +7,6 @@ public class StopAction : ICommandAction
     public string Category => "control";
     public string Description => "Stops pipeline execution";
 
-    public Task<ActionResult> ExecuteAsync(ActionContext ctx)
-        => Task.FromResult(ActionResult.Stop());
+    public Task<ActionResult> ExecuteAsync(ActionContext ctx) =>
+        Task.FromResult(ActionResult.Stop());
 }

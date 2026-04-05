@@ -12,25 +12,18 @@ public class TtsCacheEntryConfiguration : IEntityTypeConfiguration<TtsCacheEntry
     {
         builder.HasKey(e => e.Id);
 
-        builder.Property(e => e.ContentHash)
-            .IsRequired()
-            .HasMaxLength(64);
+        builder.Property(e => e.ContentHash).IsRequired().HasMaxLength(64);
 
-        builder.Property(e => e.AudioData)
-            .IsRequired();
+        builder.Property(e => e.AudioData).IsRequired();
 
-        builder.Property(e => e.DurationMs)
-            .IsRequired();
+        builder.Property(e => e.DurationMs).IsRequired();
 
-        builder.Property(e => e.Provider)
-            .IsRequired()
-            .HasMaxLength(50);
+        builder.Property(e => e.Provider).IsRequired().HasMaxLength(50);
 
-        builder.Property(e => e.VoiceId)
-            .IsRequired()
-            .HasMaxLength(255);
+        builder.Property(e => e.VoiceId).IsRequired().HasMaxLength(255);
 
-        builder.HasIndex(e => e.ContentHash)
+        builder
+            .HasIndex(e => e.ContentHash)
             .IsUnique()
             .HasDatabaseName("IX_TtsCacheEntry_ContentHash");
     }

@@ -9,5 +9,5 @@ public enum PermissionLevel
     Subscriber,
     Vip,
     Moderator,
-    Broadcaster
+    Broadcaster,
 }

@@ -23,17 +23,20 @@ public sealed class UserRoleCondition : ICommandCondition
 
     private static string? GetParam(ConditionDefinition c, string key)
     {
-        if (c.Parameters is null) return null;
-        if (!c.Parameters.TryGetValue(key, out var elem)) return null;
+        if (c.Parameters is null)
+            return null;
+        if (!c.Parameters.TryGetValue(key, out var elem))
+            return null;
         return elem.ValueKind == System.Text.Json.JsonValueKind.String ? elem.GetString() : null;
     }
 
-    private static int RoleLevel(string role) => role.ToLowerInvariant() switch
-    {
-        "broadcaster" => 5,
-        "moderator" or "mod" => 4,
-        "vip" => 3,
-        "subscriber" or "sub" => 2,
-        _ => 1,  // viewer / everyone
-    };
+    private static int RoleLevel(string role) =>
+        role.ToLowerInvariant() switch
+        {
+            "broadcaster" => 5,
+            "moderator" or "mod" => 4,
+            "vip" => 3,
+            "subscriber" or "sub" => 2,
+            _ => 1, // viewer / everyone
+        };
 }

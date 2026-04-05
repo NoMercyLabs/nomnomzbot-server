@@ -47,16 +47,20 @@ public sealed class ActionDefinition
     /// <summary>Gets a string parameter value by key.</summary>
     public string? GetString(string key)
     {
-        if (Parameters is null) return null;
-        if (!Parameters.TryGetValue(key, out var elem)) return null;
+        if (Parameters is null)
+            return null;
+        if (!Parameters.TryGetValue(key, out var elem))
+            return null;
         return elem.ValueKind == JsonValueKind.String ? elem.GetString() : elem.ToString();
     }
 
     /// <summary>Gets an int parameter value by key.</summary>
     public int GetInt(string key, int defaultValue = 0)
     {
-        if (Parameters is null) return defaultValue;
-        if (!Parameters.TryGetValue(key, out var elem)) return defaultValue;
+        if (Parameters is null)
+            return defaultValue;
+        if (!Parameters.TryGetValue(key, out var elem))
+            return defaultValue;
         return elem.ValueKind == JsonValueKind.Number ? elem.GetInt32() : defaultValue;
     }
 }

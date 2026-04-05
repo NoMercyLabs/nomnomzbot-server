@@ -12,33 +12,28 @@ public class RecordConfiguration : IEntityTypeConfiguration<Record>
     {
         builder.HasKey(e => e.Id);
 
-        builder.Property(e => e.BroadcasterId)
-            .IsRequired()
-            .HasMaxLength(50);
+        builder.Property(e => e.BroadcasterId).IsRequired().HasMaxLength(50);
 
-        builder.Property(e => e.RecordType)
-            .IsRequired()
-            .HasMaxLength(50);
+        builder.Property(e => e.RecordType).IsRequired().HasMaxLength(50);
 
-        builder.Property(e => e.Data)
-            .IsRequired()
-            .HasColumnType("jsonb");
+        builder.Property(e => e.Data).IsRequired().HasColumnType("jsonb");
 
-        builder.Property(e => e.UserId)
-            .IsRequired()
-            .HasMaxLength(50);
+        builder.Property(e => e.UserId).IsRequired().HasMaxLength(50);
 
-        builder.HasOne(e => e.Channel)
+        builder
+            .HasOne(e => e.Channel)
             .WithMany()
             .HasForeignKey(e => e.BroadcasterId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasOne(e => e.User)
+        builder
+            .HasOne(e => e.User)
             .WithMany()
             .HasForeignKey(e => e.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasIndex(e => new { e.BroadcasterId, e.RecordType })
+        builder
+            .HasIndex(e => new { e.BroadcasterId, e.RecordType })
             .HasDatabaseName("IX_Record_BroadcasterId_RecordType");
 
         builder.HasQueryFilter(e => e.DeletedAt == null);

@@ -7,7 +7,8 @@ public sealed record RewardListItem(
     bool IsEnabled,
     string? BackgroundColor,
     string? ImageUrl,
-    DateTime CreatedAt);
+    DateTime CreatedAt
+);
 
 public sealed record RewardDetail(
     string Id,
@@ -25,7 +26,8 @@ public sealed record RewardDetail(
     string? ActionType,
     Dictionary<string, object?>? ActionSettings,
     DateTime CreatedAt,
-    DateTime UpdatedAt);
+    DateTime UpdatedAt
+);
 
 public sealed record CreateRewardRequest
 {

@@ -6,5 +6,5 @@ namespace NoMercyBot.Domain.Enums;
 public enum PlatformType
 {
     Twitch,
-    Discord
+    Discord,
 }

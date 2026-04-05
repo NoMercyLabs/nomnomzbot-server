@@ -9,18 +9,18 @@ namespace NomercyBot.Infrastructure.Tests.Pipeline.Actions;
 
 public class InfraSetVariableActionTests
 {
-    private static PipelineExecutionContext BuildCtx()
-        => new()
+    private static PipelineExecutionContext BuildCtx() =>
+        new()
         {
             BroadcasterId = "chan",
             TriggeredByUserId = "user",
             TriggeredByDisplayName = "User",
             MessageId = "msg",
-            RawMessage = ""
+            RawMessage = "",
         };
 
-    private static ActionDefinition MakeDef(string json)
-        => System.Text.Json.JsonSerializer.Deserialize<ActionDefinition>(json)!;
+    private static ActionDefinition MakeDef(string json) =>
+        System.Text.Json.JsonSerializer.Deserialize<ActionDefinition>(json)!;
 
     [Fact]
     public async Task ExecuteAsync_WithNameAndValue_SetsVariable()

@@ -31,6 +31,5 @@ public sealed class CurrentUserService : ICurrentUserService
         _httpContextAccessor.HttpContext?.User?.Identity?.IsAuthenticated ?? false;
 
     public IEnumerable<string> Roles =>
-        _httpContextAccessor.HttpContext?.User?.FindAll(ClaimTypes.Role)
-            .Select(c => c.Value) ?? [];
+        _httpContextAccessor.HttpContext?.User?.FindAll(ClaimTypes.Role).Select(c => c.Value) ?? [];
 }

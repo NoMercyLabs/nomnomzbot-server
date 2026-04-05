@@ -7,7 +7,8 @@ public sealed record AuthResultDto(
     string AccessToken,
     string RefreshToken,
     DateTime ExpiresAt,
-    UserDto User);
+    UserDto User
+);
 
 /// <summary>OAuth callback data received from the Twitch redirect.</summary>
 public sealed record OAuthCallbackDto

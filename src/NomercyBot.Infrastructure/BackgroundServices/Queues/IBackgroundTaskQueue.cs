@@ -5,6 +5,9 @@ namespace NoMercyBot.Infrastructure.BackgroundServices.Queues;
 
 public interface IBackgroundTaskQueue
 {
-    ValueTask QueueAsync(Func<CancellationToken, ValueTask> workItem, CancellationToken ct = default);
+    ValueTask QueueAsync(
+        Func<CancellationToken, ValueTask> workItem,
+        CancellationToken ct = default
+    );
     ValueTask<Func<CancellationToken, ValueTask>> DequeueAsync(CancellationToken ct);
 }

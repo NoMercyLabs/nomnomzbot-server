@@ -9,21 +9,28 @@ namespace NomercyBot.Application.Tests.Pipeline.Conditions;
 
 public class VariableEqualsConditionTests
 {
-    private static ActionContext BuildCtx(Dictionary<string, string>? variables = null)
-        => new()
+    private static ActionContext BuildCtx(Dictionary<string, string>? variables = null) =>
+        new()
         {
             BroadcasterId = "chan",
             TriggeredByUserId = "user",
             TriggeredByDisplayName = "User",
             Parameters = new Dictionary<string, object?>(),
-            Variables = variables ?? new Dictionary<string, string>()
+            Variables = variables ?? new Dictionary<string, string>(),
         };
 
     private static ConditionDefinition BuildCond(
         string? variable,
         string? value,
-        string op = "equals")
-        => new() { Type = "variable_equals", Variable = variable, Value = value, Operator = op };
+        string op = "equals"
+    ) =>
+        new()
+        {
+            Type = "variable_equals",
+            Variable = variable,
+            Value = value,
+            Operator = op,
+        };
 
     [Fact]
     public async Task EvaluateAsync_VariableEqualsValue_ReturnsTrue()

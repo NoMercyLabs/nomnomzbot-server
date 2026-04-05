@@ -19,14 +19,18 @@ public sealed class EventBus : IEventBus
     public EventBus(
         IServiceProvider serviceProvider,
         ILogger<EventBus> logger,
-        EventLogger eventLogger)
+        EventLogger eventLogger
+    )
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
         _eventLogger = eventLogger;
     }
 
-    public async Task PublishAsync<TEvent>(TEvent @event, CancellationToken cancellationToken = default)
+    public async Task PublishAsync<TEvent>(
+        TEvent @event,
+        CancellationToken cancellationToken = default
+    )
         where TEvent : class, IDomainEvent
     {
         var eventType = typeof(TEvent).Name;
@@ -50,7 +54,11 @@ public sealed class EventBus : IEventBus
         where TEvent : class, IDomainEvent
     {
         var eventType = typeof(TEvent).Name;
-        _logger.LogDebug("Publishing fire-and-forget event {EventType} ({EventId})", eventType, @event.EventId);
+        _logger.LogDebug(
+            "Publishing fire-and-forget event {EventType} ({EventId})",
+            eventType,
+            @event.EventId
+        );
 
         _eventLogger.Log(@event);
 
@@ -59,9 +67,12 @@ public sealed class EventBus : IEventBus
         _ = Task.Run(async () =>
         {
             var handlers = ResolveHandlers<TEvent>();
-            if (handlers.Count == 0) return;
+            if (handlers.Count == 0)
+                return;
 
-            var tasks = handlers.Select(handler => ExecuteHandler(handler, @event, CancellationToken.None));
+            var tasks = handlers.Select(handler =>
+                ExecuteHandler(handler, @event, CancellationToken.None)
+            );
             await Task.WhenAll(tasks);
         });
     }
@@ -71,9 +82,7 @@ public sealed class EventBus : IEventBus
     {
         // Create a scope so handlers can resolve scoped services (DbContext, etc.)
         using var scope = _serviceProvider.CreateScope();
-        var handlers = scope.ServiceProvider
-            .GetServices<IEventHandler<TEvent>>()
-            .ToList();
+        var handlers = scope.ServiceProvider.GetServices<IEventHandler<TEvent>>().ToList();
 
         return handlers;
     }
@@ -81,28 +90,39 @@ public sealed class EventBus : IEventBus
     private async Task ExecuteHandler<TEvent>(
         IEventHandler<TEvent> handler,
         TEvent @event,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
         where TEvent : class, IDomainEvent
     {
         var handlerName = handler.GetType().Name;
         try
         {
-            _logger.LogTrace("Executing handler {Handler} for {EventType}",
-                handlerName, typeof(TEvent).Name);
+            _logger.LogTrace(
+                "Executing handler {Handler} for {EventType}",
+                handlerName,
+                typeof(TEvent).Name
+            );
 
             await handler.HandleAsync(@event, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            _logger.LogDebug("Handler {Handler} cancelled for {EventType}",
-                handlerName, typeof(TEvent).Name);
+            _logger.LogDebug(
+                "Handler {Handler} cancelled for {EventType}",
+                handlerName,
+                typeof(TEvent).Name
+            );
         }
         catch (Exception ex)
         {
             // Critical: one handler's failure must NOT affect other handlers
-            _logger.LogError(ex,
+            _logger.LogError(
+                ex,
                 "Handler {Handler} failed for event {EventType} ({EventId})",
-                handlerName, typeof(TEvent).Name, @event.EventId);
+                handlerName,
+                typeof(TEvent).Name,
+                @event.EventId
+            );
         }
     }
 }

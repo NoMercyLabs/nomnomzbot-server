@@ -13,14 +13,15 @@ public class SendMessageActionTests
 {
     private static ActionContext BuildCtx(
         Dictionary<string, object?>? parameters = null,
-        Dictionary<string, string>? variables = null)
-        => new()
+        Dictionary<string, string>? variables = null
+    ) =>
+        new()
         {
             BroadcasterId = "chan1",
             TriggeredByUserId = "user1",
             TriggeredByDisplayName = "User1",
             Parameters = parameters ?? new Dictionary<string, object?>(),
-            Variables = variables ?? new Dictionary<string, string>()
+            Variables = variables ?? new Dictionary<string, string>(),
         };
 
     [Fact]
@@ -33,7 +34,8 @@ public class SendMessageActionTests
         var result = await action.ExecuteAsync(ctx);
 
         result.Success.Should().BeTrue();
-        await chat.Received(1).SendMessageAsync("chan1", "Hello world", Arg.Any<CancellationToken>());
+        await chat.Received(1)
+            .SendMessageAsync("chan1", "Hello world", Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -47,7 +49,8 @@ public class SendMessageActionTests
 
         result.Success.Should().BeFalse();
         result.ErrorMessage.Should().Contain("message");
-        await chat.DidNotReceive().SendMessageAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await chat.DidNotReceive()
+            .SendMessageAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -67,13 +70,18 @@ public class SendMessageActionTests
     {
         string? sentMessage = null;
         var chat = Substitute.For<IChatProvider>();
-        chat.SendMessageAsync(Arg.Any<string>(), Arg.Do<string>(m => sentMessage = m), Arg.Any<CancellationToken>())
+        chat.SendMessageAsync(
+                Arg.Any<string>(),
+                Arg.Do<string>(m => sentMessage = m),
+                Arg.Any<CancellationToken>()
+            )
             .Returns(Task.CompletedTask);
 
         var action = new SendMessageAction(chat);
         var ctx = BuildCtx(
             new Dictionary<string, object?> { { "message", "Hi {{user}}!" } },
-            new Dictionary<string, string> { { "user", "Alice" } });
+            new Dictionary<string, string> { { "user", "Alice" } }
+        );
 
         await action.ExecuteAsync(ctx);
 

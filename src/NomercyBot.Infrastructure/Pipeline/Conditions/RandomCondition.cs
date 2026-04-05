@@ -16,13 +16,17 @@ public sealed class RandomCondition : ICommandCondition
 
         if (condition.Parameters is not null)
         {
-            if (condition.Parameters.TryGetValue("chance", out var chance)
-                && chance.ValueKind == System.Text.Json.JsonValueKind.Number)
+            if (
+                condition.Parameters.TryGetValue("chance", out var chance)
+                && chance.ValueKind == System.Text.Json.JsonValueKind.Number
+            )
             {
                 threshold = chance.GetDouble();
             }
-            else if (condition.Parameters.TryGetValue("percent", out var pct)
-                     && pct.ValueKind == System.Text.Json.JsonValueKind.Number)
+            else if (
+                condition.Parameters.TryGetValue("percent", out var pct)
+                && pct.ValueKind == System.Text.Json.JsonValueKind.Number
+            )
             {
                 threshold = pct.GetDouble() / 100.0;
             }

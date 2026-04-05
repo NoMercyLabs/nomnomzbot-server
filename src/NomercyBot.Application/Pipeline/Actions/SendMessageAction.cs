@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 using NoMercyBot.Domain.Interfaces;
+
 namespace NoMercyBot.Application.Pipeline.Actions;
 
 public class SendMessageAction : ICommandAction

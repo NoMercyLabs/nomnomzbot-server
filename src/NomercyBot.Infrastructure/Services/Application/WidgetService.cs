@@ -22,10 +22,13 @@ public class WidgetService : IWidgetService
     public async Task<Result<WidgetDetail>> CreateAsync(
         string broadcasterId,
         CreateWidgetRequest request,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
-        var channelExists = await _db.Channels
-            .AnyAsync(c => c.Id == broadcasterId, cancellationToken);
+        var channelExists = await _db.Channels.AnyAsync(
+            c => c.Id == broadcasterId,
+            cancellationToken
+        );
 
         if (!channelExists)
             return Errors.ChannelNotFound<WidgetDetail>(broadcasterId);
@@ -38,7 +41,8 @@ public class WidgetService : IWidgetService
             Framework = request.Type,
             IsEnabled = true,
             EventSubscriptions = request.EventSubscriptions ?? [],
-            Settings = request.Settings?.ToDictionary(k => k.Key, v => v.Value ?? (object)"")
+            Settings =
+                request.Settings?.ToDictionary(k => k.Key, v => v.Value ?? (object)"")
                 ?? new Dictionary<string, object>(),
         };
 
@@ -52,17 +56,23 @@ public class WidgetService : IWidgetService
         string broadcasterId,
         string widgetId,
         UpdateWidgetRequest request,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
-        var widget = await _db.Widgets
-            .FirstOrDefaultAsync(w => w.Id == widgetId && w.BroadcasterId == broadcasterId, cancellationToken);
+        var widget = await _db.Widgets.FirstOrDefaultAsync(
+            w => w.Id == widgetId && w.BroadcasterId == broadcasterId,
+            cancellationToken
+        );
 
         if (widget is null)
             return Errors.NotFound<WidgetDetail>("Widget", widgetId);
 
-        if (request.Name is not null) widget.Name = request.Name;
-        if (request.IsEnabled.HasValue) widget.IsEnabled = request.IsEnabled.Value;
-        if (request.EventSubscriptions is not null) widget.EventSubscriptions = request.EventSubscriptions;
+        if (request.Name is not null)
+            widget.Name = request.Name;
+        if (request.IsEnabled.HasValue)
+            widget.IsEnabled = request.IsEnabled.Value;
+        if (request.EventSubscriptions is not null)
+            widget.EventSubscriptions = request.EventSubscriptions;
         if (request.Settings is not null)
             widget.Settings = request.Settings.ToDictionary(k => k.Key, v => v.Value ?? (object)"");
 
@@ -74,10 +84,13 @@ public class WidgetService : IWidgetService
     public async Task<Result> DeleteAsync(
         string broadcasterId,
         string widgetId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
-        var widget = await _db.Widgets
-            .FirstOrDefaultAsync(w => w.Id == widgetId && w.BroadcasterId == broadcasterId, cancellationToken);
+        var widget = await _db.Widgets.FirstOrDefaultAsync(
+            w => w.Id == widgetId && w.BroadcasterId == broadcasterId,
+            cancellationToken
+        );
 
         if (widget is null)
             return Result.Failure($"Widget '{widgetId}' was not found.", "NOT_FOUND");
@@ -91,7 +104,8 @@ public class WidgetService : IWidgetService
     public async Task<Result<PagedList<WidgetListItem>>> ListAsync(
         string broadcasterId,
         PaginationParams pagination,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         var query = _db.Widgets.Where(w => w.BroadcasterId == broadcasterId);
         var total = await query.CountAsync(cancellationToken);
@@ -100,24 +114,24 @@ public class WidgetService : IWidgetService
             .OrderBy(w => w.Name)
             .Skip((pagination.Page - 1) * pagination.PageSize)
             .Take(pagination.PageSize)
-            .Select(w => new WidgetListItem(
-                w.Id,
-                w.Name,
-                w.Framework,
-                w.IsEnabled,
-                w.CreatedAt))
+            .Select(w => new WidgetListItem(w.Id, w.Name, w.Framework, w.IsEnabled, w.CreatedAt))
             .ToListAsync(cancellationToken);
 
-        return Result.Success(new PagedList<WidgetListItem>(items, total, pagination.Page, pagination.PageSize));
+        return Result.Success(
+            new PagedList<WidgetListItem>(items, total, pagination.Page, pagination.PageSize)
+        );
     }
 
     public async Task<Result<WidgetDetail>> GetAsync(
         string broadcasterId,
         string widgetId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
-        var widget = await _db.Widgets
-            .FirstOrDefaultAsync(w => w.Id == widgetId && w.BroadcasterId == broadcasterId, cancellationToken);
+        var widget = await _db.Widgets.FirstOrDefaultAsync(
+            w => w.Id == widgetId && w.BroadcasterId == broadcasterId,
+            cancellationToken
+        );
 
         if (widget is null)
             return Errors.NotFound<WidgetDetail>("Widget", widgetId);
@@ -125,35 +139,48 @@ public class WidgetService : IWidgetService
         return Result.Success(ToDetail(widget));
     }
 
-    public async Task<Result<WidgetDetail>> GetByTokenAsync(string token, CancellationToken cancellationToken = default)
+    public async Task<Result<WidgetDetail>> GetByTokenAsync(
+        string token,
+        CancellationToken cancellationToken = default
+    )
     {
         // Widgets are accessed via channel overlay token; look up the channel first
-        var channel = await _db.Channels
-            .FirstOrDefaultAsync(c => c.OverlayToken == token, cancellationToken);
+        var channel = await _db.Channels.FirstOrDefaultAsync(
+            c => c.OverlayToken == token,
+            cancellationToken
+        );
 
         if (channel is null)
-            return Result.Failure<WidgetDetail>("No channel found for the provided token.", "NOT_FOUND");
+            return Result.Failure<WidgetDetail>(
+                "No channel found for the provided token.",
+                "NOT_FOUND"
+            );
 
         // Return the first enabled widget for that channel as a representative
-        var widget = await _db.Widgets
-            .Where(w => w.BroadcasterId == channel.Id && w.IsEnabled)
+        var widget = await _db
+            .Widgets.Where(w => w.BroadcasterId == channel.Id && w.IsEnabled)
             .OrderBy(w => w.Name)
             .FirstOrDefaultAsync(cancellationToken);
 
         if (widget is null)
-            return Result.Failure<WidgetDetail>("No enabled widget found for the provided token.", "NOT_FOUND");
+            return Result.Failure<WidgetDetail>(
+                "No enabled widget found for the provided token.",
+                "NOT_FOUND"
+            );
 
         return Result.Success(ToDetail(widget));
     }
 
-    private static WidgetDetail ToDetail(Widget w) => new(
-        w.Id,
-        w.Name,
-        w.Framework,
-        w.IsEnabled,
-        null,
-        w.Settings.ToDictionary(k => k.Key, v => (object?)v.Value),
-        w.EventSubscriptions,
-        w.CreatedAt,
-        w.UpdatedAt);
+    private static WidgetDetail ToDetail(Widget w) =>
+        new(
+            w.Id,
+            w.Name,
+            w.Framework,
+            w.IsEnabled,
+            null,
+            w.Settings.ToDictionary(k => k.Key, v => (object?)v.Value),
+            w.EventSubscriptions,
+            w.CreatedAt,
+            w.UpdatedAt
+        );
 }

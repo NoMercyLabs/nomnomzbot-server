@@ -30,35 +30,47 @@ public static class ResiliencePolicies
     /// </summary>
     public static IHttpClientBuilder AddTwitchResilienceHandler(this IHttpClientBuilder builder)
     {
-        builder.AddResilienceHandler("twitch-resilience", pipeline =>
-        {
-            // Retry: 3 attempts, exponential backoff starting at 500ms, jitter
-            pipeline.AddRetry(new HttpRetryStrategyOptions
+        builder.AddResilienceHandler(
+            "twitch-resilience",
+            pipeline =>
             {
-                MaxRetryAttempts = 3,
-                BackoffType = DelayBackoffType.Exponential,
-                UseJitter = true,
-                Delay = TimeSpan.FromMilliseconds(500),
-                ShouldHandle = args => ValueTask.FromResult(
-                    RetryableStatuses.Contains(args.Outcome.Result?.StatusCode ?? 0) ||
-                    args.Outcome.Exception is HttpRequestException),
-            });
+                // Retry: 3 attempts, exponential backoff starting at 500ms, jitter
+                pipeline.AddRetry(
+                    new HttpRetryStrategyOptions
+                    {
+                        MaxRetryAttempts = 3,
+                        BackoffType = DelayBackoffType.Exponential,
+                        UseJitter = true,
+                        Delay = TimeSpan.FromMilliseconds(500),
+                        ShouldHandle = args =>
+                            ValueTask.FromResult(
+                                RetryableStatuses.Contains(args.Outcome.Result?.StatusCode ?? 0)
+                                    || args.Outcome.Exception is HttpRequestException
+                            ),
+                    }
+                );
 
-            // Per-request timeout: 10s
-            pipeline.AddTimeout(TimeSpan.FromSeconds(10));
+                // Per-request timeout: 10s
+                pipeline.AddTimeout(TimeSpan.FromSeconds(10));
 
-            // Circuit breaker: 50% failure rate over 30s, min 5 requests, break for 30s
-            pipeline.AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions
-            {
-                FailureRatio = 0.5,
-                SamplingDuration = TimeSpan.FromSeconds(30),
-                MinimumThroughput = 5,
-                BreakDuration = TimeSpan.FromSeconds(30),
-                ShouldHandle = args => ValueTask.FromResult(
-                    args.Outcome.Result?.StatusCode >= HttpStatusCode.InternalServerError ||
-                    args.Outcome.Exception is HttpRequestException),
-            });
-        });
+                // Circuit breaker: 50% failure rate over 30s, min 5 requests, break for 30s
+                pipeline.AddCircuitBreaker(
+                    new HttpCircuitBreakerStrategyOptions
+                    {
+                        FailureRatio = 0.5,
+                        SamplingDuration = TimeSpan.FromSeconds(30),
+                        MinimumThroughput = 5,
+                        BreakDuration = TimeSpan.FromSeconds(30),
+                        ShouldHandle = args =>
+                            ValueTask.FromResult(
+                                args.Outcome.Result?.StatusCode
+                                    >= HttpStatusCode.InternalServerError
+                                    || args.Outcome.Exception is HttpRequestException
+                            ),
+                    }
+                );
+            }
+        );
         return builder;
     }
 
@@ -68,52 +80,69 @@ public static class ResiliencePolicies
     /// </summary>
     public static IHttpClientBuilder AddSpotifyResilienceHandler(this IHttpClientBuilder builder)
     {
-        builder.AddResilienceHandler("spotify-resilience", pipeline =>
-        {
-            // Retry: 2 attempts, exponential backoff starting at 1s, jitter
-            pipeline.AddRetry(new HttpRetryStrategyOptions
+        builder.AddResilienceHandler(
+            "spotify-resilience",
+            pipeline =>
             {
-                MaxRetryAttempts = 2,
-                BackoffType = DelayBackoffType.Exponential,
-                UseJitter = true,
-                Delay = TimeSpan.FromSeconds(1),
-                ShouldHandle = args =>
-                {
-                    var status = args.Outcome.Result?.StatusCode;
-                    return ValueTask.FromResult(
-                        status == HttpStatusCode.TooManyRequests ||
-                        status == HttpStatusCode.ServiceUnavailable);
-                },
-                // Honor Retry-After header from Spotify 429 responses
-                DelayGenerator = args =>
-                {
-                    if (args.Outcome.Result?.StatusCode == HttpStatusCode.TooManyRequests)
+                // Retry: 2 attempts, exponential backoff starting at 1s, jitter
+                pipeline.AddRetry(
+                    new HttpRetryStrategyOptions
                     {
-                        if (args.Outcome.Result.Headers.TryGetValues("Retry-After", out var values)
-                            && int.TryParse(values.FirstOrDefault(), out var retryAfter))
+                        MaxRetryAttempts = 2,
+                        BackoffType = DelayBackoffType.Exponential,
+                        UseJitter = true,
+                        Delay = TimeSpan.FromSeconds(1),
+                        ShouldHandle = args =>
                         {
-                            return ValueTask.FromResult<TimeSpan?>(TimeSpan.FromSeconds(retryAfter));
-                        }
+                            var status = args.Outcome.Result?.StatusCode;
+                            return ValueTask.FromResult(
+                                status == HttpStatusCode.TooManyRequests
+                                    || status == HttpStatusCode.ServiceUnavailable
+                            );
+                        },
+                        // Honor Retry-After header from Spotify 429 responses
+                        DelayGenerator = args =>
+                        {
+                            if (args.Outcome.Result?.StatusCode == HttpStatusCode.TooManyRequests)
+                            {
+                                if (
+                                    args.Outcome.Result.Headers.TryGetValues(
+                                        "Retry-After",
+                                        out var values
+                                    ) && int.TryParse(values.FirstOrDefault(), out var retryAfter)
+                                )
+                                {
+                                    return ValueTask.FromResult<TimeSpan?>(
+                                        TimeSpan.FromSeconds(retryAfter)
+                                    );
+                                }
+                            }
+                            return ValueTask.FromResult<TimeSpan?>(null); // use default backoff
+                        },
                     }
-                    return ValueTask.FromResult<TimeSpan?>(null); // use default backoff
-                },
-            });
+                );
 
-            // Per-request timeout: 8s
-            pipeline.AddTimeout(TimeSpan.FromSeconds(8));
+                // Per-request timeout: 8s
+                pipeline.AddTimeout(TimeSpan.FromSeconds(8));
 
-            // Circuit breaker: 50% failure rate over 60s, min 3 requests, break for 60s
-            pipeline.AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions
-            {
-                FailureRatio = 0.5,
-                SamplingDuration = TimeSpan.FromSeconds(60),
-                MinimumThroughput = 3,
-                BreakDuration = TimeSpan.FromSeconds(60),
-                ShouldHandle = args => ValueTask.FromResult(
-                    args.Outcome.Result?.StatusCode >= HttpStatusCode.InternalServerError ||
-                    args.Outcome.Exception is HttpRequestException),
-            });
-        });
+                // Circuit breaker: 50% failure rate over 60s, min 3 requests, break for 60s
+                pipeline.AddCircuitBreaker(
+                    new HttpCircuitBreakerStrategyOptions
+                    {
+                        FailureRatio = 0.5,
+                        SamplingDuration = TimeSpan.FromSeconds(60),
+                        MinimumThroughput = 3,
+                        BreakDuration = TimeSpan.FromSeconds(60),
+                        ShouldHandle = args =>
+                            ValueTask.FromResult(
+                                args.Outcome.Result?.StatusCode
+                                    >= HttpStatusCode.InternalServerError
+                                    || args.Outcome.Exception is HttpRequestException
+                            ),
+                    }
+                );
+            }
+        );
         return builder;
     }
 }

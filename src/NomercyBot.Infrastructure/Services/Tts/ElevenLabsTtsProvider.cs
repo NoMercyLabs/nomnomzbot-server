@@ -27,7 +27,8 @@ public sealed class ElevenLabsTtsProvider : ITtsProvider
     public ElevenLabsTtsProvider(
         IHttpClientFactory httpClientFactory,
         ILogger<ElevenLabsTtsProvider> logger,
-        string? apiKey)
+        string? apiKey
+    )
     {
         _http = httpClientFactory.CreateClient("elevenlabs-tts");
         _logger = logger;
@@ -37,7 +38,8 @@ public sealed class ElevenLabsTtsProvider : ITtsProvider
     public async Task<TtsSynthesisResult> SynthesizeAsync(
         string text,
         string voiceId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         if (string.IsNullOrEmpty(_apiKey))
         {
@@ -46,12 +48,14 @@ public sealed class ElevenLabsTtsProvider : ITtsProvider
         }
 
         var url = $"{ApiBase}/text-to-speech/{voiceId}";
-        var body = JsonSerializer.Serialize(new
-        {
-            text,
-            model_id = "eleven_multilingual_v2",
-            voice_settings = new { stability = 0.5, similarity_boost = 0.75 },
-        });
+        var body = JsonSerializer.Serialize(
+            new
+            {
+                text,
+                model_id = "eleven_multilingual_v2",
+                voice_settings = new { stability = 0.5, similarity_boost = 0.75 },
+            }
+        );
 
         var request = new HttpRequestMessage(HttpMethod.Post, url);
         request.Headers.Add("xi-api-key", _apiKey);
@@ -68,7 +72,9 @@ public sealed class ElevenLabsTtsProvider : ITtsProvider
 
             var audioData = await response.Content.ReadAsByteArrayAsync(cancellationToken);
             int durationMs = (int)(audioData.Length / 16.0 * 1000.0 / 1024.0);
-            var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text + voiceId)))[..16];
+            var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text + voiceId)))[
+                ..16
+            ];
 
             return new TtsSynthesisResult
             {
@@ -86,9 +92,12 @@ public sealed class ElevenLabsTtsProvider : ITtsProvider
         }
     }
 
-    public async Task<IReadOnlyList<TtsVoiceInfo>> GetVoicesAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<TtsVoiceInfo>> GetVoicesAsync(
+        CancellationToken cancellationToken = default
+    )
     {
-        if (string.IsNullOrEmpty(_apiKey)) return [];
+        if (string.IsNullOrEmpty(_apiKey))
+            return [];
 
         var request = new HttpRequestMessage(HttpMethod.Get, $"{ApiBase}/voices");
         request.Headers.Add("xi-api-key", _apiKey);
@@ -96,19 +105,24 @@ public sealed class ElevenLabsTtsProvider : ITtsProvider
         try
         {
             var response = await _http.SendAsync(request, cancellationToken);
-            if (!response.IsSuccessStatusCode) return [];
+            if (!response.IsSuccessStatusCode)
+                return [];
 
-            var data = await response.Content.ReadFromJsonAsync<ElevenLabsVoicesResponse>(cancellationToken: cancellationToken);
+            var data = await response.Content.ReadFromJsonAsync<ElevenLabsVoicesResponse>(
+                cancellationToken: cancellationToken
+            );
 
             return data?.Voices?.Select(v => new TtsVoiceInfo
-            {
-                Id = v.VoiceId,
-                Name = v.Name,
-                DisplayName = v.Name,
-                Locale = "en-US",
-                Gender = v.Labels?.GetValueOrDefault("gender") ?? "unknown",
-                Provider = ProviderName,
-            }).ToList() ?? [];
+                    {
+                        Id = v.VoiceId,
+                        Name = v.Name,
+                        DisplayName = v.Name,
+                        Locale = "en-US",
+                        Gender = v.Labels?.GetValueOrDefault("gender") ?? "unknown",
+                        Provider = ProviderName,
+                    })
+                    .ToList()
+                ?? [];
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -117,14 +131,15 @@ public sealed class ElevenLabsTtsProvider : ITtsProvider
         }
     }
 
-    private static TtsSynthesisResult EmptyResult(string voiceId) => new()
-    {
-        AudioData = [],
-        DurationMs = 0,
-        Provider = ProviderName,
-        VoiceId = voiceId,
-        ContentHash = string.Empty,
-    };
+    private static TtsSynthesisResult EmptyResult(string voiceId) =>
+        new()
+        {
+            AudioData = [],
+            DurationMs = 0,
+            Provider = ProviderName,
+            VoiceId = voiceId,
+            ContentHash = string.Empty,
+        };
 
     private sealed class ElevenLabsVoicesResponse
     {

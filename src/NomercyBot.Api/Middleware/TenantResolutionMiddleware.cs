@@ -17,21 +17,27 @@ public class TenantResolutionMiddleware
     public async Task InvokeAsync(HttpContext context, ICurrentTenantService tenantService)
     {
         // 1. Route value: /channels/{channelId}/...
-        if (context.Request.RouteValues.TryGetValue("channelId", out var channelId)
+        if (
+            context.Request.RouteValues.TryGetValue("channelId", out var channelId)
             && channelId is string channelIdStr
-            && !string.IsNullOrEmpty(channelIdStr))
+            && !string.IsNullOrEmpty(channelIdStr)
+        )
         {
             tenantService.SetTenant(channelIdStr);
         }
         // 2. Custom header
-        else if (context.Request.Headers.TryGetValue("X-Channel-Id", out var headerVal)
-                 && !string.IsNullOrEmpty(headerVal))
+        else if (
+            context.Request.Headers.TryGetValue("X-Channel-Id", out var headerVal)
+            && !string.IsNullOrEmpty(headerVal)
+        )
         {
             tenantService.SetTenant(headerVal!);
         }
         // 3. Query string
-        else if (context.Request.Query.TryGetValue("channelId", out var queryVal)
-                 && !string.IsNullOrEmpty(queryVal))
+        else if (
+            context.Request.Query.TryGetValue("channelId", out var queryVal)
+            && !string.IsNullOrEmpty(queryVal)
+        )
         {
             tenantService.SetTenant(queryVal!);
         }

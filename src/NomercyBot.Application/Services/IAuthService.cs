@@ -12,10 +12,16 @@ public interface IAuthService
     string GetTwitchOAuthUrl(string? state = null);
 
     /// <summary>Handle the OAuth callback from Twitch and return auth tokens.</summary>
-    Task<Result<AuthResultDto>> HandleTwitchCallbackAsync(OAuthCallbackDto callback, CancellationToken cancellationToken = default);
+    Task<Result<AuthResultDto>> HandleTwitchCallbackAsync(
+        OAuthCallbackDto callback,
+        CancellationToken cancellationToken = default
+    );
 
     /// <summary>Refresh an expired access token.</summary>
-    Task<Result<AuthResultDto>> RefreshTokenAsync(string refreshToken, CancellationToken cancellationToken = default);
+    Task<Result<AuthResultDto>> RefreshTokenAsync(
+        string refreshToken,
+        CancellationToken cancellationToken = default
+    );
 
     /// <summary>Log out a user, revoking their tokens.</summary>
     Task<Result> LogoutAsync(string userId, CancellationToken cancellationToken = default);

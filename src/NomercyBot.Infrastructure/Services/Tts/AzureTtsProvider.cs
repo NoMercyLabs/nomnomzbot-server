@@ -28,7 +28,8 @@ public sealed class AzureTtsProvider : ITtsProvider
         IHttpClientFactory httpClientFactory,
         ILogger<AzureTtsProvider> logger,
         string? apiKey,
-        string region = "westeurope")
+        string region = "westeurope"
+    )
     {
         _http = httpClientFactory.CreateClient("azure-tts");
         _logger = logger;
@@ -39,7 +40,8 @@ public sealed class AzureTtsProvider : ITtsProvider
     public async Task<TtsSynthesisResult> SynthesizeAsync(
         string text,
         string voiceId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         if (string.IsNullOrEmpty(_apiKey))
         {
@@ -48,10 +50,10 @@ public sealed class AzureTtsProvider : ITtsProvider
         }
 
         var ssml = $"""
-                    <speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'>
-                      <voice name='{voiceId}'>{System.Security.SecurityElement.Escape(text)}</voice>
-                    </speak>
-                    """;
+            <speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'>
+              <voice name='{voiceId}'>{System.Security.SecurityElement.Escape(text)}</voice>
+            </speak>
+            """;
 
         var url = $"https://{_region}.tts.speech.microsoft.com/cognitiveservices/v1";
 
@@ -72,7 +74,9 @@ public sealed class AzureTtsProvider : ITtsProvider
             var audioData = await response.Content.ReadAsByteArrayAsync(cancellationToken);
             int durationMs = (int)(audioData.Length / 16.0 * 1000.0 / 1024.0); // estimate
 
-            var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text + voiceId)))[..16];
+            var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text + voiceId)))[
+                ..16
+            ];
 
             return new TtsSynthesisResult
             {
@@ -90,9 +94,12 @@ public sealed class AzureTtsProvider : ITtsProvider
         }
     }
 
-    public async Task<IReadOnlyList<TtsVoiceInfo>> GetVoicesAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<TtsVoiceInfo>> GetVoicesAsync(
+        CancellationToken cancellationToken = default
+    )
     {
-        if (string.IsNullOrEmpty(_apiKey)) return [];
+        if (string.IsNullOrEmpty(_apiKey))
+            return [];
 
         var url = $"https://{_region}.tts.speech.microsoft.com/cognitiveservices/voices/list";
         var request = new HttpRequestMessage(HttpMethod.Get, url);
@@ -101,20 +108,26 @@ public sealed class AzureTtsProvider : ITtsProvider
         try
         {
             var response = await _http.SendAsync(request, cancellationToken);
-            if (!response.IsSuccessStatusCode) return [];
+            if (!response.IsSuccessStatusCode)
+                return [];
 
-            var voices = await response.Content.ReadFromJsonAsync<List<AzureVoice>>(cancellationToken: cancellationToken);
-            if (voices is null) return [];
+            var voices = await response.Content.ReadFromJsonAsync<List<AzureVoice>>(
+                cancellationToken: cancellationToken
+            );
+            if (voices is null)
+                return [];
 
-            return voices.Select(v => new TtsVoiceInfo
-            {
-                Id = v.ShortName,
-                Name = v.ShortName,
-                DisplayName = v.DisplayName,
-                Locale = v.Locale,
-                Gender = v.Gender,
-                Provider = ProviderName,
-            }).ToList();
+            return voices
+                .Select(v => new TtsVoiceInfo
+                {
+                    Id = v.ShortName,
+                    Name = v.ShortName,
+                    DisplayName = v.DisplayName,
+                    Locale = v.Locale,
+                    Gender = v.Gender,
+                    Provider = ProviderName,
+                })
+                .ToList();
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -123,14 +136,15 @@ public sealed class AzureTtsProvider : ITtsProvider
         }
     }
 
-    private static TtsSynthesisResult EmptyResult(string voiceId) => new()
-    {
-        AudioData = [],
-        DurationMs = 0,
-        Provider = ProviderName,
-        VoiceId = voiceId,
-        ContentHash = string.Empty,
-    };
+    private static TtsSynthesisResult EmptyResult(string voiceId) =>
+        new()
+        {
+            AudioData = [],
+            DurationMs = 0,
+            Provider = ProviderName,
+            VoiceId = voiceId,
+            ContentHash = string.Empty,
+        };
 
     private sealed class AzureVoice
     {

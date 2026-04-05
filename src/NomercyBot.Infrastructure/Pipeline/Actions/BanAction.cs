@@ -11,9 +11,13 @@ public sealed class BanAction : ICommandAction
 
     public BanAction(IChatProvider chat) => _chat = chat;
 
-    public async Task<ActionResult> ExecuteAsync(PipelineExecutionContext ctx, ActionDefinition action)
+    public async Task<ActionResult> ExecuteAsync(
+        PipelineExecutionContext ctx,
+        ActionDefinition action
+    )
     {
-        var userId = action.GetString("user_id")
+        var userId =
+            action.GetString("user_id")
             ?? ctx.Variables.GetValueOrDefault("target.id")
             ?? ctx.Variables.GetValueOrDefault("user.id")
             ?? string.Empty;

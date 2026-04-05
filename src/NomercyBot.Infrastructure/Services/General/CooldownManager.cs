@@ -33,7 +33,11 @@ public sealed class CooldownManager : ICooldownManager
         return true;
     }
 
-    public TimeSpan? GetRemainingCooldown(string channelId, string commandName, string? userId = null)
+    public TimeSpan? GetRemainingCooldown(
+        string channelId,
+        string commandName,
+        string? userId = null
+    )
     {
         var key = BuildKey(channelId, commandName, userId);
 
@@ -52,7 +56,12 @@ public sealed class CooldownManager : ICooldownManager
         return remaining;
     }
 
-    public void SetCooldown(string channelId, string commandName, TimeSpan duration, string? userId = null)
+    public void SetCooldown(
+        string channelId,
+        string commandName,
+        TimeSpan duration,
+        string? userId = null
+    )
     {
         var key = BuildKey(channelId, commandName, userId);
         var expiresAt = DateTime.UtcNow.Add(duration);
@@ -68,7 +77,9 @@ public sealed class CooldownManager : ICooldownManager
     public void ClearAllCooldowns(string channelId)
     {
         var prefix = $"{channelId}:";
-        var keysToRemove = _cooldowns.Keys.Where(k => k.StartsWith(prefix, StringComparison.Ordinal));
+        var keysToRemove = _cooldowns.Keys.Where(k =>
+            k.StartsWith(prefix, StringComparison.Ordinal)
+        );
 
         foreach (var key in keysToRemove)
         {

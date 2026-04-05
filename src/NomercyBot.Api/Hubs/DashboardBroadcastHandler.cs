@@ -42,21 +42,32 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
             ReplyParentMessageId: evt.ReplyParentMessageId,
             ReplyParentMessageBody: evt.ReplyParentMessageBody,
             ReplyParentUserName: evt.ReplyParentUserName,
-            Timestamp: DateTimeOffset.UtcNow.ToString("O"));
+            Timestamp: DateTimeOffset.UtcNow.ToString("O")
+        );
 
         await _notifier.SendChatMessageAsync(evt.BroadcasterId, dto, ct);
     }
 
-    private static ChatFragmentDto MapFragment(ChatMessageFragment f) => new(
-        Type: f.Type,
-        Text: f.Text,
-        Emote: f.EmoteId is not null
-            ? new ChatEmoteDto(f.EmoteId, f.EmoteSetId, f.EmoteOwnerId, f.EmoteFormats)
-            : null,
-        Cheermote: f.CheermotePrefix is not null
-            ? new ChatCheermoteDto(f.CheermotePrefix, f.CheermoteBits ?? 0, f.CheermoteTier ?? 1)
-            : null,
-        Mention: f.MentionUserId is not null
-            ? new ChatMentionDto(f.MentionUserId, f.MentionUserLogin ?? string.Empty, f.MentionUserName ?? string.Empty)
-            : null);
+    private static ChatFragmentDto MapFragment(ChatMessageFragment f) =>
+        new(
+            Type: f.Type,
+            Text: f.Text,
+            Emote: f.EmoteId is not null
+                ? new ChatEmoteDto(f.EmoteId, f.EmoteSetId, f.EmoteOwnerId, f.EmoteFormats)
+                : null,
+            Cheermote: f.CheermotePrefix is not null
+                ? new ChatCheermoteDto(
+                    f.CheermotePrefix,
+                    f.CheermoteBits ?? 0,
+                    f.CheermoteTier ?? 1
+                )
+                : null,
+            Mention: f.MentionUserId is not null
+                ? new ChatMentionDto(
+                    f.MentionUserId,
+                    f.MentionUserLogin ?? string.Empty,
+                    f.MentionUserName ?? string.Empty
+                )
+                : null
+        );
 }

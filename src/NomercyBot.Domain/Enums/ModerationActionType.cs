@@ -8,5 +8,5 @@ public enum ModerationActionType
     Timeout,
     Ban,
     Delete,
-    Warn
+    Warn,
 }

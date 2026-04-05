@@ -7,5 +7,8 @@ public interface ITwitchEventSubService
 {
     Task SubscribeAsync(string broadcasterId, string eventType, CancellationToken ct = default);
     Task UnsubscribeAsync(string subscriptionId, CancellationToken ct = default);
-    Task<IReadOnlyList<string>> GetActiveSubscriptionsAsync(string broadcasterId, CancellationToken ct = default);
+    Task<IReadOnlyList<string>> GetActiveSubscriptionsAsync(
+        string broadcasterId,
+        CancellationToken ct = default
+    );
 }

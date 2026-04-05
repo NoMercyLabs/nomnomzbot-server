@@ -14,7 +14,10 @@ public class RequestLoggingMiddlewareTests
     {
         RequestDelegate next = _ => Task.CompletedTask;
 
-        var middleware = new RequestLoggingMiddleware(next, NullLogger<RequestLoggingMiddleware>.Instance);
+        var middleware = new RequestLoggingMiddleware(
+            next,
+            NullLogger<RequestLoggingMiddleware>.Instance
+        );
         var context = new DefaultHttpContext();
 
         await middleware.InvokeAsync(context);
@@ -27,9 +30,16 @@ public class RequestLoggingMiddlewareTests
     public async Task InvokeAsync_CallsNextMiddleware()
     {
         var nextCalled = false;
-        RequestDelegate next = ctx => { nextCalled = true; return Task.CompletedTask; };
+        RequestDelegate next = ctx =>
+        {
+            nextCalled = true;
+            return Task.CompletedTask;
+        };
 
-        var middleware = new RequestLoggingMiddleware(next, NullLogger<RequestLoggingMiddleware>.Instance);
+        var middleware = new RequestLoggingMiddleware(
+            next,
+            NullLogger<RequestLoggingMiddleware>.Instance
+        );
         var context = new DefaultHttpContext();
 
         await middleware.InvokeAsync(context);
@@ -41,7 +51,10 @@ public class RequestLoggingMiddlewareTests
     public async Task InvokeAsync_XRequestId_IsShortGuid()
     {
         RequestDelegate next = _ => Task.CompletedTask;
-        var middleware = new RequestLoggingMiddleware(next, NullLogger<RequestLoggingMiddleware>.Instance);
+        var middleware = new RequestLoggingMiddleware(
+            next,
+            NullLogger<RequestLoggingMiddleware>.Instance
+        );
         var context = new DefaultHttpContext();
 
         await middleware.InvokeAsync(context);
@@ -54,7 +67,10 @@ public class RequestLoggingMiddlewareTests
     public async Task InvokeAsync_EachRequest_HasUniqueRequestId()
     {
         RequestDelegate next = _ => Task.CompletedTask;
-        var middleware = new RequestLoggingMiddleware(next, NullLogger<RequestLoggingMiddleware>.Instance);
+        var middleware = new RequestLoggingMiddleware(
+            next,
+            NullLogger<RequestLoggingMiddleware>.Instance
+        );
 
         var ctx1 = new DefaultHttpContext();
         var ctx2 = new DefaultHttpContext();
@@ -72,7 +88,10 @@ public class RequestLoggingMiddlewareTests
     public async Task InvokeAsync_WhenNextThrows_PropagatesException()
     {
         RequestDelegate next = _ => throw new InvalidOperationException("test error");
-        var middleware = new RequestLoggingMiddleware(next, NullLogger<RequestLoggingMiddleware>.Instance);
+        var middleware = new RequestLoggingMiddleware(
+            next,
+            NullLogger<RequestLoggingMiddleware>.Instance
+        );
         var context = new DefaultHttpContext();
 
         var act = () => middleware.InvokeAsync(context);

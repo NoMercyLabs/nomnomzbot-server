@@ -11,7 +11,11 @@ namespace NoMercyBot.Domain.Interfaces;
 /// </summary>
 public interface IChannelRegistry
 {
-    Task<ChannelContext> GetOrCreateAsync(string broadcasterId, string channelName, CancellationToken ct = default);
+    Task<ChannelContext> GetOrCreateAsync(
+        string broadcasterId,
+        string channelName,
+        CancellationToken ct = default
+    );
     ChannelContext? Get(string broadcasterId);
     Task RemoveAsync(string broadcasterId, CancellationToken ct = default);
     IReadOnlyCollection<ChannelContext> GetAll();
@@ -34,20 +38,23 @@ public class ChannelContext
     public DateTimeOffset? WentLiveAt { get; set; }
 
     // Per-channel in-memory command cache: key = command name (lowercase)
-    public ConcurrentDictionary<string, CachedCommand> Commands { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public ConcurrentDictionary<string, CachedCommand> Commands { get; } =
+        new(StringComparer.OrdinalIgnoreCase);
 
     // Per-channel active pipelines: key = executionId
     public ConcurrentDictionary<string, CancellationTokenSource> ActivePipelines { get; } = new();
 
     // Cooldown tracking: key = "commandName:userId" or "commandName:global"
-    public ConcurrentDictionary<string, DateTimeOffset> Cooldowns { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public ConcurrentDictionary<string, DateTimeOffset> Cooldowns { get; } =
+        new(StringComparer.OrdinalIgnoreCase);
 
     // Track last shoutout sent to each user: key = userId, value = DateTimeOffset
     public ConcurrentDictionary<string, DateTimeOffset> LastShoutoutPerUser { get; } = new();
     public DateTimeOffset? LastGlobalShoutout { get; set; }
 
     // Session chatters seen since bot joined: key = userId, value = displayName
-    public ConcurrentDictionary<string, string> SessionChatters { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public ConcurrentDictionary<string, string> SessionChatters { get; } =
+        new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Messages received since the bot joined. Used by TimerService for MinChatActivity checks.</summary>
     public long MessageCount { get; set; }

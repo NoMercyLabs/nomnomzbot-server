@@ -1,14 +1,14 @@
 <Solution>
-  <Folder Name="/src/">
-    <Project Path="src/NomercyBot.Domain/NomercyBot.Domain.csproj" />
-    <Project Path="src/NomercyBot.Application/NomercyBot.Application.csproj" />
-    <Project Path="src/NomercyBot.Infrastructure/NomercyBot.Infrastructure.csproj" />
-    <Project Path="src/NomercyBot.Api/NomercyBot.Api.csproj" />
-  </Folder>
-  <Folder Name="/tests/">
-    <Project Path="tests/NomercyBot.Domain.Tests/NomercyBot.Domain.Tests.csproj" />
-    <Project Path="tests/NomercyBot.Application.Tests/NomercyBot.Application.Tests.csproj" />
-    <Project Path="tests/NomercyBot.Infrastructure.Tests/NomercyBot.Infrastructure.Tests.csproj" />
-    <Project Path="tests/NomercyBot.Api.Tests/NomercyBot.Api.Tests.csproj" />
-  </Folder>
+    <Folder Name="/src/">
+        <Project Path="src/NomercyBot.Domain/NomercyBot.Domain.csproj" />
+        <Project Path="src/NomercyBot.Application/NomercyBot.Application.csproj" />
+        <Project Path="src/NomercyBot.Infrastructure/NomercyBot.Infrastructure.csproj" />
+        <Project Path="src/NomercyBot.Api/NomercyBot.Api.csproj" />
+    </Folder>
+    <Folder Name="/tests/">
+        <Project Path="tests/NomercyBot.Domain.Tests/NomercyBot.Domain.Tests.csproj" />
+        <Project Path="tests/NomercyBot.Application.Tests/NomercyBot.Application.Tests.csproj" />
+        <Project Path="tests/NomercyBot.Infrastructure.Tests/NomercyBot.Infrastructure.Tests.csproj" />
+        <Project Path="tests/NomercyBot.Api.Tests/NomercyBot.Api.Tests.csproj" />
+    </Folder>
 </Solution>

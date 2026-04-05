@@ -14,16 +14,19 @@ public class JwtTokenServiceTests
         string key = "super-secret-key-that-is-at-least-32-bytes-long!",
         string issuer = "TestIssuer",
         string audience = "TestAudience",
-        string expirationMinutes = "60")
+        string expirationMinutes = "60"
+    )
     {
         var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                { "Jwt:Key", key },
-                { "Jwt:Issuer", issuer },
-                { "Jwt:Audience", audience },
-                { "Jwt:ExpirationMinutes", expirationMinutes }
-            })
+            .AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    { "Jwt:Key", key },
+                    { "Jwt:Issuer", issuer },
+                    { "Jwt:Audience", audience },
+                    { "Jwt:ExpirationMinutes", expirationMinutes },
+                }
+            )
             .Build();
 
         return new JwtTokenService(config);

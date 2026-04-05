@@ -29,17 +29,28 @@ public class RewardsController : BaseController
     public async Task<IActionResult> ListRewards(
         string channelId,
         [FromQuery] PageRequestDto request,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
-        var pagination = new PaginationParams(request.Page, request.Take, request.Sort, request.Order);
+        var pagination = new PaginationParams(
+            request.Page,
+            request.Take,
+            request.Sort,
+            request.Order
+        );
         var result = await _rewardService.ListAsync(channelId, pagination, ct);
-        if (result.IsFailure) return ResultResponse(result);
+        if (result.IsFailure)
+            return ResultResponse(result);
         return GetPaginatedResponse(result.Value, request);
     }
 
     [HttpGet("{rewardId}")]
     [ProducesResponseType<StatusResponseDto<RewardDetail>>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetReward(string channelId, string rewardId, CancellationToken ct)
+    public async Task<IActionResult> GetReward(
+        string channelId,
+        string rewardId,
+        CancellationToken ct
+    )
     {
         var result = await _rewardService.GetAsync(channelId, rewardId, ct);
         return ResultResponse(result);
@@ -50,13 +61,22 @@ public class RewardsController : BaseController
     public async Task<IActionResult> CreateReward(
         string channelId,
         [FromBody] CreateRewardRequest request,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         var result = await _rewardService.CreateAsync(channelId, request, ct);
-        if (result.IsFailure) return ResultResponse(result);
+        if (result.IsFailure)
+            return ResultResponse(result);
 
-        return CreatedAtAction(nameof(GetReward), new { channelId, rewardId = result.Value.Id },
-            new StatusResponseDto<RewardDetail> { Data = result.Value, Message = "Reward created successfully." });
+        return CreatedAtAction(
+            nameof(GetReward),
+            new { channelId, rewardId = result.Value.Id },
+            new StatusResponseDto<RewardDetail>
+            {
+                Data = result.Value,
+                Message = "Reward created successfully.",
+            }
+        );
     }
 
     [HttpPut("{rewardId}")]
@@ -65,19 +85,26 @@ public class RewardsController : BaseController
         string channelId,
         string rewardId,
         [FromBody] UpdateRewardRequest request,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         var result = await _rewardService.UpdateAsync(channelId, rewardId, request, ct);
-        if (result.IsFailure) return ResultResponse(result);
+        if (result.IsFailure)
+            return ResultResponse(result);
         return Ok(new StatusResponseDto<RewardDetail> { Data = result.Value });
     }
 
     [HttpDelete("{rewardId}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public async Task<IActionResult> DeleteReward(string channelId, string rewardId, CancellationToken ct)
+    public async Task<IActionResult> DeleteReward(
+        string channelId,
+        string rewardId,
+        CancellationToken ct
+    )
     {
         var result = await _rewardService.DeleteAsync(channelId, rewardId, ct);
-        if (result.IsFailure) return ResultResponse(result);
+        if (result.IsFailure)
+            return ResultResponse(result);
         return NoContent();
     }
 
@@ -86,7 +113,8 @@ public class RewardsController : BaseController
     public async Task<IActionResult> SyncRewards(string channelId, CancellationToken ct)
     {
         var result = await _rewardService.SyncWithTwitchAsync(channelId, ct);
-        if (result.IsFailure) return ResultResponse(result);
+        if (result.IsFailure)
+            return ResultResponse(result);
         return Ok(new StatusResponseDto<object> { Message = "Rewards synced with Twitch." });
     }
 }

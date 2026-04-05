@@ -17,10 +17,16 @@ public class CreateCommandHandler
         _db = db;
     }
 
-    public async Task<Result<int>> HandleAsync(string channelId, CreateCommandRequest request, CancellationToken ct = default)
+    public async Task<Result<int>> HandleAsync(
+        string channelId,
+        CreateCommandRequest request,
+        CancellationToken ct = default
+    )
     {
-        var exists = await _db.Commands
-            .AnyAsync(c => c.BroadcasterId == channelId && c.Name == request.Name, ct);
+        var exists = await _db.Commands.AnyAsync(
+            c => c.BroadcasterId == channelId && c.Name == request.Name,
+            ct
+        );
 
         if (exists)
             return Errors.AlreadyExists("command", request.Name).ToTyped<int>();

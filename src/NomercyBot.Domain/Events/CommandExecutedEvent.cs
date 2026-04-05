@@ -9,4 +9,5 @@ public sealed record CommandExecutedEvent(
     string ChannelId,
     string CommandName,
     string UserId,
-    string Username) : DomainEvent;
+    string Username
+) : DomainEvent;

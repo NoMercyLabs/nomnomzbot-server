@@ -5,7 +5,8 @@ public sealed record WidgetListItem(
     string Name,
     string Type,
     bool IsEnabled,
-    DateTime CreatedAt);
+    DateTime CreatedAt
+);
 
 public sealed record WidgetDetail(
     string Id,
@@ -16,7 +17,8 @@ public sealed record WidgetDetail(
     Dictionary<string, object?> Settings,
     List<string> EventSubscriptions,
     DateTime CreatedAt,
-    DateTime UpdatedAt);
+    DateTime UpdatedAt
+);
 
 public sealed record CreateWidgetRequest
 {

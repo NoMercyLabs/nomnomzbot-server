@@ -10,4 +10,5 @@ public sealed record ModerationActionTakenEvent(
     string ModeratorId,
     string TargetUserId,
     string ActionType,
-    string? Reason) : DomainEvent;
+    string? Reason
+) : DomainEvent;

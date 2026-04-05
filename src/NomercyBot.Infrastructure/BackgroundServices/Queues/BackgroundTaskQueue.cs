@@ -13,14 +13,16 @@ public class BackgroundTaskQueue : IBackgroundTaskQueue
     {
         var options = new BoundedChannelOptions(capacity)
         {
-            FullMode = BoundedChannelFullMode.Wait
+            FullMode = BoundedChannelFullMode.Wait,
         };
         _queue = Channel.CreateBounded<Func<CancellationToken, ValueTask>>(options);
     }
 
-    public ValueTask QueueAsync(Func<CancellationToken, ValueTask> workItem, CancellationToken ct = default)
-        => _queue.Writer.WriteAsync(workItem, ct);
+    public ValueTask QueueAsync(
+        Func<CancellationToken, ValueTask> workItem,
+        CancellationToken ct = default
+    ) => _queue.Writer.WriteAsync(workItem, ct);
 
-    public ValueTask<Func<CancellationToken, ValueTask>> DequeueAsync(CancellationToken ct)
-        => _queue.Reader.ReadAsync(ct);
+    public ValueTask<Func<CancellationToken, ValueTask>> DequeueAsync(CancellationToken ct) =>
+        _queue.Reader.ReadAsync(ct);
 }

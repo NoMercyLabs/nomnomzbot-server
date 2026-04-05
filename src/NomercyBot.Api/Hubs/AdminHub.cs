@@ -8,6 +8,4 @@ using NoMercyBot.Api.Hubs.Clients;
 namespace NoMercyBot.Api.Hubs;
 
 [Authorize(Roles = "admin")]
-public class AdminHub : Hub<IAdminClient>
-{
-}
+public class AdminHub : Hub<IAdminClient> { }

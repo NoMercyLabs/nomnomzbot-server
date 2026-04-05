@@ -16,13 +16,21 @@ public sealed class SendMessageAction : ICommandAction
         _resolver = resolver;
     }
 
-    public async Task<ActionResult> ExecuteAsync(PipelineExecutionContext ctx, ActionDefinition action)
+    public async Task<ActionResult> ExecuteAsync(
+        PipelineExecutionContext ctx,
+        ActionDefinition action
+    )
     {
         var template = action.GetString("message") ?? action.GetString("text") ?? string.Empty;
         if (string.IsNullOrEmpty(template))
             return ActionResult.Failure("send_message requires a 'message' parameter");
 
-        var resolved = await _resolver.ResolveAsync(template, ctx.Variables, ctx.BroadcasterId, ctx.CancellationToken);
+        var resolved = await _resolver.ResolveAsync(
+            template,
+            ctx.Variables,
+            ctx.BroadcasterId,
+            ctx.CancellationToken
+        );
         await _chat.SendMessageAsync(ctx.BroadcasterId, resolved, ctx.CancellationToken);
         return ActionResult.Success(resolved);
     }

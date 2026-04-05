@@ -16,17 +16,28 @@ public class GetCommandsQueryHandler
         _db = db;
     }
 
-    public async Task<Result<List<CommandListItemDto>>> HandleAsync(GetCommandsQuery query, CancellationToken ct = default)
+    public async Task<Result<List<CommandListItemDto>>> HandleAsync(
+        GetCommandsQuery query,
+        CancellationToken ct = default
+    )
     {
         var q = _db.Commands.Where(c => c.BroadcasterId == query.ChannelId);
         if (!query.IncludeDisabled)
             q = q.Where(c => c.IsEnabled);
 
-        var commands = await q
-            .OrderBy(c => c.Name)
+        var commands = await q.OrderBy(c => c.Name)
             .Select(c => new CommandListItemDto(
-                c.Id, c.Name, c.Type, c.Permission, c.IsEnabled,
-                c.IsPlatform, c.CooldownSeconds, c.Description, c.Aliases, c.CreatedAt))
+                c.Id,
+                c.Name,
+                c.Type,
+                c.Permission,
+                c.IsEnabled,
+                c.IsPlatform,
+                c.CooldownSeconds,
+                c.Description,
+                c.Aliases,
+                c.CreatedAt
+            ))
             .ToListAsync(ct);
 
         return Result.Success(commands);

@@ -9,5 +9,5 @@ public enum CommandPermission
     Subscriber,
     Vip,
     Moderator,
-    Broadcaster
+    Broadcaster,
 }

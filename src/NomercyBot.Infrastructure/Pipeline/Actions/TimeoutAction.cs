@@ -11,9 +11,13 @@ public sealed class TimeoutAction : ICommandAction
 
     public TimeoutAction(IChatProvider chat) => _chat = chat;
 
-    public async Task<ActionResult> ExecuteAsync(PipelineExecutionContext ctx, ActionDefinition action)
+    public async Task<ActionResult> ExecuteAsync(
+        PipelineExecutionContext ctx,
+        ActionDefinition action
+    )
     {
-        var userId = action.GetString("user_id")
+        var userId =
+            action.GetString("user_id")
             ?? ctx.Variables.GetValueOrDefault("target.id")
             ?? ctx.Variables.GetValueOrDefault("user.id")
             ?? string.Empty;
@@ -24,7 +28,13 @@ public sealed class TimeoutAction : ICommandAction
         var duration = action.GetInt("duration", 60);
         var reason = action.GetString("reason");
 
-        await _chat.TimeoutUserAsync(ctx.BroadcasterId, userId, duration, reason, ctx.CancellationToken);
+        await _chat.TimeoutUserAsync(
+            ctx.BroadcasterId,
+            userId,
+            duration,
+            reason,
+            ctx.CancellationToken
+        );
         return ActionResult.Success($"Timed out {userId} for {duration}s");
     }
 }

@@ -32,8 +32,12 @@ public class RequestLoggingMiddleware
             sw.Stop();
             _logger.LogInformation(
                 "[{RequestId}] {Method} {Path} → {StatusCode} in {ElapsedMs}ms",
-                requestId, context.Request.Method, context.Request.Path,
-                context.Response.StatusCode, sw.ElapsedMilliseconds);
+                requestId,
+                context.Request.Method,
+                context.Request.Path,
+                context.Response.StatusCode,
+                sw.ElapsedMilliseconds
+            );
         }
     }
 }

@@ -31,11 +31,18 @@ public class ModerationController : BaseController
     public async Task<IActionResult> ListRules(
         string channelId,
         [FromQuery] PageRequestDto request,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
-        var pagination = new PaginationParams(request.Page, request.Take, request.Sort, request.Order);
+        var pagination = new PaginationParams(
+            request.Page,
+            request.Take,
+            request.Sort,
+            request.Order
+        );
         var result = await _moderationService.ListRulesAsync(channelId, pagination, ct);
-        if (result.IsFailure) return ResultResponse(result);
+        if (result.IsFailure)
+            return ResultResponse(result);
         return GetPaginatedResponse(result.Value, request);
     }
 
@@ -44,13 +51,22 @@ public class ModerationController : BaseController
     public async Task<IActionResult> CreateRule(
         string channelId,
         [FromBody] CreateModerationRuleRequest request,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         var result = await _moderationService.CreateRuleAsync(channelId, request, ct);
-        if (result.IsFailure) return ResultResponse(result);
+        if (result.IsFailure)
+            return ResultResponse(result);
 
-        return CreatedAtAction(nameof(ListRules), new { channelId },
-            new StatusResponseDto<ModerationRuleDetail> { Data = result.Value, Message = "Rule created successfully." });
+        return CreatedAtAction(
+            nameof(ListRules),
+            new { channelId },
+            new StatusResponseDto<ModerationRuleDetail>
+            {
+                Data = result.Value,
+                Message = "Rule created successfully.",
+            }
+        );
     }
 
     [HttpPut("rules/{ruleId:int}")]
@@ -59,10 +75,12 @@ public class ModerationController : BaseController
         string channelId,
         int ruleId,
         [FromBody] UpdateModerationRuleRequest request,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         var result = await _moderationService.UpdateRuleAsync(channelId, ruleId, request, ct);
-        if (result.IsFailure) return ResultResponse(result);
+        if (result.IsFailure)
+            return ResultResponse(result);
         return Ok(new StatusResponseDto<ModerationRuleDetail> { Data = result.Value });
     }
 
@@ -71,7 +89,8 @@ public class ModerationController : BaseController
     public async Task<IActionResult> DeleteRule(string channelId, int ruleId, CancellationToken ct)
     {
         var result = await _moderationService.DeleteRuleAsync(channelId, ruleId, ct);
-        if (result.IsFailure) return ResultResponse(result);
+        if (result.IsFailure)
+            return ResultResponse(result);
         return NoContent();
     }
 
@@ -82,11 +101,18 @@ public class ModerationController : BaseController
     public async Task<IActionResult> ListActions(
         string channelId,
         [FromQuery] PageRequestDto request,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
-        var pagination = new PaginationParams(request.Page, request.Take, request.Sort, request.Order);
+        var pagination = new PaginationParams(
+            request.Page,
+            request.Take,
+            request.Sort,
+            request.Order
+        );
         var result = await _moderationService.GetActionsAsync(channelId, pagination, ct);
-        if (result.IsFailure) return ResultResponse(result);
+        if (result.IsFailure)
+            return ResultResponse(result);
         return GetPaginatedResponse(result.Value, request);
     }
 
@@ -95,28 +121,36 @@ public class ModerationController : BaseController
     public async Task<IActionResult> PerformAction(
         string channelId,
         [FromBody] PerformModerationActionRequest request,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         Result<ModerationActionResult> result = request.Action switch
         {
             "timeout" => await _moderationService.TimeoutAsync(
-                channelId, request.TargetUserId,
+                channelId,
+                request.TargetUserId,
                 request.DurationSeconds ?? 600,
-                request.Reason, ct),
+                request.Reason,
+                ct
+            ),
 
             "ban" => await _moderationService.BanAsync(
-                channelId, request.TargetUserId,
-                request.Reason, ct),
+                channelId,
+                request.TargetUserId,
+                request.Reason,
+                ct
+            ),
 
-            "unban" => await _moderationService.UnbanAsync(
-                channelId, request.TargetUserId, ct),
+            "unban" => await _moderationService.UnbanAsync(channelId, request.TargetUserId, ct),
 
             _ => Result.Failure<ModerationActionResult>(
                 $"Unknown action '{request.Action}'. Supported: timeout, ban, unban.",
-                "VALIDATION_FAILED"),
+                "VALIDATION_FAILED"
+            ),
         };
 
-        if (result.IsFailure) return ResultResponse(result);
+        if (result.IsFailure)
+            return ResultResponse(result);
         return Ok(new StatusResponseDto<ModerationActionResult> { Data = result.Value });
     }
 }

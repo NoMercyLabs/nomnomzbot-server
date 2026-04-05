@@ -43,10 +43,16 @@ public class DashboardHub : Hub<IDashboardClient>
         _connectionChannel[Context.ConnectionId] = broadcasterId;
         _logger.LogDebug("Connection {C} joined channel {B}", Context.ConnectionId, broadcasterId);
 
-        var status = ctx != null
-            ? new StreamStatusDto(ctx.IsLive, ctx.CurrentStreamId, ctx.CurrentTitle, ctx.CurrentGame,
-                ctx.WentLiveAt?.ToString("O"))
-            : new StreamStatusDto(false, null, null, null, null);
+        var status =
+            ctx != null
+                ? new StreamStatusDto(
+                    ctx.IsLive,
+                    ctx.CurrentStreamId,
+                    ctx.CurrentTitle,
+                    ctx.CurrentGame,
+                    ctx.WentLiveAt?.ToString("O")
+                )
+                : new StreamStatusDto(false, null, null, null, null);
 
         return new JoinChannelResponse(true, null, status);
     }
@@ -74,7 +80,11 @@ public class DashboardHub : Hub<IDashboardClient>
         }
     }
 
-    public async Task<ActionResponse> TriggerAction(string broadcasterId, string action, object? data)
+    public async Task<ActionResponse> TriggerAction(
+        string broadcasterId,
+        string action,
+        object? data
+    )
     {
         _logger.LogInformation("TriggerAction {Action} for {B}", action, broadcasterId);
         // Action routing handled by business layer; return placeholder

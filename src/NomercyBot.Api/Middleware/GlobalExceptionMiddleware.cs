@@ -15,7 +15,8 @@ public class GlobalExceptionMiddleware
     public GlobalExceptionMiddleware(
         RequestDelegate next,
         ILogger<GlobalExceptionMiddleware> logger,
-        IHostEnvironment environment)
+        IHostEnvironment environment
+    )
     {
         _next = next;
         _logger = logger;
@@ -34,8 +35,12 @@ public class GlobalExceptionMiddleware
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unhandled exception for {Method} {Path}",
-                context.Request.Method, context.Request.Path);
+            _logger.LogError(
+                ex,
+                "Unhandled exception for {Method} {Path}",
+                context.Request.Method,
+                context.Request.Path
+            );
 
             context.Response.StatusCode = 500;
             context.Response.ContentType = "application/json";
@@ -45,14 +50,15 @@ public class GlobalExceptionMiddleware
                 Status = "error",
                 Message = _environment.IsDevelopment()
                     ? ex.Message
-                    : "An unexpected error occurred. Please try again."
+                    : "An unexpected error occurred. Please try again.",
             };
 
             await context.Response.WriteAsync(
-                JsonSerializer.Serialize(response, new JsonSerializerOptions
-                {
-                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-                }));
+                JsonSerializer.Serialize(
+                    response,
+                    new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }
+                )
+            );
         }
     }
 }

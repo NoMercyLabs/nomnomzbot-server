@@ -22,6 +22,7 @@ namespace NoMercyBot.Infrastructure.Migrations
                 .HasAnnotation("ProductVersion", "10.0.5")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
+            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "hstore");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("NoMercyBot.Domain.Entities.Channel", b =>
@@ -658,6 +659,56 @@ namespace NoMercyBot.Infrastructure.Migrations
                     b.HasIndex("BroadcasterId");
 
                     b.ToTable("DiscordServerAuthorizations");
+                });
+
+            modelBuilder.Entity("NoMercyBot.Domain.Entities.EventResponse", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BroadcasterId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Message")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<Dictionary<string, string>>("Metadata")
+                        .IsRequired()
+                        .HasColumnType("hstore");
+
+                    b.Property<string>("PipelineJson")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ResponseType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId");
+
+                    b.ToTable("EventResponses");
                 });
 
             modelBuilder.Entity("NoMercyBot.Domain.Entities.EventSubscription", b =>
@@ -1586,6 +1637,17 @@ namespace NoMercyBot.Infrastructure.Migrations
                 });
 
             modelBuilder.Entity("NoMercyBot.Domain.Entities.DiscordServerAuthorization", b =>
+                {
+                    b.HasOne("NoMercyBot.Domain.Entities.Channel", "Channel")
+                        .WithMany()
+                        .HasForeignKey("BroadcasterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Channel");
+                });
+
+            modelBuilder.Entity("NoMercyBot.Domain.Entities.EventResponse", b =>
                 {
                     b.HasOne("NoMercyBot.Domain.Entities.Channel", "Channel")
                         .WithMany()

@@ -9,20 +9,44 @@ namespace NoMercyBot.Application.Services;
 public interface IRewardService
 {
     /// <summary>Create a new reward.</summary>
-    Task<Result<RewardDetail>> CreateAsync(string broadcasterId, CreateRewardRequest request, CancellationToken cancellationToken = default);
+    Task<Result<RewardDetail>> CreateAsync(
+        string broadcasterId,
+        CreateRewardRequest request,
+        CancellationToken cancellationToken = default
+    );
 
     /// <summary>Update an existing reward.</summary>
-    Task<Result<RewardDetail>> UpdateAsync(string broadcasterId, string rewardId, UpdateRewardRequest request, CancellationToken cancellationToken = default);
+    Task<Result<RewardDetail>> UpdateAsync(
+        string broadcasterId,
+        string rewardId,
+        UpdateRewardRequest request,
+        CancellationToken cancellationToken = default
+    );
 
     /// <summary>Delete a reward.</summary>
-    Task<Result> DeleteAsync(string broadcasterId, string rewardId, CancellationToken cancellationToken = default);
+    Task<Result> DeleteAsync(
+        string broadcasterId,
+        string rewardId,
+        CancellationToken cancellationToken = default
+    );
 
     /// <summary>List all rewards for a channel with pagination.</summary>
-    Task<Result<PagedList<RewardListItem>>> ListAsync(string broadcasterId, PaginationParams pagination, CancellationToken cancellationToken = default);
+    Task<Result<PagedList<RewardListItem>>> ListAsync(
+        string broadcasterId,
+        PaginationParams pagination,
+        CancellationToken cancellationToken = default
+    );
 
     /// <summary>Get a single reward by ID.</summary>
-    Task<Result<RewardDetail>> GetAsync(string broadcasterId, string rewardId, CancellationToken cancellationToken = default);
+    Task<Result<RewardDetail>> GetAsync(
+        string broadcasterId,
+        string rewardId,
+        CancellationToken cancellationToken = default
+    );
 
     /// <summary>Sync local rewards with Twitch channel point rewards.</summary>
-    Task<Result> SyncWithTwitchAsync(string broadcasterId, CancellationToken cancellationToken = default);
+    Task<Result> SyncWithTwitchAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    );
 }

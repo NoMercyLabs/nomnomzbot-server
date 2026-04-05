@@ -32,14 +32,21 @@ public class UsersController : BaseController
     public async Task<IActionResult> SearchUsers(
         [FromQuery] string? query,
         [FromQuery] PageRequestDto request,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         if (string.IsNullOrWhiteSpace(query))
             return BadRequestResponse("A search query is required.");
 
-        var pagination = new PaginationParams(request.Page, request.Take, request.Sort, request.Order);
+        var pagination = new PaginationParams(
+            request.Page,
+            request.Take,
+            request.Sort,
+            request.Order
+        );
         var result = await _userService.SearchAsync(query, pagination, ct);
-        if (result.IsFailure) return ResultResponse(result);
+        if (result.IsFailure)
+            return ResultResponse(result);
         return GetPaginatedResponse(result.Value, request);
     }
 
@@ -64,10 +71,12 @@ public class UsersController : BaseController
     public async Task<IActionResult> UpdateUserProfile(
         string userId,
         [FromBody] UpdateUserProfileRequest request,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         var result = await _userService.UpdateProfileAsync(userId, request, ct);
-        if (result.IsFailure) return ResultResponse(result);
+        if (result.IsFailure)
+            return ResultResponse(result);
         return Ok(new StatusResponseDto<UserProfileDto> { Data = result.Value });
     }
 
@@ -87,10 +96,15 @@ public class UsersController : BaseController
             return UnauthorizedResponse("You may only export your own data.");
 
         var result = await _gdpr.ExportUserDataAsync(userId, ct);
-        if (result.IsFailure) return ResultResponse(result);
+        if (result.IsFailure)
+            return ResultResponse(result);
 
         var bytes = System.Text.Encoding.UTF8.GetBytes(result.Value);
-        return File(bytes, "application/json", $"user-data-export-{userId}-{DateTime.UtcNow:yyyyMMdd}.json");
+        return File(
+            bytes,
+            "application/json",
+            $"user-data-export-{userId}-{DateTime.UtcNow:yyyyMMdd}.json"
+        );
     }
 
     /// <summary>

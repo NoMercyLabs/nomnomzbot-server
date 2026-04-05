@@ -36,11 +36,20 @@ public class PipelineEngineTests
         };
         actions.AddRange(extraActions);
 
-        return new PipelineEngine(actionRegistry, conditionRegistry, actions,
-            [new VariableEqualsCondition()], logger);
+        return new PipelineEngine(
+            actionRegistry,
+            conditionRegistry,
+            actions,
+            [new VariableEqualsCondition()],
+            logger
+        );
     }
 
-    private static PipelineRequest BuildRequest(string json, string broadcaster = "chan", string user = "user1") =>
+    private static PipelineRequest BuildRequest(
+        string json,
+        string broadcaster = "chan",
+        string user = "user1"
+    ) =>
         new()
         {
             BroadcasterId = broadcaster,
@@ -75,13 +84,13 @@ public class PipelineEngineTests
     {
         var engine = CreateEngine();
         const string json = """
-        {
-          "steps": [
-            { "action": "set_variable", "params": { "name": "greeting", "value": "Hello" } },
-            { "action": "set_variable", "params": { "name": "copy", "value": "{{greeting}}" } }
-          ]
-        }
-        """;
+            {
+              "steps": [
+                { "action": "set_variable", "params": { "name": "greeting", "value": "Hello" } },
+                { "action": "set_variable", "params": { "name": "copy", "value": "{{greeting}}" } }
+              ]
+            }
+            """;
 
         var result = await engine.ExecuteAsync(BuildRequest(json));
 
@@ -94,13 +103,13 @@ public class PipelineEngineTests
     {
         var engine = CreateEngine();
         const string json = """
-        {
-          "steps": [
-            { "action": "stop" },
-            { "action": "stop" }
-          ]
-        }
-        """;
+            {
+              "steps": [
+                { "action": "stop" },
+                { "action": "stop" }
+              ]
+            }
+            """;
 
         var result = await engine.ExecuteAsync(BuildRequest(json));
 
@@ -115,15 +124,15 @@ public class PipelineEngineTests
     {
         var engine = CreateEngine();
         const string json = """
-        {
-          "steps": [
             {
-              "action": "stop",
-              "condition": { "type": "variable_equals", "variable": "x", "value": "99" }
+              "steps": [
+                {
+                  "action": "stop",
+                  "condition": { "type": "variable_equals", "variable": "x", "value": "99" }
+                }
+              ]
             }
-          ]
-        }
-        """;
+            """;
 
         var result = await engine.ExecuteAsync(BuildRequest(json));
 
@@ -136,16 +145,16 @@ public class PipelineEngineTests
     {
         var engine = CreateEngine();
         const string json = """
-        {
-          "steps": [
-            { "action": "set_variable", "params": { "name": "x", "value": "42" } },
             {
-              "action": "stop",
-              "condition": { "type": "variable_equals", "variable": "x", "value": "42" }
+              "steps": [
+                { "action": "set_variable", "params": { "name": "x", "value": "42" } },
+                {
+                  "action": "stop",
+                  "condition": { "type": "variable_equals", "variable": "x", "value": "42" }
+                }
+              ]
             }
-          ]
-        }
-        """;
+            """;
 
         var result = await engine.ExecuteAsync(BuildRequest(json));
 
@@ -188,18 +197,31 @@ public class PipelineEngineTests
     {
         string? sentMessage = null;
         var chat = Substitute.For<IChatProvider>();
-        chat.SendMessageAsync(Arg.Any<string>(), Arg.Do<string>(m => sentMessage = m), Arg.Any<CancellationToken>())
+        chat.SendMessageAsync(
+                Arg.Any<string>(),
+                Arg.Do<string>(m => sentMessage = m),
+                Arg.Any<CancellationToken>()
+            )
             .Returns(Task.CompletedTask);
 
         var actionRegistry = new CommandActionRegistry();
         var conditionRegistry = new ConditionEvaluatorRegistry();
 
-        var engine = new PipelineEngine(actionRegistry, conditionRegistry,
-            [new SendMessageAction(chat), new StopAction(), new SetVariableAction(), new DelayAction()],
+        var engine = new PipelineEngine(
+            actionRegistry,
+            conditionRegistry,
+            [
+                new SendMessageAction(chat),
+                new StopAction(),
+                new SetVariableAction(),
+                new DelayAction(),
+            ],
             [new VariableEqualsCondition()],
-            NullLogger<PipelineEngine>.Instance);
+            NullLogger<PipelineEngine>.Instance
+        );
 
-        const string json = """{"steps":[{"action":"send_message","params":{"message":"Hello {{user}}"}}]}""";
+        const string json =
+            """{"steps":[{"action":"send_message","params":{"message":"Hello {{user}}"}}]}""";
         var request = new PipelineRequest
         {
             BroadcasterId = "chan",
@@ -225,8 +247,9 @@ public class PipelineEngineTests
         // Keep CTSes alive for the duration of the test
         var ctsList = Enumerable.Range(0, 5).Select(_ => new CancellationTokenSource()).ToList();
 
-        var longTasks = ctsList.Select(cts =>
-            engine.ExecuteAsync(BuildRequest(json), cts.Token)).ToArray();
+        var longTasks = ctsList
+            .Select(cts => engine.ExecuteAsync(BuildRequest(json), cts.Token))
+            .ToArray();
 
         // Give pipelines time to register in the concurrency dictionary
         await Task.Delay(200);
@@ -240,8 +263,13 @@ public class PipelineEngineTests
         // Cancel all running pipelines to clean up
         ctsList.ForEach(cts => cts.Cancel());
         await engine.CancelAllForChannelAsync("chan");
-        try { await Task.WhenAll(longTasks).WaitAsync(TimeSpan.FromSeconds(5)); }
-        catch { /* expected cancellations */ }
+        try
+        {
+            await Task.WhenAll(longTasks).WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        catch
+        { /* expected cancellations */
+        }
 
         ctsList.ForEach(cts => cts.Dispose());
     }
