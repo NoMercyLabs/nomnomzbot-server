@@ -1,22 +1,83 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) NoMercy Entertainment. All rights reserved.
-
+using System.Collections.Concurrent;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using NoMercyBot.Api.Hubs.Clients;
+using NoMercyBot.Api.Hubs.Dtos;
+using NoMercyBot.Domain.Interfaces;
 
 namespace NoMercyBot.Api.Hubs;
 
 [Authorize]
 public class DashboardHub : Hub<IDashboardClient>
 {
-    public async Task JoinChannelGroup(string channelId)
+    private static readonly ConcurrentDictionary<string, string> _connectionChannel = new(); // connectionId -> broadcasterId
+    private readonly IChannelRegistry _registry;
+    private readonly ILogger<DashboardHub> _logger;
+    private readonly IChatProvider _chat;
+
+    public DashboardHub(IChannelRegistry registry, ILogger<DashboardHub> logger, IChatProvider chat)
     {
-        await Groups.AddToGroupAsync(Context.ConnectionId, $"channel:{channelId}");
+        _registry = registry;
+        _logger = logger;
+        _chat = chat;
     }
 
-    public async Task LeaveChannelGroup(string channelId)
+    public override async Task OnConnectedAsync()
     {
-        await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"channel:{channelId}");
+        _logger.LogDebug("Dashboard connected: {ConnectionId}", Context.ConnectionId);
+        await base.OnConnectedAsync();
+    }
+
+    public override async Task OnDisconnectedAsync(Exception? exception)
+    {
+        if (_connectionChannel.TryRemove(Context.ConnectionId, out var broadcasterId))
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"channel-{broadcasterId}");
+        await base.OnDisconnectedAsync(exception);
+    }
+
+    public async Task<JoinChannelResponse> JoinChannel(string broadcasterId)
+    {
+        var ctx = _registry.Get(broadcasterId);
+        await Groups.AddToGroupAsync(Context.ConnectionId, $"channel-{broadcasterId}");
+        _connectionChannel[Context.ConnectionId] = broadcasterId;
+        _logger.LogDebug("Connection {C} joined channel {B}", Context.ConnectionId, broadcasterId);
+
+        var status = ctx != null
+            ? new StreamStatusDto(ctx.IsLive, ctx.CurrentStreamId, ctx.CurrentTitle, ctx.CurrentGame,
+                ctx.WentLiveAt?.ToString("O"))
+            : new StreamStatusDto(false, null, null, null, null);
+
+        return new JoinChannelResponse(true, null, status);
+    }
+
+    public async Task LeaveChannel(string broadcasterId)
+    {
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"channel-{broadcasterId}");
+        _connectionChannel.TryRemove(Context.ConnectionId, out _);
+    }
+
+    public async Task<SendMessageResponse> SendChatMessage(string broadcasterId, string message)
+    {
+        if (string.IsNullOrWhiteSpace(message) || message.Length > 500)
+            return new SendMessageResponse(false, "Message too long or empty", null);
+
+        try
+        {
+            await _chat.SendMessageAsync(broadcasterId, message);
+            return new SendMessageResponse(true, null, null);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send chat message for {B}", broadcasterId);
+            return new SendMessageResponse(false, "Failed to send message", null);
+        }
+    }
+
+    public async Task<ActionResponse> TriggerAction(string broadcasterId, string action, object? data)
+    {
+        _logger.LogInformation("TriggerAction {Action} for {B}", action, broadcasterId);
+        // Action routing handled by business layer; return placeholder
+        return new ActionResponse(true, null);
     }
 }
