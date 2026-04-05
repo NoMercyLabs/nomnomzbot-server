@@ -5,6 +5,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NoMercyBot.Api.Models;
+using NoMercyBot.Application.Common.Models;
 using NoMercyBot.Application.Features.Features.Queries.GetFeatures;
 using FeatureStatusDto = NoMercyBot.Application.Features.Features.Queries.GetFeatures.FeatureStatusDto;
 
@@ -27,7 +28,7 @@ public class FeaturesController : BaseController
     [ProducesResponseType<StatusResponseDto<List<FeatureStatusDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetFeatures(string channelId, CancellationToken ct)
     {
-        var result = await _getFeatures.HandleAsync(channelId, ct);
+        Result<List<FeatureStatusDto>> result = await _getFeatures.HandleAsync(channelId, ct);
         return ResultResponse(result);
     }
 }

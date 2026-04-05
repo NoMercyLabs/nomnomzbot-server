@@ -25,12 +25,12 @@ public class SetVariableActionTests
     [Fact]
     public async Task ExecuteAsync_WithNameAndValue_Succeeds()
     {
-        var action = new SetVariableAction();
-        var ctx = BuildCtx(
-            new Dictionary<string, object?> { { "name", "greeting" }, { "value", "Hello" } }
+        SetVariableAction action = new();
+        ActionContext ctx = BuildCtx(
+            new() { { "name", "greeting" }, { "value", "Hello" } }
         );
 
-        var result = await action.ExecuteAsync(ctx);
+        ActionResult result = await action.ExecuteAsync(ctx);
 
         result.Success.Should().BeTrue();
         result.VariablesSet.Should().ContainKey("greeting").WhoseValue.Should().Be("Hello");
@@ -39,10 +39,10 @@ public class SetVariableActionTests
     [Fact]
     public async Task ExecuteAsync_MissingName_ReturnsFail()
     {
-        var action = new SetVariableAction();
-        var ctx = BuildCtx(new Dictionary<string, object?> { { "value", "something" } });
+        SetVariableAction action = new();
+        ActionContext ctx = BuildCtx(new() { { "value", "something" } });
 
-        var result = await action.ExecuteAsync(ctx);
+        ActionResult result = await action.ExecuteAsync(ctx);
 
         result.Success.Should().BeFalse();
         result.ErrorMessage.Should().Contain("name");
@@ -51,10 +51,10 @@ public class SetVariableActionTests
     [Fact]
     public async Task ExecuteAsync_EmptyName_ReturnsFail()
     {
-        var action = new SetVariableAction();
-        var ctx = BuildCtx(new Dictionary<string, object?> { { "name", "" } });
+        SetVariableAction action = new();
+        ActionContext ctx = BuildCtx(new() { { "name", "" } });
 
-        var result = await action.ExecuteAsync(ctx);
+        ActionResult result = await action.ExecuteAsync(ctx);
 
         result.Success.Should().BeFalse();
     }
@@ -62,10 +62,10 @@ public class SetVariableActionTests
     [Fact]
     public async Task ExecuteAsync_MissingValue_SetsEmptyString()
     {
-        var action = new SetVariableAction();
-        var ctx = BuildCtx(new Dictionary<string, object?> { { "name", "myvar" } });
+        SetVariableAction action = new();
+        ActionContext ctx = BuildCtx(new() { { "name", "myvar" } });
 
-        var result = await action.ExecuteAsync(ctx);
+        ActionResult result = await action.ExecuteAsync(ctx);
 
         result.Success.Should().BeTrue();
         result.VariablesSet.Should().ContainKey("myvar").WhoseValue.Should().BeEmpty();
@@ -74,13 +74,13 @@ public class SetVariableActionTests
     [Fact]
     public async Task ExecuteAsync_ValueWithVariable_ResolvesFromContext()
     {
-        var action = new SetVariableAction();
-        var ctx = BuildCtx(
-            new Dictionary<string, object?> { { "name", "copy" }, { "value", "{{original}}" } },
-            new Dictionary<string, string> { { "original", "hello" } }
+        SetVariableAction action = new();
+        ActionContext ctx = BuildCtx(
+            new() { { "name", "copy" }, { "value", "{{original}}" } },
+            new() { { "original", "hello" } }
         );
 
-        var result = await action.ExecuteAsync(ctx);
+        ActionResult result = await action.ExecuteAsync(ctx);
 
         result.VariablesSet.Should().ContainKey("copy").WhoseValue.Should().Be("hello");
     }
@@ -88,14 +88,14 @@ public class SetVariableActionTests
     [Fact]
     public void Type_IsSetVariable()
     {
-        var action = new SetVariableAction();
+        SetVariableAction action = new();
         action.Type.Should().Be("set_variable");
     }
 
     [Fact]
     public void Category_IsControl()
     {
-        var action = new SetVariableAction();
+        SetVariableAction action = new();
         action.Category.Should().Be("control");
     }
 }

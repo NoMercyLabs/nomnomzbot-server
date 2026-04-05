@@ -7,6 +7,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NoMercyBot.Application.Common.Interfaces;
 using NoMercyBot.Application.Contracts.Twitch;
+using NoMercyBot.Domain.Entities;
 
 namespace NoMercyBot.Infrastructure.BackgroundServices;
 
@@ -27,7 +28,7 @@ public class StreamMonitorService : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("Stream monitor service started.");
-        using var timer = new PeriodicTimer(TimeSpan.FromMinutes(2));
+        using PeriodicTimer timer = new(TimeSpan.FromMinutes(2));
 
         while (await timer.WaitForNextTickAsync(stoppingToken))
         {
@@ -44,9 +45,9 @@ public class StreamMonitorService : BackgroundService
 
     private async Task CheckStreamsAsync(CancellationToken ct)
     {
-        using var scope = _serviceProvider.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
-        var twitchApi = scope.ServiceProvider.GetRequiredService<ITwitchApiService>();
+        using IServiceScope scope = _serviceProvider.CreateScope();
+        IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        ITwitchApiService twitchApi = scope.ServiceProvider.GetRequiredService<ITwitchApiService>();
 
         var channels = await db
             .Channels.Where(c => c.Enabled)
@@ -55,12 +56,12 @@ public class StreamMonitorService : BackgroundService
 
         foreach (var channel in channels)
         {
-            var streamInfo = await twitchApi.GetStreamInfoAsync(channel.Id, ct);
-            var isNowLive = streamInfo?.IsLive ?? false;
+            TwitchStreamInfo? streamInfo = await twitchApi.GetStreamInfoAsync(channel.Id, ct);
+            bool isNowLive = streamInfo?.IsLive ?? false;
 
             if (channel.IsLive != isNowLive)
             {
-                var entity = await db.Channels.FindAsync([channel.Id], ct);
+                Channel? entity = await db.Channels.FindAsync([channel.Id], ct);
                 if (entity is not null)
                 {
                     entity.IsLive = isNowLive;

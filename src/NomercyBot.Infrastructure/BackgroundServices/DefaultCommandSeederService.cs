@@ -72,20 +72,20 @@ public sealed class DefaultCommandSeederService : BackgroundService
     {
         try
         {
-            using var scope = _scopeFactory.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-            var channelIds = await db
+            List<string> channelIds = await db
                 .Channels.Where(c => c.DeletedAt == null)
                 .Select(c => c.Id)
                 .ToListAsync(stoppingToken);
 
-            var seeded = 0;
-            foreach (var channelId in channelIds)
+            int seeded = 0;
+            foreach (string channelId in channelIds)
             {
-                foreach (var def in Defaults)
+                foreach (DefaultCommand def in Defaults)
                 {
-                    var exists = await db.Commands.AnyAsync(
+                    bool exists = await db.Commands.AnyAsync(
                         c => c.BroadcasterId == channelId && c.Name == def.Name,
                         stoppingToken
                     );
@@ -94,7 +94,7 @@ public sealed class DefaultCommandSeederService : BackgroundService
                         continue;
 
                     db.Commands.Add(
-                        new Command
+                        new()
                         {
                             BroadcasterId = channelId,
                             Name = def.Name,

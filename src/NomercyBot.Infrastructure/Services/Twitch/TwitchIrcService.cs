@@ -11,8 +11,10 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NoMercyBot.Application.Common.Interfaces;
 using NoMercyBot.Application.Contracts.Twitch;
+using NoMercyBot.Domain.Entities;
 using NoMercyBot.Domain.Events;
 using NoMercyBot.Domain.Interfaces;
+using NoMercyBot.Domain.ValueObjects;
 using NoMercyBot.Infrastructure.Configuration;
 
 namespace NoMercyBot.Infrastructure.Services.Twitch;
@@ -118,7 +120,7 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
 
     public async Task JoinChannelAsync(string channelName, CancellationToken ct = default)
     {
-        var name = channelName.TrimStart('#').ToLowerInvariant();
+        string name = channelName.TrimStart('#').ToLowerInvariant();
         _joinedChannels.TryAdd(name, 0);
         await SendRawAsync($"JOIN #{name}", ct);
         _logger.LogInformation("IRC: Joined #{ChannelName}", name);
@@ -126,7 +128,7 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
 
     public async Task LeaveChannelAsync(string channelName, CancellationToken ct = default)
     {
-        var name = channelName.TrimStart('#').ToLowerInvariant();
+        string name = channelName.TrimStart('#').ToLowerInvariant();
         _joinedChannels.TryRemove(name, out _);
         await SendRawAsync($"PART #{name}", ct);
         _logger.LogInformation("IRC: Left #{ChannelName}", name);
@@ -136,13 +138,13 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
 
     private async Task RunWithReconnectAsync(CancellationToken ct)
     {
-        var delay = TimeSpan.FromSeconds(1);
+        TimeSpan delay = TimeSpan.FromSeconds(1);
 
         while (!ct.IsCancellationRequested)
         {
             try
             {
-                var connected = await ConnectAndReceiveAsync(ct);
+                bool connected = await ConnectAndReceiveAsync(ct);
                 if (!connected)
                 {
                     // No bot token — poll every 60 s until one is available
@@ -173,15 +175,15 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
     /// <returns>false if no bot token is available (skip connection); true after session ends normally.</returns>
     private async Task<bool> ConnectAndReceiveAsync(CancellationToken ct)
     {
-        var token = await GetBotTokenAsync(ct);
+        string? token = await GetBotTokenAsync(ct);
         if (token is null)
             return false;
 
         _ws?.Dispose();
-        _ws = new ClientWebSocket();
+        _ws = new();
 
         _logger.LogInformation("IRC: Connecting to {Url}", IrcUrl);
-        await _ws.ConnectAsync(new Uri(IrcUrl), ct);
+        await _ws.ConnectAsync(new(IrcUrl), ct);
         _logger.LogInformation("IRC: Connected");
 
         await SendRawAsync("CAP REQ :twitch.tv/tags twitch.tv/commands twitch.tv/membership", ct);
@@ -190,11 +192,11 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
         await SendRawAsync($"NICK {_options.BotUsername}", ct);
 
         // Re-join all tracked channels after reconnect
-        foreach (var channel in _joinedChannels.Keys)
+        foreach (string channel in _joinedChannels.Keys)
             await SendRawAsync($"JOIN #{channel}", ct);
 
-        var buffer = new byte[4096];
-        var sb = new StringBuilder();
+        byte[] buffer = new byte[4096];
+        StringBuilder sb = new();
 
         while (_ws.State == WebSocketState.Open && !ct.IsCancellationRequested)
         {
@@ -209,7 +211,7 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
                 sb.Append(Encoding.UTF8.GetString(buffer, 0, result.Count));
             } while (!result.EndOfMessage);
 
-            foreach (var line in sb.ToString().Split('\n', StringSplitOptions.RemoveEmptyEntries))
+            foreach (string line in sb.ToString().Split('\n', StringSplitOptions.RemoveEmptyEntries))
                 await HandleIrcLineAsync(line.TrimEnd('\r'), ct);
         }
 
@@ -225,12 +227,12 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
 
         if (line.StartsWith("PING"))
         {
-            var pong = line.Length > 5 ? line[5..] : ":tmi.twitch.tv";
+            string pong = line.Length > 5 ? line[5..] : ":tmi.twitch.tv";
             await SendRawAsync($"PONG {pong}", ct);
             return;
         }
 
-        var (tags, _, command, parameters) = ParseIrcLine(line);
+        (Dictionary<string, string> tags, _, string command, List<string> parameters) = ParseIrcLine(line);
 
         switch (command)
         {
@@ -247,8 +249,8 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
                 break;
 
             case "CLEARMSG":
-                tags.TryGetValue("target-msg-id", out var targetMsgId);
-                tags.TryGetValue("login", out var deletedUserLogin);
+                tags.TryGetValue("target-msg-id", out string? targetMsgId);
+                tags.TryGetValue("login", out string? deletedUserLogin);
                 await _eventBus.PublishAsync(
                     new ChatMessageDeletedEvent
                     {
@@ -281,27 +283,27 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
         if (parameters.Count < 2)
             return;
 
-        var channel = parameters[0].TrimStart('#');
-        var messageText = parameters[1];
+        string channel = parameters[0].TrimStart('#');
+        string messageText = parameters[1];
 
-        tags.TryGetValue("user-id", out var userId);
-        tags.TryGetValue("display-name", out var displayName);
-        tags.TryGetValue("login", out var login);
-        tags.TryGetValue("id", out var messageId);
-        tags.TryGetValue("badges", out var badgesRaw);
-        tags.TryGetValue("subscriber", out var subRaw);
-        tags.TryGetValue("mod", out var modRaw);
-        tags.TryGetValue("vip", out var vipRaw);
-        tags.TryGetValue("bits", out var bitsRaw);
-        tags.TryGetValue("reply-parent-msg-id", out var replyParentId);
+        tags.TryGetValue("user-id", out string? userId);
+        tags.TryGetValue("display-name", out string? displayName);
+        tags.TryGetValue("login", out string? login);
+        tags.TryGetValue("id", out string? messageId);
+        tags.TryGetValue("badges", out string? badgesRaw);
+        tags.TryGetValue("subscriber", out string? subRaw);
+        tags.TryGetValue("mod", out string? modRaw);
+        tags.TryGetValue("vip", out string? vipRaw);
+        tags.TryGetValue("bits", out string? bitsRaw);
+        tags.TryGetValue("reply-parent-msg-id", out string? replyParentId);
 
-        var badgeDict = ParseBadges(badgesRaw);
-        var badgeList = badgeDict
+        IReadOnlyDictionary<string, string> badgeDict = ParseBadges(badgesRaw);
+        List<ChatBadge> badgeList = badgeDict
             .Select(kv => new NoMercyBot.Domain.ValueObjects.ChatBadge(kv.Key, kv.Value))
             .ToList();
-        int.TryParse(bitsRaw, out var bits);
+        int.TryParse(bitsRaw, out int bits);
 
-        var isBroadcaster = badgeDict.ContainsKey("broadcaster");
+        bool isBroadcaster = badgeDict.ContainsKey("broadcaster");
 
         await _eventBus.PublishAsync(
             new ChatMessageReceivedEvent
@@ -314,7 +316,7 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
                 Message = messageText,
                 Fragments =
                 [
-                    new NoMercyBot.Domain.ValueObjects.ChatMessageFragment
+                    new()
                     {
                         Type = "text",
                         Text = messageText,
@@ -338,13 +340,13 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
         CancellationToken ct
     )
     {
-        tags.TryGetValue("msg-id", out var msgId);
-        tags.TryGetValue("user-id", out var userId);
-        tags.TryGetValue("login", out var login);
-        tags.TryGetValue("display-name", out var displayName);
-        tags.TryGetValue("msg-param-sub-plan", out var tier);
+        tags.TryGetValue("msg-id", out string? msgId);
+        tags.TryGetValue("user-id", out string? userId);
+        tags.TryGetValue("login", out string? login);
+        tags.TryGetValue("display-name", out string? displayName);
+        tags.TryGetValue("msg-param-sub-plan", out string? tier);
 
-        var channel = parameters.Count > 0 ? parameters[0].TrimStart('#') : string.Empty;
+        string channel = parameters.Count > 0 ? parameters[0].TrimStart('#') : string.Empty;
 
         switch (msgId)
         {
@@ -364,9 +366,9 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
 
             case "subgift":
             case "submysterygift":
-                tags.TryGetValue("msg-param-mass-gift-count", out var giftCountRaw);
-                int.TryParse(giftCountRaw, out var giftCount);
-                var isAnon = login == "ananonymousgifter";
+                tags.TryGetValue("msg-param-mass-gift-count", out string? giftCountRaw);
+                int.TryParse(giftCountRaw, out int giftCount);
+                bool isAnon = login == "ananonymousgifter";
 
                 await _eventBus.PublishAsync(
                     new GiftSubscriptionEvent
@@ -384,8 +386,8 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
                 break;
 
             case "raid":
-                tags.TryGetValue("msg-param-viewerCount", out var viewerCountRaw);
-                int.TryParse(viewerCountRaw, out var viewerCount);
+                tags.TryGetValue("msg-param-viewerCount", out string? viewerCountRaw);
+                int.TryParse(viewerCountRaw, out int viewerCount);
 
                 await _eventBus.PublishAsync(
                     new RaidEvent
@@ -401,11 +403,11 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
                 break;
 
             case "viewermilestone":
-                tags.TryGetValue("msg-param-value", out var streakRaw);
-                tags.TryGetValue("msg-param-channel-points-earned", out var cpRaw);
-                int.TryParse(streakRaw, out var streakMonths);
-                int.TryParse(cpRaw, out var channelPoints);
-                var milestoneMessage = parameters.Count > 1 ? parameters[1] : null;
+                tags.TryGetValue("msg-param-value", out string? streakRaw);
+                tags.TryGetValue("msg-param-channel-points-earned", out string? cpRaw);
+                int.TryParse(streakRaw, out int streakMonths);
+                int.TryParse(cpRaw, out int channelPoints);
+                string? milestoneMessage = parameters.Count > 1 ? parameters[1] : null;
 
                 await _eventBus.PublishAsync(
                     new WatchStreakReceivedEvent
@@ -426,9 +428,9 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
 
     private void HandleClearChat(Dictionary<string, string> tags, List<string> parameters)
     {
-        var channel = parameters.Count > 0 ? parameters[0].TrimStart('#') : string.Empty;
-        var target = parameters.Count > 1 ? parameters[1] : null;
-        tags.TryGetValue("ban-duration", out var duration);
+        string channel = parameters.Count > 0 ? parameters[0].TrimStart('#') : string.Empty;
+        string? target = parameters.Count > 1 ? parameters[1] : null;
+        tags.TryGetValue("ban-duration", out string? duration);
 
         if (target is not null)
             _logger.LogDebug(
@@ -448,7 +450,7 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
         await _sendLock.WaitAsync(ct);
         try
         {
-            var now = DateTime.UtcNow;
+            DateTime now = DateTime.UtcNow;
             if ((now - _windowStart).TotalMilliseconds >= RateLimitWindowMs)
             {
                 _tokenCount = RateLimitBurst;
@@ -457,7 +459,7 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
 
             if (_tokenCount <= 0)
             {
-                var waitMs = (int)(RateLimitWindowMs - (now - _windowStart).TotalMilliseconds) + 50;
+                int waitMs = (int)(RateLimitWindowMs - (now - _windowStart).TotalMilliseconds) + 50;
                 if (waitMs > 0)
                 {
                     _logger.LogDebug("IRC rate limit reached, pausing {WaitMs}ms", waitMs);
@@ -481,7 +483,7 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
         if (_ws is not { State: WebSocketState.Open })
             return;
 
-        var bytes = Encoding.UTF8.GetBytes(line + "\r\n");
+        byte[] bytes = Encoding.UTF8.GetBytes(line + "\r\n");
         await _ws.SendAsync(bytes, WebSocketMessageType.Text, true, ct);
     }
 
@@ -489,11 +491,11 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
 
     private async Task<string?> GetBotTokenAsync(CancellationToken ct)
     {
-        using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
-        var encryption = scope.ServiceProvider.GetRequiredService<IEncryptionService>();
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        IEncryptionService encryption = scope.ServiceProvider.GetRequiredService<IEncryptionService>();
 
-        var service = await db
+        Service? service = await db
             .Services.Where(s => s.Name == "twitch_bot" && s.Enabled && s.AccessToken != null)
             .OrderByDescending(s => s.TokenExpiry)
             .FirstOrDefaultAsync(ct);
@@ -504,7 +506,7 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
             return null;
         }
 
-        var decrypted = encryption.TryDecrypt(service.AccessToken);
+        string? decrypted = encryption.TryDecrypt(service.AccessToken);
         if (decrypted is null)
         {
             _logger.LogWarning("IRC: Bot token could not be decrypted — will retry in 60 s");
@@ -523,20 +525,20 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
         List<string> Parameters
     ) ParseIrcLine(string line)
     {
-        var tags = new Dictionary<string, string>(StringComparer.Ordinal);
-        var prefix = string.Empty;
-        var pos = 0;
+        Dictionary<string, string> tags = new(StringComparer.Ordinal);
+        string prefix = string.Empty;
+        int pos = 0;
 
         // @tags
         if (line.Length > 0 && line[0] == '@')
         {
-            var end = line.IndexOf(' ', 1);
+            int end = line.IndexOf(' ', 1);
             if (end < 0)
                 return (tags, prefix, line, []);
 
-            foreach (var tag in line[1..end].Split(';'))
+            foreach (string tag in line[1..end].Split(';'))
             {
-                var eq = tag.IndexOf('=');
+                int eq = tag.IndexOf('=');
                 if (eq >= 0)
                     tags[tag[..eq]] = UnescapeTagValue(tag[(eq + 1)..]);
                 else
@@ -552,7 +554,7 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
         // :prefix
         if (pos < line.Length && line[pos] == ':')
         {
-            var end = line.IndexOf(' ', pos + 1);
+            int end = line.IndexOf(' ', pos + 1);
             prefix = end >= 0 ? line[(pos + 1)..end] : line[(pos + 1)..];
             pos = end >= 0 ? end + 1 : line.Length;
         }
@@ -561,12 +563,12 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
             pos++;
 
         // command
-        var cmdEnd = line.IndexOf(' ', pos);
-        var command = cmdEnd >= 0 ? line[pos..cmdEnd] : line[pos..];
+        int cmdEnd = line.IndexOf(' ', pos);
+        string command = cmdEnd >= 0 ? line[pos..cmdEnd] : line[pos..];
         pos = cmdEnd >= 0 ? cmdEnd + 1 : line.Length;
 
         // parameters
-        var parameters = new List<string>();
+        List<string> parameters = new();
         while (pos < line.Length)
         {
             while (pos < line.Length && line[pos] == ' ')
@@ -580,7 +582,7 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
                 break;
             }
 
-            var end = line.IndexOf(' ', pos);
+            int end = line.IndexOf(' ', pos);
             if (end < 0)
             {
                 parameters.Add(line[pos..]);
@@ -595,13 +597,13 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
 
     private static IReadOnlyDictionary<string, string> ParseBadges(string? raw)
     {
-        var result = new Dictionary<string, string>(StringComparer.Ordinal);
+        Dictionary<string, string> result = new(StringComparer.Ordinal);
         if (string.IsNullOrEmpty(raw))
             return result;
 
-        foreach (var badge in raw.Split(','))
+        foreach (string badge in raw.Split(','))
         {
-            var slash = badge.IndexOf('/');
+            int slash = badge.IndexOf('/');
             if (slash >= 0)
                 result[badge[..slash]] = badge[(slash + 1)..];
         }

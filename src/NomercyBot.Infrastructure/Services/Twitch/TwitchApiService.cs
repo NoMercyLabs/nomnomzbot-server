@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NoMercyBot.Application.Common.Interfaces;
 using NoMercyBot.Application.Contracts.Twitch;
+using NoMercyBot.Domain.Entities;
 using NoMercyBot.Infrastructure.Configuration;
 
 namespace NoMercyBot.Infrastructure.Services.Twitch;
@@ -55,11 +56,11 @@ public sealed class TwitchApiService : ITwitchApiService
         CancellationToken ct = default
     )
     {
-        var tokenInfo = await GetBotTokenAsync(ct);
+        (string Token, string? BroadcasterId, string ServiceName)? tokenInfo = await GetBotTokenAsync(ct);
         if (tokenInfo is null)
             return null;
 
-        var response = await SendHelixAsync(
+        HttpResponseMessage? response = await SendHelixAsync(
             HttpMethod.Get,
             $"{HelixBase}/users?id={Uri.EscapeDataString(userId)}",
             tokenInfo.Value,
@@ -70,14 +71,14 @@ public sealed class TwitchApiService : ITwitchApiService
         if (response is null)
             return null;
 
-        var data = await response.Content.ReadFromJsonAsync<HelixDataResponse<HelixUser>>(
+        HelixDataResponse<HelixUser>? data = await response.Content.ReadFromJsonAsync<HelixDataResponse<HelixUser>>(
             cancellationToken: ct
         );
-        var user = data?.Data?.FirstOrDefault();
+        HelixUser? user = data?.Data?.FirstOrDefault();
         if (user is null)
             return null;
 
-        return new TwitchUserInfo(
+        return new(
             user.Id,
             user.Login,
             user.DisplayName,
@@ -91,11 +92,11 @@ public sealed class TwitchApiService : ITwitchApiService
         CancellationToken ct = default
     )
     {
-        var tokenInfo = await GetBotTokenAsync(ct);
+        (string Token, string? BroadcasterId, string ServiceName)? tokenInfo = await GetBotTokenAsync(ct);
         if (tokenInfo is null)
             return null;
 
-        var response = await SendHelixAsync(
+        HttpResponseMessage? response = await SendHelixAsync(
             HttpMethod.Get,
             $"{HelixBase}/streams?user_id={Uri.EscapeDataString(broadcasterId)}",
             tokenInfo.Value,
@@ -106,14 +107,14 @@ public sealed class TwitchApiService : ITwitchApiService
         if (response is null)
             return null;
 
-        var data = await response.Content.ReadFromJsonAsync<HelixDataResponse<HelixStream>>(
+        HelixDataResponse<HelixStream>? data = await response.Content.ReadFromJsonAsync<HelixDataResponse<HelixStream>>(
             cancellationToken: ct
         );
-        var stream = data?.Data?.FirstOrDefault();
+        HelixStream? stream = data?.Data?.FirstOrDefault();
 
         // When the stream is offline, the array is empty
         return stream is not null
-            ? new TwitchStreamInfo(
+            ? new(
                 stream.Id,
                 stream.UserId,
                 stream.GameId,
@@ -152,7 +153,7 @@ public sealed class TwitchApiService : ITwitchApiService
         CancellationToken ct = default
     )
     {
-        var tokenInfo = await GetModeratorTokenAsync(broadcasterId, ct);
+        (string Token, string? BroadcasterId, string ServiceName)? tokenInfo = await GetModeratorTokenAsync(broadcasterId, ct);
         if (tokenInfo is null)
         {
             _logger.LogWarning(
@@ -162,13 +163,13 @@ public sealed class TwitchApiService : ITwitchApiService
             return false;
         }
 
-        var url =
+        string url =
             $"{HelixBase}/moderation/bans"
             + $"?broadcaster_id={Uri.EscapeDataString(broadcasterId)}"
             + $"&moderator_id={Uri.EscapeDataString(broadcasterId)}"
             + $"&user_id={Uri.EscapeDataString(userId)}";
 
-        var response = await SendHelixAsync(HttpMethod.Delete, url, tokenInfo.Value, null, ct);
+        HttpResponseMessage? response = await SendHelixAsync(HttpMethod.Delete, url, tokenInfo.Value, null, ct);
         return response is { IsSuccessStatusCode: true };
     }
 
@@ -180,7 +181,7 @@ public sealed class TwitchApiService : ITwitchApiService
         CancellationToken ct = default
     )
     {
-        var tokenInfo = await GetBotTokenAsync(ct);
+        (string Token, string? BroadcasterId, string ServiceName)? tokenInfo = await GetBotTokenAsync(ct);
         if (tokenInfo is null)
         {
             _logger.LogWarning(
@@ -190,7 +191,7 @@ public sealed class TwitchApiService : ITwitchApiService
             return false;
         }
 
-        var body = replyParentMessageId is not null
+        object body = replyParentMessageId is not null
             ? (object)
                 new
                 {
@@ -207,7 +208,7 @@ public sealed class TwitchApiService : ITwitchApiService
                     message,
                 };
 
-        var response = await SendHelixAsync(
+        HttpResponseMessage? response = await SendHelixAsync(
             HttpMethod.Post,
             $"{HelixBase}/chat/messages",
             tokenInfo.Value,
@@ -219,7 +220,7 @@ public sealed class TwitchApiService : ITwitchApiService
 
         if (!response.IsSuccessStatusCode)
         {
-            var err = await response.Content.ReadAsStringAsync(ct);
+            string err = await response.Content.ReadAsStringAsync(ct);
             _logger.LogWarning(
                 "Helix SendChatMessage failed for {BroadcasterId}: {Status} — {Error}",
                 broadcasterId,
@@ -238,17 +239,17 @@ public sealed class TwitchApiService : ITwitchApiService
         CancellationToken ct = default
     )
     {
-        var tokenInfo = await GetModeratorTokenAsync(broadcasterId, ct);
+        (string Token, string? BroadcasterId, string ServiceName)? tokenInfo = await GetModeratorTokenAsync(broadcasterId, ct);
         if (tokenInfo is null)
             return false;
 
-        var url =
+        string url =
             $"{HelixBase}/moderation/chat"
             + $"?broadcaster_id={Uri.EscapeDataString(broadcasterId)}"
             + $"&moderator_id={Uri.EscapeDataString(broadcasterId)}"
             + $"&message_id={Uri.EscapeDataString(messageId)}";
 
-        var response = await SendHelixAsync(HttpMethod.Delete, url, tokenInfo.Value, null, ct);
+        HttpResponseMessage? response = await SendHelixAsync(HttpMethod.Delete, url, tokenInfo.Value, null, ct);
         return response is { IsSuccessStatusCode: true };
     }
 
@@ -259,7 +260,7 @@ public sealed class TwitchApiService : ITwitchApiService
         CancellationToken ct = default
     )
     {
-        var token = await GetModeratorTokenAsync(broadcasterId, ct);
+        (string Token, string? BroadcasterId, string ServiceName)? token = await GetModeratorTokenAsync(broadcasterId, ct);
         if (token is null)
         {
             _logger.LogWarning(
@@ -269,13 +270,13 @@ public sealed class TwitchApiService : ITwitchApiService
             return false;
         }
 
-        var url =
+        string url =
             $"{HelixBase}/chat/shoutouts"
             + $"?from_broadcaster_id={Uri.EscapeDataString(broadcasterId)}"
             + $"&to_broadcaster_id={Uri.EscapeDataString(toUserId)}"
             + $"&moderator_id={Uri.EscapeDataString(moderatorId)}";
 
-        var response = await SendHelixAsync(HttpMethod.Post, url, token.Value, new { }, ct);
+        HttpResponseMessage? response = await SendHelixAsync(HttpMethod.Post, url, token.Value, new { }, ct);
         return response?.StatusCode is HttpStatusCode.NoContent or HttpStatusCode.OK;
     }
 
@@ -284,19 +285,19 @@ public sealed class TwitchApiService : ITwitchApiService
         CancellationToken ct = default
     )
     {
-        var tokenInfo = await GetModeratorTokenAsync(broadcasterId, ct);
+        (string Token, string? BroadcasterId, string ServiceName)? tokenInfo = await GetModeratorTokenAsync(broadcasterId, ct);
         if (tokenInfo is null)
             return [];
 
-        var url =
+        string url =
             $"{HelixBase}/channel_points/custom_rewards"
             + $"?broadcaster_id={Uri.EscapeDataString(broadcasterId)}"
             + "&only_manageable_rewards=true";
 
-        var response = await SendHelixAsync(HttpMethod.Get, url, tokenInfo.Value, null, ct);
+        HttpResponseMessage? response = await SendHelixAsync(HttpMethod.Get, url, tokenInfo.Value, null, ct);
         if (response is null || !response.IsSuccessStatusCode)
         {
-            var err = response is null ? "null" : await response.Content.ReadAsStringAsync(ct);
+            string err = response is null ? "null" : await response.Content.ReadAsStringAsync(ct);
             _logger.LogWarning(
                 "GetCustomRewards failed for {BroadcasterId}: {Error}",
                 broadcasterId,
@@ -305,7 +306,7 @@ public sealed class TwitchApiService : ITwitchApiService
             return [];
         }
 
-        var data = await response.Content.ReadFromJsonAsync<HelixDataResponse<HelixCustomReward>>(
+        HelixDataResponse<HelixCustomReward>? data = await response.Content.ReadFromJsonAsync<HelixDataResponse<HelixCustomReward>>(
             cancellationToken: ct
         );
 
@@ -329,18 +330,18 @@ public sealed class TwitchApiService : ITwitchApiService
         CancellationToken ct = default
     )
     {
-        var tokenInfo = await GetModeratorTokenAsync(broadcasterId, ct);
+        (string Token, string? BroadcasterId, string ServiceName)? tokenInfo = await GetModeratorTokenAsync(broadcasterId, ct);
         if (tokenInfo is null)
             return false;
 
-        var url =
+        string url =
             $"{HelixBase}/channel_points/custom_rewards/redemptions"
             + $"?broadcaster_id={Uri.EscapeDataString(broadcasterId)}"
             + $"&reward_id={Uri.EscapeDataString(rewardId)}"
             + $"&id={Uri.EscapeDataString(redemptionId)}";
 
-        var response = await SendHelixAsync(
-            new HttpMethod("PATCH"),
+        HttpResponseMessage? response = await SendHelixAsync(
+            new("PATCH"),
             url,
             tokenInfo.Value,
             new { status },
@@ -359,7 +360,7 @@ public sealed class TwitchApiService : ITwitchApiService
         CancellationToken ct
     )
     {
-        var tokenInfo = await GetModeratorTokenAsync(broadcasterId, ct);
+        (string Token, string? BroadcasterId, string ServiceName)? tokenInfo = await GetModeratorTokenAsync(broadcasterId, ct);
         if (tokenInfo is null)
         {
             _logger.LogWarning(
@@ -369,12 +370,12 @@ public sealed class TwitchApiService : ITwitchApiService
             return false;
         }
 
-        var url =
+        string url =
             $"{HelixBase}/moderation/bans"
             + $"?broadcaster_id={Uri.EscapeDataString(broadcasterId)}"
             + $"&moderator_id={Uri.EscapeDataString(broadcasterId)}";
 
-        var body = durationSeconds.HasValue
+        object body = durationSeconds.HasValue
             ? (object)
                 new
                 {
@@ -387,7 +388,7 @@ public sealed class TwitchApiService : ITwitchApiService
                 }
             : (object)new { data = new { user_id = userId, reason = reason ?? string.Empty } };
 
-        var response = await SendHelixAsync(HttpMethod.Post, url, tokenInfo.Value, body, ct);
+        HttpResponseMessage? response = await SendHelixAsync(HttpMethod.Post, url, tokenInfo.Value, body, ct);
         return response is { IsSuccessStatusCode: true };
     }
 
@@ -402,9 +403,9 @@ public sealed class TwitchApiService : ITwitchApiService
         CancellationToken ct
     )
     {
-        for (var attempt = 0; attempt < 2; attempt++)
+        for (int attempt = 0; attempt < 2; attempt++)
         {
-            var request = new HttpRequestMessage(method, url);
+            HttpRequestMessage request = new(method, url);
             request.Headers.Add("Authorization", $"Bearer {tokenInfo.Token}");
             request.Headers.Add("Client-Id", _options.ClientId);
 
@@ -425,11 +426,11 @@ public sealed class TwitchApiService : ITwitchApiService
             if (response.StatusCode == HttpStatusCode.TooManyRequests)
             {
                 if (
-                    response.Headers.TryGetValues("Ratelimit-Reset", out var values)
-                    && long.TryParse(values.First(), out var resetEpoch)
+                    response.Headers.TryGetValues("Ratelimit-Reset", out IEnumerable<string>? values)
+                    && long.TryParse(values.First(), out long resetEpoch)
                 )
                 {
-                    var delay =
+                    TimeSpan delay =
                         DateTimeOffset.FromUnixTimeSeconds(resetEpoch) - DateTimeOffset.UtcNow;
                     if (delay > TimeSpan.Zero)
                     {
@@ -454,7 +455,7 @@ public sealed class TwitchApiService : ITwitchApiService
                     "Helix 401, refreshing token for {BroadcasterId}",
                     tokenInfo.BroadcasterId
                 );
-                var refreshed = await _authService.RefreshTokenAsync(
+                TokenResult? refreshed = await _authService.RefreshTokenAsync(
                     tokenInfo.BroadcasterId,
                     tokenInfo.ServiceName,
                     ct
@@ -477,7 +478,7 @@ public sealed class TwitchApiService : ITwitchApiService
         CancellationToken ct
     )
     {
-        var service = await _db
+        Service? service = await _db
             .Services.Where(s => s.Name == "twitch_bot" && s.Enabled && s.AccessToken != null)
             .OrderByDescending(s => s.TokenExpiry)
             .FirstOrDefaultAsync(ct);
@@ -485,7 +486,7 @@ public sealed class TwitchApiService : ITwitchApiService
         if (service?.AccessToken is null)
             return null;
 
-        var token = _encryption.TryDecrypt(service.AccessToken);
+        string? token = _encryption.TryDecrypt(service.AccessToken);
         if (token is null)
             return null;
 
@@ -499,7 +500,7 @@ public sealed class TwitchApiService : ITwitchApiService
         string ServiceName
     )?> GetModeratorTokenAsync(string broadcasterId, CancellationToken ct)
     {
-        var service = await _db.Services.FirstOrDefaultAsync(
+        Service? service = await _db.Services.FirstOrDefaultAsync(
             s =>
                 s.BroadcasterId == broadcasterId
                 && s.Name == "twitch"
@@ -514,7 +515,7 @@ public sealed class TwitchApiService : ITwitchApiService
             return await GetBotTokenAsync(ct);
         }
 
-        var token = _encryption.TryDecrypt(service.AccessToken);
+        string? token = _encryption.TryDecrypt(service.AccessToken);
         if (token is null)
             return null;
 

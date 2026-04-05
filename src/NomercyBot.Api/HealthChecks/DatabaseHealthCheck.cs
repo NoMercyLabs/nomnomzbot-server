@@ -17,10 +17,10 @@ public sealed class DatabaseHealthCheck(IOptions<DatabaseOptions> options) : IHe
     {
         try
         {
-            await using var connection = new NpgsqlConnection(options.Value.ConnectionString);
+            await using NpgsqlConnection connection = new(options.Value.ConnectionString);
             await connection.OpenAsync(cancellationToken);
 
-            await using var command = connection.CreateCommand();
+            await using NpgsqlCommand command = connection.CreateCommand();
             command.CommandText = "SELECT 1;";
             await command.ExecuteScalarAsync(cancellationToken);
 

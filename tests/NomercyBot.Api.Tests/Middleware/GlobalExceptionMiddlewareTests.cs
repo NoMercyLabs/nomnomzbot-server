@@ -21,9 +21,9 @@ public class GlobalExceptionMiddlewareTests
         bool isDevelopment = false
     )
     {
-        var env = Substitute.For<IHostEnvironment>();
+        IHostEnvironment? env = Substitute.For<IHostEnvironment>();
         env.EnvironmentName.Returns(isDevelopment ? "Development" : "Production");
-        return new GlobalExceptionMiddleware(
+        return new(
             next,
             NullLogger<GlobalExceptionMiddleware>.Instance,
             env
@@ -32,7 +32,7 @@ public class GlobalExceptionMiddlewareTests
 
     private static DefaultHttpContext CreateContext()
     {
-        var context = new DefaultHttpContext();
+        DefaultHttpContext context = new();
         context.Response.Body = new MemoryStream();
         return context;
     }
@@ -40,13 +40,13 @@ public class GlobalExceptionMiddlewareTests
     [Fact]
     public async Task InvokeAsync_NoException_PassesThrough()
     {
-        var nextCalled = false;
-        var middleware = CreateMiddleware(_ =>
+        bool nextCalled = false;
+        GlobalExceptionMiddleware middleware = CreateMiddleware(_ =>
         {
             nextCalled = true;
             return Task.CompletedTask;
         });
-        var context = CreateContext();
+        DefaultHttpContext context = CreateContext();
 
         await middleware.InvokeAsync(context);
 
@@ -57,8 +57,8 @@ public class GlobalExceptionMiddlewareTests
     [Fact]
     public async Task InvokeAsync_UnhandledException_Returns500()
     {
-        var middleware = CreateMiddleware(_ => throw new InvalidOperationException("boom"));
-        var context = CreateContext();
+        GlobalExceptionMiddleware middleware = CreateMiddleware(_ => throw new InvalidOperationException("boom"));
+        DefaultHttpContext context = CreateContext();
 
         await middleware.InvokeAsync(context);
 
@@ -68,8 +68,8 @@ public class GlobalExceptionMiddlewareTests
     [Fact]
     public async Task InvokeAsync_UnhandledException_SetsJsonContentType()
     {
-        var middleware = CreateMiddleware(_ => throw new InvalidOperationException("boom"));
-        var context = CreateContext();
+        GlobalExceptionMiddleware middleware = CreateMiddleware(_ => throw new InvalidOperationException("boom"));
+        DefaultHttpContext context = CreateContext();
 
         await middleware.InvokeAsync(context);
 
@@ -79,16 +79,16 @@ public class GlobalExceptionMiddlewareTests
     [Fact]
     public async Task InvokeAsync_Production_ReturnsGenericMessage()
     {
-        var middleware = CreateMiddleware(
+        GlobalExceptionMiddleware middleware = CreateMiddleware(
             _ => throw new InvalidOperationException("secret internal error"),
             isDevelopment: false
         );
 
-        var context = CreateContext();
+        DefaultHttpContext context = CreateContext();
         await middleware.InvokeAsync(context);
 
         context.Response.Body.Seek(0, SeekOrigin.Begin);
-        var body = await new StreamReader(context.Response.Body).ReadToEndAsync();
+        string body = await new StreamReader(context.Response.Body).ReadToEndAsync();
 
         body.Should().NotContain("secret internal error");
         body.Should().Contain("unexpected error");
@@ -97,16 +97,16 @@ public class GlobalExceptionMiddlewareTests
     [Fact]
     public async Task InvokeAsync_Development_ReturnsActualMessage()
     {
-        var middleware = CreateMiddleware(
+        GlobalExceptionMiddleware middleware = CreateMiddleware(
             _ => throw new InvalidOperationException("detailed dev error"),
             isDevelopment: true
         );
 
-        var context = CreateContext();
+        DefaultHttpContext context = CreateContext();
         await middleware.InvokeAsync(context);
 
         context.Response.Body.Seek(0, SeekOrigin.Begin);
-        var body = await new StreamReader(context.Response.Body).ReadToEndAsync();
+        string body = await new StreamReader(context.Response.Body).ReadToEndAsync();
 
         body.Should().Contain("detailed dev error");
     }
@@ -114,11 +114,11 @@ public class GlobalExceptionMiddlewareTests
     [Fact]
     public async Task InvokeAsync_RequestCancelled_DoesNotReturn500()
     {
-        using var cts = new CancellationTokenSource();
+        using CancellationTokenSource cts = new();
         cts.Cancel();
 
-        var middleware = CreateMiddleware(_ => throw new OperationCanceledException("cancelled"));
-        var context = CreateContext();
+        GlobalExceptionMiddleware middleware = CreateMiddleware(_ => throw new OperationCanceledException("cancelled"));
+        DefaultHttpContext context = CreateContext();
         context.RequestAborted = cts.Token;
 
         await middleware.InvokeAsync(context);
@@ -130,15 +130,15 @@ public class GlobalExceptionMiddlewareTests
     [Fact]
     public async Task InvokeAsync_ResponseBody_IsValidJson()
     {
-        var middleware = CreateMiddleware(_ => throw new Exception("test"), isDevelopment: false);
-        var context = CreateContext();
+        GlobalExceptionMiddleware middleware = CreateMiddleware(_ => throw new("test"), isDevelopment: false);
+        DefaultHttpContext context = CreateContext();
 
         await middleware.InvokeAsync(context);
 
         context.Response.Body.Seek(0, SeekOrigin.Begin);
-        var body = await new StreamReader(context.Response.Body).ReadToEndAsync();
+        string body = await new StreamReader(context.Response.Body).ReadToEndAsync();
 
-        var act = () => JsonDocument.Parse(body);
+        Func<JsonDocument> act = () => JsonDocument.Parse(body);
         act.Should().NotThrow("response body should be valid JSON");
     }
 }

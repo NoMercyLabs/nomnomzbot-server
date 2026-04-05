@@ -32,13 +32,13 @@ public class RewardsController : BaseController
         CancellationToken ct
     )
     {
-        var pagination = new PaginationParams(
+        PaginationParams pagination = new(
             request.Page,
             request.Take,
             request.Sort,
             request.Order
         );
-        var result = await _rewardService.ListAsync(channelId, pagination, ct);
+        Result<PagedList<RewardListItem>> result = await _rewardService.ListAsync(channelId, pagination, ct);
         if (result.IsFailure)
             return ResultResponse(result);
         return GetPaginatedResponse(result.Value, request);
@@ -52,7 +52,7 @@ public class RewardsController : BaseController
         CancellationToken ct
     )
     {
-        var result = await _rewardService.GetAsync(channelId, rewardId, ct);
+        Result<RewardDetail> result = await _rewardService.GetAsync(channelId, rewardId, ct);
         return ResultResponse(result);
     }
 
@@ -64,7 +64,7 @@ public class RewardsController : BaseController
         CancellationToken ct
     )
     {
-        var result = await _rewardService.CreateAsync(channelId, request, ct);
+        Result<RewardDetail> result = await _rewardService.CreateAsync(channelId, request, ct);
         if (result.IsFailure)
             return ResultResponse(result);
 
@@ -88,7 +88,7 @@ public class RewardsController : BaseController
         CancellationToken ct
     )
     {
-        var result = await _rewardService.UpdateAsync(channelId, rewardId, request, ct);
+        Result<RewardDetail> result = await _rewardService.UpdateAsync(channelId, rewardId, request, ct);
         if (result.IsFailure)
             return ResultResponse(result);
         return Ok(new StatusResponseDto<RewardDetail> { Data = result.Value });
@@ -102,7 +102,7 @@ public class RewardsController : BaseController
         CancellationToken ct
     )
     {
-        var result = await _rewardService.DeleteAsync(channelId, rewardId, ct);
+        Result result = await _rewardService.DeleteAsync(channelId, rewardId, ct);
         if (result.IsFailure)
             return ResultResponse(result);
         return NoContent();
@@ -112,7 +112,7 @@ public class RewardsController : BaseController
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> SyncRewards(string channelId, CancellationToken ct)
     {
-        var result = await _rewardService.SyncWithTwitchAsync(channelId, ct);
+        Result result = await _rewardService.SyncWithTwitchAsync(channelId, ct);
         if (result.IsFailure)
             return ResultResponse(result);
         return Ok(new StatusResponseDto<object> { Message = "Rewards synced with Twitch." });

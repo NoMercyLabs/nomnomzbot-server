@@ -8,6 +8,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NoMercyBot.Application.Common.Interfaces;
 using NoMercyBot.Domain.Interfaces;
+using Timer = NoMercyBot.Domain.Entities.Timer;
 
 namespace NoMercyBot.Infrastructure.BackgroundServices;
 
@@ -70,24 +71,24 @@ public sealed class TimerService : BackgroundService
     private async Task TickAsync(CancellationToken ct)
     {
         // Only process channels the bot is actively connected to
-        var liveChannels = _registry.GetAll();
+        IReadOnlyCollection<ChannelContext> liveChannels = _registry.GetAll();
         if (liveChannels.Count == 0)
             return;
 
-        using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
-        var chat = scope.ServiceProvider.GetRequiredService<IChatProvider>();
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        IChatProvider chat = scope.ServiceProvider.GetRequiredService<IChatProvider>();
 
-        var now = DateTime.UtcNow;
-        var broadcasterIds = liveChannels.Select(c => c.BroadcasterId).ToList();
+        DateTime now = DateTime.UtcNow;
+        List<string> broadcasterIds = liveChannels.Select(c => c.BroadcasterId).ToList();
 
-        var timers = await db
+        List<Timer> timers = await db
             .Timers.Where(t =>
                 t.IsEnabled && t.DeletedAt == null && broadcasterIds.Contains(t.BroadcasterId)
             )
             .ToListAsync(ct);
 
-        foreach (var timer in timers)
+        foreach (Timer timer in timers)
         {
             try
             {
@@ -109,19 +110,19 @@ public sealed class TimerService : BackgroundService
     )
     {
         // Check interval
-        var nextFire = (timer.LastFiredAt ?? DateTime.MinValue).AddMinutes(timer.IntervalMinutes);
+        DateTime nextFire = (timer.LastFiredAt ?? DateTime.MinValue).AddMinutes(timer.IntervalMinutes);
         if (now < nextFire)
             return;
 
-        var channelCtx = _registry.Get(timer.BroadcasterId);
+        ChannelContext? channelCtx = _registry.Get(timer.BroadcasterId);
         if (channelCtx is null)
             return;
 
         // Check minimum chat activity since last fire
         if (timer.MinChatActivity > 0)
         {
-            var countAtLastFire = _messageCountAtLastFire.GetValueOrDefault(timer.Id, 0L);
-            var messagesSinceLastFire = channelCtx.MessageCount - countAtLastFire;
+            long countAtLastFire = _messageCountAtLastFire.GetValueOrDefault(timer.Id, 0L);
+            long messagesSinceLastFire = channelCtx.MessageCount - countAtLastFire;
             if (messagesSinceLastFire < timer.MinChatActivity)
             {
                 _logger.LogDebug(
@@ -138,10 +139,10 @@ public sealed class TimerService : BackgroundService
             return;
 
         // Pick next message (round-robin)
-        var messageTemplate = timer.Messages[timer.NextMessageIndex % timer.Messages.Count];
+        string messageTemplate = timer.Messages[timer.NextMessageIndex % timer.Messages.Count];
 
         // Resolve template variables
-        var message = await _templateResolver.ResolveAsync(
+        string message = await _templateResolver.ResolveAsync(
             messageTemplate,
             new Dictionary<string, string>(),
             timer.BroadcasterId,

@@ -19,7 +19,7 @@ public sealed class RewardRedeemedBroadcastHandler : IEventHandler<RewardRedeeme
         if (string.IsNullOrEmpty(@event.BroadcasterId))
             return Task.CompletedTask;
 
-        var dto = new RewardRedeemedDto(
+        RewardRedeemedDto dto = new(
             RewardId: @event.RewardId,
             RewardTitle: @event.RewardTitle,
             RedemptionId: @event.RedemptionId,

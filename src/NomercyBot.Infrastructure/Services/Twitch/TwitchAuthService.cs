@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NoMercyBot.Application.Common.Interfaces;
 using NoMercyBot.Application.Contracts.Twitch;
+using NoMercyBot.Domain.Entities;
 using NoMercyBot.Infrastructure.Configuration;
 
 namespace NoMercyBot.Infrastructure.Services.Twitch;
@@ -53,7 +54,7 @@ public sealed class TwitchAuthService : ITwitchAuthService
         CancellationToken ct = default
     )
     {
-        var form = new FormUrlEncodedContent(
+        FormUrlEncodedContent form = new(
             new Dictionary<string, string>
             {
                 ["client_id"] = _options.ClientId,
@@ -64,18 +65,18 @@ public sealed class TwitchAuthService : ITwitchAuthService
             }
         );
 
-        var resp = await _http.PostAsync(TokenEndpoint, form, ct);
+        HttpResponseMessage resp = await _http.PostAsync(TokenEndpoint, form, ct);
         if (!resp.IsSuccessStatusCode)
         {
             _logger.LogWarning("Code exchange failed: {Status}", resp.StatusCode);
             return null;
         }
 
-        var json = await resp.Content.ReadFromJsonAsync<TwitchTokenResponse>(cancellationToken: ct);
+        TwitchTokenResponse? json = await resp.Content.ReadFromJsonAsync<TwitchTokenResponse>(cancellationToken: ct);
         if (json is null)
             return null;
 
-        return new TokenResult(
+        return new(
             json.AccessToken,
             json.RefreshToken,
             DateTime.UtcNow.AddSeconds(json.ExpiresIn),
@@ -93,7 +94,7 @@ public sealed class TwitchAuthService : ITwitchAuthService
         CancellationToken ct = default
     )
     {
-        var service = await _db.Services.FirstOrDefaultAsync(
+        Service? service = await _db.Services.FirstOrDefaultAsync(
             s => s.BroadcasterId == broadcasterId && s.Name == serviceName,
             ct
         );
@@ -108,7 +109,7 @@ public sealed class TwitchAuthService : ITwitchAuthService
             return null;
         }
 
-        var refreshToken = _encryption.TryDecrypt(service.RefreshToken);
+        string? refreshToken = _encryption.TryDecrypt(service.RefreshToken);
         if (refreshToken is null)
         {
             _logger.LogWarning(
@@ -119,7 +120,7 @@ public sealed class TwitchAuthService : ITwitchAuthService
             return null;
         }
 
-        var form = new FormUrlEncodedContent(
+        FormUrlEncodedContent form = new(
             new Dictionary<string, string>
             {
                 ["client_id"] = _options.ClientId,
@@ -129,7 +130,7 @@ public sealed class TwitchAuthService : ITwitchAuthService
             }
         );
 
-        var resp = await _http.PostAsync(TokenEndpoint, form, ct);
+        HttpResponseMessage resp = await _http.PostAsync(TokenEndpoint, form, ct);
         if (!resp.IsSuccessStatusCode)
         {
             _logger.LogWarning(
@@ -141,11 +142,11 @@ public sealed class TwitchAuthService : ITwitchAuthService
             return null;
         }
 
-        var json = await resp.Content.ReadFromJsonAsync<TwitchTokenResponse>(cancellationToken: ct);
+        TwitchTokenResponse? json = await resp.Content.ReadFromJsonAsync<TwitchTokenResponse>(cancellationToken: ct);
         if (json is null)
             return null;
 
-        var result = new TokenResult(
+        TokenResult result = new(
             json.AccessToken,
             json.RefreshToken,
             DateTime.UtcNow.AddSeconds(json.ExpiresIn),
@@ -174,7 +175,7 @@ public sealed class TwitchAuthService : ITwitchAuthService
     /// </summary>
     public async Task RefreshExpiringTokensAsync(CancellationToken ct = default)
     {
-        var threshold = DateTime.UtcNow.AddMinutes(30);
+        DateTime threshold = DateTime.UtcNow.AddMinutes(30);
 
         var expiring = await _db
             .Services.Where(s =>
@@ -216,7 +217,7 @@ public sealed class TwitchAuthService : ITwitchAuthService
         CancellationToken ct = default
     )
     {
-        var service = await _db.Services.FirstOrDefaultAsync(
+        Service? service = await _db.Services.FirstOrDefaultAsync(
             s => s.BroadcasterId == broadcasterId && s.Name == serviceName,
             ct
         );
@@ -226,10 +227,10 @@ public sealed class TwitchAuthService : ITwitchAuthService
 
         if (service.AccessToken is not null)
         {
-            var accessToken = _encryption.TryDecrypt(service.AccessToken);
+            string? accessToken = _encryption.TryDecrypt(service.AccessToken);
             if (accessToken is not null)
             {
-                var form = new FormUrlEncodedContent(
+                FormUrlEncodedContent form = new(
                     new Dictionary<string, string>
                     {
                         ["client_id"] = _options.ClientId,

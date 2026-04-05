@@ -25,10 +25,10 @@ public class EventResponseService : IEventResponseService
         CancellationToken cancellationToken = default
     )
     {
-        var query = _db.EventResponses.Where(e => e.BroadcasterId == broadcasterId);
-        var total = await query.CountAsync(cancellationToken);
+        IQueryable<EventResponse> query = _db.EventResponses.Where(e => e.BroadcasterId == broadcasterId);
+        int total = await query.CountAsync(cancellationToken);
 
-        var items = await query
+        List<EventResponseListItem> items = await query
             .OrderBy(e => e.EventType)
             .Skip((pagination.Page - 1) * pagination.PageSize)
             .Take(pagination.PageSize)
@@ -52,7 +52,7 @@ public class EventResponseService : IEventResponseService
         CancellationToken cancellationToken = default
     )
     {
-        var entity = await _db.EventResponses.FirstOrDefaultAsync(
+        EventResponse? entity = await _db.EventResponses.FirstOrDefaultAsync(
             e => e.BroadcasterId == broadcasterId && e.EventType == eventType,
             cancellationToken
         );
@@ -70,14 +70,14 @@ public class EventResponseService : IEventResponseService
         CancellationToken cancellationToken = default
     )
     {
-        var entity = await _db.EventResponses.FirstOrDefaultAsync(
+        EventResponse? entity = await _db.EventResponses.FirstOrDefaultAsync(
             e => e.BroadcasterId == broadcasterId && e.EventType == eventType,
             cancellationToken
         );
 
         if (entity is null)
         {
-            entity = new EventResponse
+            entity = new()
             {
                 BroadcasterId = broadcasterId,
                 EventType = eventType,
@@ -114,7 +114,7 @@ public class EventResponseService : IEventResponseService
         CancellationToken cancellationToken = default
     )
     {
-        var entity = await _db.EventResponses.FirstOrDefaultAsync(
+        EventResponse? entity = await _db.EventResponses.FirstOrDefaultAsync(
             e => e.BroadcasterId == broadcasterId && e.EventType == eventType,
             cancellationToken
         );

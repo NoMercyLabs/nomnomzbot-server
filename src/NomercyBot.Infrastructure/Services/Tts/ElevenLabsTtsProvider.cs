@@ -47,8 +47,8 @@ public sealed class ElevenLabsTtsProvider : ITtsProvider
             return EmptyResult(voiceId);
         }
 
-        var url = $"{ApiBase}/text-to-speech/{voiceId}";
-        var body = JsonSerializer.Serialize(
+        string url = $"{ApiBase}/text-to-speech/{voiceId}";
+        string body = JsonSerializer.Serialize(
             new
             {
                 text,
@@ -57,26 +57,26 @@ public sealed class ElevenLabsTtsProvider : ITtsProvider
             }
         );
 
-        var request = new HttpRequestMessage(HttpMethod.Post, url);
+        HttpRequestMessage request = new(HttpMethod.Post, url);
         request.Headers.Add("xi-api-key", _apiKey);
         request.Content = new StringContent(body, Encoding.UTF8, "application/json");
 
         try
         {
-            var response = await _http.SendAsync(request, cancellationToken);
+            HttpResponseMessage response = await _http.SendAsync(request, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogWarning("ElevenLabs TTS: Request failed {Status}", response.StatusCode);
                 return EmptyResult(voiceId);
             }
 
-            var audioData = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+            byte[] audioData = await response.Content.ReadAsByteArrayAsync(cancellationToken);
             int durationMs = (int)(audioData.Length / 16.0 * 1000.0 / 1024.0);
-            var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text + voiceId)))[
+            string hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text + voiceId)))[
                 ..16
             ];
 
-            return new TtsSynthesisResult
+            return new()
             {
                 AudioData = audioData,
                 DurationMs = durationMs,
@@ -99,16 +99,16 @@ public sealed class ElevenLabsTtsProvider : ITtsProvider
         if (string.IsNullOrEmpty(_apiKey))
             return [];
 
-        var request = new HttpRequestMessage(HttpMethod.Get, $"{ApiBase}/voices");
+        HttpRequestMessage request = new(HttpMethod.Get, $"{ApiBase}/voices");
         request.Headers.Add("xi-api-key", _apiKey);
 
         try
         {
-            var response = await _http.SendAsync(request, cancellationToken);
+            HttpResponseMessage response = await _http.SendAsync(request, cancellationToken);
             if (!response.IsSuccessStatusCode)
                 return [];
 
-            var data = await response.Content.ReadFromJsonAsync<ElevenLabsVoicesResponse>(
+            ElevenLabsVoicesResponse? data = await response.Content.ReadFromJsonAsync<ElevenLabsVoicesResponse>(
                 cancellationToken: cancellationToken
             );
 

@@ -38,23 +38,23 @@ public sealed class TtsService : ITtsService
     )
     {
         if (string.IsNullOrWhiteSpace(text))
-            return new TtsResult([], 0, voiceId, "none");
+            return new([], 0, voiceId, "none");
 
-        var cacheKey = BuildCacheKey(text, voiceId);
+        string cacheKey = BuildCacheKey(text, voiceId);
 
         // Check cache
         lock (_cacheLock)
         {
-            if (_cache.TryGetValue(cacheKey, out var cached))
+            if (_cache.TryGetValue(cacheKey, out byte[]? cached))
             {
                 _logger.LogDebug("TTS cache hit for voice {VoiceId}", voiceId);
                 int cachedDurationMs = (int)(cached.Length / 16.0 * 1000.0 / 1024.0);
-                return new TtsResult(cached, cachedDurationMs, voiceId, "edge-cached");
+                return new(cached, cachedDurationMs, voiceId, "edge-cached");
             }
         }
 
         // Determine provider by voice prefix
-        var provider = ResolveProvider(voiceId);
+        ITtsProvider provider = ResolveProvider(voiceId);
 
         TtsSynthesisResult result;
         try
@@ -70,9 +70,9 @@ public sealed class TtsService : ITtsService
             );
 
             // Fall back to Edge TTS
-            var edgeProvider = _providers.OfType<EdgeTtsProvider>().FirstOrDefault();
+            EdgeTtsProvider? edgeProvider = _providers.OfType<EdgeTtsProvider>().FirstOrDefault();
             if (edgeProvider is null)
-                return new TtsResult([], 0, voiceId, "error");
+                return new([], 0, voiceId, "error");
 
             result = await edgeProvider.SynthesizeAsync(text, "en-US-AriaNeural", ct);
         }
@@ -86,26 +86,26 @@ public sealed class TtsService : ITtsService
                 // Evict if cache exceeds 200 entries
                 if (_cache.Count > 200)
                 {
-                    var oldest = _cache.Keys.First();
+                    string oldest = _cache.Keys.First();
                     _cache.Remove(oldest);
                 }
             }
         }
 
-        return new TtsResult(result.AudioData, result.DurationMs, voiceId, result.Provider);
+        return new(result.AudioData, result.DurationMs, voiceId, result.Provider);
     }
 
     public async Task<IReadOnlyList<TtsVoiceInfo>> GetAvailableVoicesAsync(
         CancellationToken ct = default
     )
     {
-        var allVoices = new List<TtsVoiceInfo>();
+        List<TtsVoiceInfo> allVoices = new();
 
-        foreach (var provider in _providers)
+        foreach (ITtsProvider provider in _providers)
         {
             try
             {
-                var voices = await provider.GetVoicesAsync(ct);
+                IReadOnlyList<TtsVoiceInfo> voices = await provider.GetVoicesAsync(ct);
                 allVoices.AddRange(voices);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -132,18 +132,18 @@ public sealed class TtsService : ITtsService
         // ElevenLabs: UUIDs (8-4-4-4-12 format)
         if (Guid.TryParse(voiceId, out _))
         {
-            var elevenlabs = _providers.OfType<ElevenLabsTtsProvider>().FirstOrDefault();
+            ElevenLabsTtsProvider? elevenlabs = _providers.OfType<ElevenLabsTtsProvider>().FirstOrDefault();
             if (elevenlabs is not null)
                 return elevenlabs;
         }
 
         // Azure configured separately per BYOK
-        var azure = _providers.OfType<AzureTtsProvider>().FirstOrDefault();
+        AzureTtsProvider? azure = _providers.OfType<AzureTtsProvider>().FirstOrDefault();
         if (azure is not null)
             return azure;
 
         // Default: Edge TTS (free)
-        var edge = _providers.OfType<EdgeTtsProvider>().FirstOrDefault();
+        EdgeTtsProvider? edge = _providers.OfType<EdgeTtsProvider>().FirstOrDefault();
         if (edge is not null)
             return edge;
 
@@ -152,7 +152,7 @@ public sealed class TtsService : ITtsService
 
     private static string BuildCacheKey(string text, string voiceId)
     {
-        var bytes = Encoding.UTF8.GetBytes(text + "|" + voiceId);
+        byte[] bytes = Encoding.UTF8.GetBytes(text + "|" + voiceId);
         return Convert.ToHexString(SHA256.HashData(bytes))[..24];
     }
 }

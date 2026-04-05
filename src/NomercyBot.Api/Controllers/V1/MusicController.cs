@@ -5,6 +5,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NoMercyBot.Api.Models;
+using NoMercyBot.Application.Common.Models;
 using NoMercyBot.Application.Contracts.Music;
 using NoMercyBot.Application.DTOs.Music;
 using NoMercyBot.Application.Services;
@@ -32,7 +33,7 @@ public class MusicController : BaseController
     [ProducesResponseType<StatusResponseDto<MusicConfigDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetConfig(string channelId, CancellationToken ct)
     {
-        var result = await _configService.GetConfigAsync(channelId, ct);
+        Result<MusicConfigDto> result = await _configService.GetConfigAsync(channelId, ct);
         return ResultResponse(result);
     }
 
@@ -44,7 +45,7 @@ public class MusicController : BaseController
         CancellationToken ct
     )
     {
-        var result = await _configService.UpdateConfigAsync(channelId, request, ct);
+        Result<MusicConfigDto> result = await _configService.UpdateConfigAsync(channelId, request, ct);
         if (result.IsFailure)
             return ResultResponse(result);
         return Ok(new StatusResponseDto<MusicConfigDto> { Data = result.Value });
@@ -56,9 +57,9 @@ public class MusicController : BaseController
     [ProducesResponseType<StatusResponseDto<MusicQueueDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetQueue(string channelId, CancellationToken ct)
     {
-        var queue = await _musicService.GetQueueAsync(channelId, ct);
+        MusicQueue queue = await _musicService.GetQueueAsync(channelId, ct);
 
-        var nowPlaying = queue.CurrentTrack is null
+        NowPlayingDto? nowPlaying = queue.CurrentTrack is null
             ? null
             : new NowPlayingDto(
                 queue.CurrentTrack.TrackName,
@@ -73,7 +74,7 @@ public class MusicController : BaseController
                 queue.CurrentTrack.Provider
             );
 
-        var items = queue
+        List<QueueItemDto> items = queue
             .Queue.Select(
                 (item, index) =>
                     new QueueItemDto(
@@ -87,7 +88,7 @@ public class MusicController : BaseController
             )
             .ToList();
 
-        var dto = new MusicQueueDto(nowPlaying, items);
+        MusicQueueDto dto = new(nowPlaying, items);
         return Ok(new StatusResponseDto<MusicQueueDto> { Data = dto });
     }
 
@@ -99,7 +100,7 @@ public class MusicController : BaseController
         CancellationToken ct
     )
     {
-        var added = await _musicService.AddToQueueAsync(
+        bool added = await _musicService.AddToQueueAsync(
             channelId,
             request.Query,
             request.RequestedBy,
@@ -121,7 +122,7 @@ public class MusicController : BaseController
         CancellationToken ct
     )
     {
-        var removed = await _musicService.RemoveFromQueueAsync(channelId, position, ct);
+        bool removed = await _musicService.RemoveFromQueueAsync(channelId, position, ct);
         if (!removed)
             return NotFoundResponse($"No queue item at position {position}.");
 
@@ -134,7 +135,7 @@ public class MusicController : BaseController
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Skip(string channelId, CancellationToken ct)
     {
-        var ok = await _musicService.SkipAsync(channelId, ct);
+        bool ok = await _musicService.SkipAsync(channelId, ct);
         if (!ok)
             return ServiceUnavailableResponse("No active music provider.");
         return Ok(new StatusResponseDto<object> { Message = "Skipped to next track." });
@@ -144,7 +145,7 @@ public class MusicController : BaseController
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Pause(string channelId, CancellationToken ct)
     {
-        var ok = await _musicService.PauseAsync(channelId, ct);
+        bool ok = await _musicService.PauseAsync(channelId, ct);
         if (!ok)
             return ServiceUnavailableResponse("No active music provider.");
         return Ok(new StatusResponseDto<object> { Message = "Playback paused." });
@@ -154,7 +155,7 @@ public class MusicController : BaseController
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Resume(string channelId, CancellationToken ct)
     {
-        var ok = await _musicService.PlayAsync(channelId, ct);
+        bool ok = await _musicService.PlayAsync(channelId, ct);
         if (!ok)
             return ServiceUnavailableResponse("No active music provider.");
         return Ok(new StatusResponseDto<object> { Message = "Playback resumed." });
@@ -166,7 +167,7 @@ public class MusicController : BaseController
     [ProducesResponseType<StatusResponseDto<NowPlayingDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetNowPlaying(string channelId, CancellationToken ct)
     {
-        var track = await _musicService.GetNowPlayingAsync(channelId, ct);
+        NowPlaying? track = await _musicService.GetNowPlayingAsync(channelId, ct);
 
         if (track is null)
             return Ok(
@@ -177,7 +178,7 @@ public class MusicController : BaseController
                 }
             );
 
-        var dto = new NowPlayingDto(
+        NowPlayingDto dto = new(
             track.TrackName,
             track.Artist,
             track.Album,

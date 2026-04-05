@@ -11,7 +11,7 @@ public class ErrorsTests
     [Fact]
     public void NotAuthenticated_ReturnsFailureWithAuthCode()
     {
-        var result = Errors.NotAuthenticated();
+        Result result = Errors.NotAuthenticated();
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("AUTH_REQUIRED");
@@ -21,7 +21,7 @@ public class ErrorsTests
     [Fact]
     public void InsufficientPermission_IncludesAction()
     {
-        var result = Errors.InsufficientPermission("delete users");
+        Result result = Errors.InsufficientPermission("delete users");
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("FORBIDDEN");
@@ -31,7 +31,7 @@ public class ErrorsTests
     [Fact]
     public void FeatureNotEnabled_IncludesFeatureName()
     {
-        var result = Errors.FeatureNotEnabled("SongRequests");
+        Result result = Errors.FeatureNotEnabled("SongRequests");
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("FEATURE_DISABLED");
@@ -41,7 +41,7 @@ public class ErrorsTests
     [Fact]
     public void ScopeMissing_IncludesScopeAndFeature()
     {
-        var result = Errors.ScopeMissing("moderator:read", "ModQueue");
+        Result result = Errors.ScopeMissing("moderator:read", "ModQueue");
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("SCOPE_MISSING");
@@ -52,7 +52,7 @@ public class ErrorsTests
     [Fact]
     public void NotFound_ReturnsTypedFailure()
     {
-        var result = Errors.NotFound<string>("User", "uid-123");
+        Result<string> result = Errors.NotFound<string>("User", "uid-123");
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("NOT_FOUND");
@@ -63,7 +63,7 @@ public class ErrorsTests
     [Fact]
     public void ValidationFailed_WithMessage_ReturnsFailure()
     {
-        var result = Errors.ValidationFailed("Field is required");
+        Result result = Errors.ValidationFailed("Field is required");
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("VALIDATION_FAILED");
@@ -73,13 +73,13 @@ public class ErrorsTests
     [Fact]
     public void ValidationFailed_WithDictionary_JoinsErrors()
     {
-        var errors = new Dictionary<string, string[]>
+        Dictionary<string, string[]> errors = new()
         {
             { "Name", ["required"] },
             { "Email", ["invalid format"] },
         };
 
-        var result = Errors.ValidationFailed(errors);
+        Result result = Errors.ValidationFailed(errors);
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("VALIDATION_FAILED");
@@ -89,7 +89,7 @@ public class ErrorsTests
     [Fact]
     public void ExternalServiceUnavailable_IncludesServiceName()
     {
-        var result = Errors.ExternalServiceUnavailable("Spotify");
+        Result result = Errors.ExternalServiceUnavailable("Spotify");
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("SERVICE_UNAVAILABLE");
@@ -99,7 +99,7 @@ public class ErrorsTests
     [Fact]
     public void TokenExpired_IncludesServiceName()
     {
-        var result = Errors.TokenExpired("Twitch");
+        Result result = Errors.TokenExpired("Twitch");
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("TOKEN_EXPIRED");
@@ -109,7 +109,7 @@ public class ErrorsTests
     [Fact]
     public void RateLimited_IncludesActionAndSeconds()
     {
-        var result = Errors.RateLimited("login", TimeSpan.FromSeconds(30));
+        Result result = Errors.RateLimited("login", TimeSpan.FromSeconds(30));
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("RATE_LIMITED");
@@ -119,7 +119,7 @@ public class ErrorsTests
     [Fact]
     public void AlreadyExists_IncludesEntityAndIdentifier()
     {
-        var result = Errors.AlreadyExists("Command", "!so");
+        Result result = Errors.AlreadyExists("Command", "!so");
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("ALREADY_EXISTS");
@@ -129,7 +129,7 @@ public class ErrorsTests
     [Fact]
     public void ChannelNotFound_ReturnsFailureWithCode()
     {
-        var result = Errors.ChannelNotFound("ch-789");
+        Result result = Errors.ChannelNotFound("ch-789");
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("CHANNEL_NOT_FOUND");
@@ -138,7 +138,7 @@ public class ErrorsTests
     [Fact]
     public void ChannelNotFoundTyped_ReturnsTypedFailure()
     {
-        var result = Errors.ChannelNotFound<string>("ch-789");
+        Result<string> result = Errors.ChannelNotFound<string>("ch-789");
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("CHANNEL_NOT_FOUND");
@@ -147,7 +147,7 @@ public class ErrorsTests
     [Fact]
     public void ChannelNotOnboarded_ReturnsCorrectCode()
     {
-        var result = Errors.ChannelNotOnboarded("ch-999");
+        Result result = Errors.ChannelNotOnboarded("ch-999");
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("CHANNEL_NOT_ONBOARDED");

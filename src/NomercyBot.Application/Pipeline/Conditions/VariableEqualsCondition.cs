@@ -9,8 +9,8 @@ public class VariableEqualsCondition : IConditionEvaluator
     {
         if (condition.Variable == null)
             return Task.FromResult(false);
-        ctx.Variables.TryGetValue(condition.Variable, out var actual);
-        var result = condition.Operator switch
+        ctx.Variables.TryGetValue(condition.Variable, out string? actual);
+        bool result = condition.Operator switch
         {
             "not_equals" => actual != condition.Value,
             "contains" => actual?.Contains(

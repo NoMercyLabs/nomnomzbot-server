@@ -17,8 +17,8 @@ public static partial class VariableResolver
                 template,
                 m =>
                 {
-                    var key = m.Groups[1].Value;
-                    return variables.TryGetValue(key, out var value) ? value : string.Empty;
+                    string key = m.Groups[1].Value;
+                    return variables.TryGetValue(key, out string? value) ? value : string.Empty;
                 }
             );
     }
@@ -28,10 +28,10 @@ public static partial class VariableResolver
         IDictionary<string, string> variables
     )
     {
-        var result = new Dictionary<string, string>();
-        foreach (var (k, v) in parameters)
+        Dictionary<string, string> result = new();
+        foreach ((string k, object? v) in parameters)
         {
-            var str = v?.ToString() ?? string.Empty;
+            string str = v?.ToString() ?? string.Empty;
             result[k] = Resolve(str, variables);
         }
         return result;

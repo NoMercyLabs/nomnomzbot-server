@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Primitives;
 using Microsoft.IdentityModel.Tokens;
 using NoMercyBot.Api.Hubs;
 using NoMercyBot.Api.Middleware;
@@ -21,7 +22,7 @@ Log.Logger = new LoggerConfiguration().WriteTo.Console().CreateBootstrapLogger()
 
 try
 {
-    var builder = WebApplication.CreateBuilder(args);
+    WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
     // Serilog
     builder.Host.UseSerilog(
@@ -45,7 +46,7 @@ try
     builder
         .Services.AddApiVersioning(options =>
         {
-            options.DefaultApiVersion = new ApiVersion(1, 0);
+            options.DefaultApiVersion = new(1, 0);
             options.AssumeDefaultVersionWhenUnspecified = true;
             options.ReportApiVersions = true;
         })
@@ -72,13 +73,13 @@ try
     builder.Services.AddEventHandlersFromAssembly(typeof(Program).Assembly);
 
     // JWT Auth
-    var jwtSecret =
+    string jwtSecret =
         builder.Configuration["Jwt:Secret"] ?? "change-me-in-production-at-least-32-chars!";
     builder
         .Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         .AddJwtBearer(options =>
         {
-            options.TokenValidationParameters = new TokenValidationParameters
+            options.TokenValidationParameters = new()
             {
                 ValidateIssuer = true,
                 ValidateAudience = true,
@@ -90,12 +91,12 @@ try
             };
 
             // Allow JWT from SignalR query string
-            options.Events = new JwtBearerEvents
+            options.Events = new()
             {
                 OnMessageReceived = ctx =>
                 {
-                    var accessToken = ctx.Request.Query["access_token"];
-                    var path = ctx.HttpContext.Request.Path;
+                    StringValues accessToken = ctx.Request.Query["access_token"];
+                    PathString path = ctx.HttpContext.Request.Path;
                     if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
                         ctx.Token = accessToken;
                     return Task.CompletedTask;
@@ -113,13 +114,13 @@ try
             "api",
             context =>
             {
-                var key =
+                string key =
                     context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
                     ?? context.Connection.RemoteIpAddress?.ToString()
                     ?? "anonymous";
                 return RateLimitPartition.GetFixedWindowLimiter(
                     key,
-                    _ => new FixedWindowRateLimiterOptions
+                    _ => new()
                     {
                         PermitLimit = 120,
                         Window = TimeSpan.FromMinutes(1),
@@ -134,10 +135,10 @@ try
             "auth",
             context =>
             {
-                var ip = context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+                string ip = context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
                 return RateLimitPartition.GetFixedWindowLimiter(
                     $"auth:{ip}",
-                    _ => new FixedWindowRateLimiterOptions
+                    _ => new()
                     {
                         PermitLimit = 10,
                         Window = TimeSpan.FromMinutes(1),
@@ -179,14 +180,14 @@ try
             tags: ["db", "ready"]
         );
 
-    var app = builder.Build();
+    WebApplication app = builder.Build();
 
     // Wait for infrastructure dependencies before doing anything else
     try
     {
         Log.Information("Waiting for PostgreSQL and Redis to be ready...");
-        await using var readinessScope = app.Services.CreateAsyncScope();
-        var checker = readinessScope.ServiceProvider.GetRequiredService<StartupReadinessChecker>();
+        await using AsyncServiceScope readinessScope = app.Services.CreateAsyncScope();
+        StartupReadinessChecker checker = readinessScope.ServiceProvider.GetRequiredService<StartupReadinessChecker>();
         await checker.WaitForPostgresAsync();
         await checker.WaitForRedisAsync();
     }
@@ -204,8 +205,8 @@ try
     try
     {
         Log.Information("Running database migrations...");
-        await using var migrationScope = app.Services.CreateAsyncScope();
-        var migrator = migrationScope.ServiceProvider.GetRequiredService<IDatabaseMigrator>();
+        await using AsyncServiceScope migrationScope = app.Services.CreateAsyncScope();
+        IDatabaseMigrator migrator = migrationScope.ServiceProvider.GetRequiredService<IDatabaseMigrator>();
         await migrator.MigrateAsync(CancellationToken.None);
     }
     catch (Exception ex)
@@ -218,8 +219,8 @@ try
     try
     {
         Log.Information("Seeding reference data...");
-        await using var seedScope = app.Services.CreateAsyncScope();
-        var seeder = seedScope.ServiceProvider.GetRequiredService<DataSeeder>();
+        await using AsyncServiceScope seedScope = app.Services.CreateAsyncScope();
+        DataSeeder seeder = seedScope.ServiceProvider.GetRequiredService<DataSeeder>();
         await seeder.SeedAsync(CancellationToken.None);
     }
     catch (Exception ex)
@@ -253,7 +254,7 @@ try
     // Health check — returns JSON with per-check status
     app.MapHealthChecks(
         "/health",
-        new HealthCheckOptions
+        new()
         {
             ResponseWriter = async (context, report) =>
             {

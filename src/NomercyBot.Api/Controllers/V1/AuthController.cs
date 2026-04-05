@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using NoMercyBot.Api.Models;
+using NoMercyBot.Application.Common.Models;
 using NoMercyBot.Application.Features.Auth.Queries.GetCurrentUser;
 
 namespace NoMercyBot.Api.Controllers.V1;
@@ -28,7 +29,7 @@ public class AuthController : BaseController
     [ProducesResponseType<StatusResponseDto<CurrentUserDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetCurrentUser(CancellationToken ct)
     {
-        var result = await _getCurrentUser.HandleAsync(ct);
+        Result<CurrentUserDto> result = await _getCurrentUser.HandleAsync(ct);
         return ResultResponse(result);
     }
 }

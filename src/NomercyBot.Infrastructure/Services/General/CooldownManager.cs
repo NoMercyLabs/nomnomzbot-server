@@ -16,9 +16,9 @@ public sealed class CooldownManager : ICooldownManager
 
     public bool IsOnCooldown(string channelId, string commandName, string? userId = null)
     {
-        var key = BuildKey(channelId, commandName, userId);
+        string key = BuildKey(channelId, commandName, userId);
 
-        if (!_cooldowns.TryGetValue(key, out var expiresAt))
+        if (!_cooldowns.TryGetValue(key, out DateTime expiresAt))
         {
             return false;
         }
@@ -39,14 +39,14 @@ public sealed class CooldownManager : ICooldownManager
         string? userId = null
     )
     {
-        var key = BuildKey(channelId, commandName, userId);
+        string key = BuildKey(channelId, commandName, userId);
 
-        if (!_cooldowns.TryGetValue(key, out var expiresAt))
+        if (!_cooldowns.TryGetValue(key, out DateTime expiresAt))
         {
             return null;
         }
 
-        var remaining = expiresAt - DateTime.UtcNow;
+        TimeSpan remaining = expiresAt - DateTime.UtcNow;
         if (remaining <= TimeSpan.Zero)
         {
             _cooldowns.TryRemove(key, out _);
@@ -63,25 +63,25 @@ public sealed class CooldownManager : ICooldownManager
         string? userId = null
     )
     {
-        var key = BuildKey(channelId, commandName, userId);
-        var expiresAt = DateTime.UtcNow.Add(duration);
+        string key = BuildKey(channelId, commandName, userId);
+        DateTime expiresAt = DateTime.UtcNow.Add(duration);
         _cooldowns[key] = expiresAt;
     }
 
     public void ClearCooldown(string channelId, string commandName, string? userId = null)
     {
-        var key = BuildKey(channelId, commandName, userId);
+        string key = BuildKey(channelId, commandName, userId);
         _cooldowns.TryRemove(key, out _);
     }
 
     public void ClearAllCooldowns(string channelId)
     {
-        var prefix = $"{channelId}:";
-        var keysToRemove = _cooldowns.Keys.Where(k =>
+        string prefix = $"{channelId}:";
+        IEnumerable<string> keysToRemove = _cooldowns.Keys.Where(k =>
             k.StartsWith(prefix, StringComparison.Ordinal)
         );
 
-        foreach (var key in keysToRemove)
+        foreach (string key in keysToRemove)
         {
             _cooldowns.TryRemove(key, out _);
         }

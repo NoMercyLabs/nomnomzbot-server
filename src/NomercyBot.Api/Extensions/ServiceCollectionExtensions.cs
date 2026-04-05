@@ -1,6 +1,7 @@
 using System.Text;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.Primitives;
 using Microsoft.IdentityModel.Tokens;
 using NoMercyBot.Api.Configuration;
 using NoMercyBot.Api.HealthChecks;
@@ -19,7 +20,7 @@ public static class ServiceCollectionExtensions
         services
             .AddApiVersioning(options =>
             {
-                options.DefaultApiVersion = new ApiVersion(1, 0);
+                options.DefaultApiVersion = new(1, 0);
                 options.AssumeDefaultVersionWhenUnspecified = true;
                 options.ReportApiVersions = true;
                 options.ApiVersionReader = ApiVersionReader.Combine(
@@ -56,7 +57,7 @@ public static class ServiceCollectionExtensions
 
     private static void AddAuthentication(IServiceCollection services, IConfiguration configuration)
     {
-        var jwtOptions =
+        JwtOptions jwtOptions =
             configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
             ?? throw new InvalidOperationException("JWT configuration is missing.");
 
@@ -68,7 +69,7 @@ public static class ServiceCollectionExtensions
             })
             .AddJwtBearer(options =>
             {
-                options.TokenValidationParameters = new TokenValidationParameters
+                options.TokenValidationParameters = new()
                 {
                     ValidateIssuer = true,
                     ValidateAudience = true,
@@ -83,12 +84,12 @@ public static class ServiceCollectionExtensions
                 };
 
                 // Allow SignalR to receive the token from the query string
-                options.Events = new JwtBearerEvents
+                options.Events = new()
                 {
                     OnMessageReceived = context =>
                     {
-                        var accessToken = context.Request.Query["access_token"];
-                        var path = context.HttpContext.Request.Path;
+                        StringValues accessToken = context.Request.Query["access_token"];
+                        PathString path = context.HttpContext.Request.Path;
 
                         if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
                         {
@@ -105,7 +106,7 @@ public static class ServiceCollectionExtensions
 
     private static void AddCors(IServiceCollection services, IConfiguration configuration)
     {
-        var allowedOrigins =
+        string[] allowedOrigins =
             configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
             ?? ["http://localhost:3000"];
 
@@ -131,12 +132,12 @@ public static class ServiceCollectionExtensions
 
     private static void AddHealthChecks(IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration
+        string? connectionString = configuration
             .GetSection(DatabaseOptions.SectionName)
             .Get<DatabaseOptions>()
             ?.ConnectionString;
 
-        var builder = services.AddHealthChecks();
+        IHealthChecksBuilder builder = services.AddHealthChecks();
 
         if (!string.IsNullOrEmpty(connectionString))
         {

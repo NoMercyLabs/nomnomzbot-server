@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NoMercyBot.Application.Common.Interfaces;
 using NoMercyBot.Application.Contracts.Twitch;
+using NoMercyBot.Domain.Entities;
 using NoMercyBot.Domain.Interfaces;
 using NoMercyBot.Infrastructure.Configuration;
 
@@ -48,7 +49,7 @@ public sealed class HelixChatProvider : IChatProvider
         CancellationToken cancellationToken = default
     )
     {
-        var botUserId = await GetBotUserIdAsync(cancellationToken);
+        string? botUserId = await GetBotUserIdAsync(cancellationToken);
         if (botUserId is null)
         {
             _logger.LogWarning(
@@ -68,7 +69,7 @@ public sealed class HelixChatProvider : IChatProvider
         CancellationToken cancellationToken = default
     )
     {
-        var botUserId = await GetBotUserIdAsync(cancellationToken);
+        string? botUserId = await GetBotUserIdAsync(cancellationToken);
         if (botUserId is null)
         {
             _logger.LogWarning(
@@ -139,7 +140,7 @@ public sealed class HelixChatProvider : IChatProvider
         if (_cachedBotUserId is not null)
             return _cachedBotUserId;
 
-        var service = await _db
+        Service? service = await _db
             .Services.Where(s => s.Name == "twitch_bot" && s.Enabled && s.UserId != null)
             .FirstOrDefaultAsync(ct);
 

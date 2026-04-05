@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NoMercyBot.Application.Common.Interfaces;
+using NoMercyBot.Domain.Entities;
 using NoMercyBot.Domain.Interfaces;
 
 namespace NoMercyBot.Infrastructure.Services.General;
@@ -54,8 +55,8 @@ public sealed partial class TemplateResolver : ITemplateResolver
                 template,
                 match =>
                 {
-                    var key = match.Groups[1].Value.Trim();
-                    foreach (var kvp in variables)
+                    string key = match.Groups[1].Value.Trim();
+                    foreach (KeyValuePair<string, string> kvp in variables)
                     {
                         if (string.Equals(kvp.Key, key, StringComparison.OrdinalIgnoreCase))
                             return kvp.Value ?? string.Empty;
@@ -77,10 +78,10 @@ public sealed partial class TemplateResolver : ITemplateResolver
             return string.Empty;
 
         // Build a merged variable bag: start with seeds, fill in auto-resolved on demand
-        var vars = new Dictionary<string, string>(seedVariables, StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, string> vars = new(seedVariables, StringComparer.OrdinalIgnoreCase);
 
         // Extract all placeholders used in the template so we only resolve what's needed
-        var needed = ExtractPlaceholders(template);
+        HashSet<string> needed = ExtractPlaceholders(template);
         if (needed.Count == 0)
             return template;
 
@@ -93,8 +94,8 @@ public sealed partial class TemplateResolver : ITemplateResolver
                 template,
                 match =>
                 {
-                    var key = match.Groups[1].Value.Trim();
-                    return vars.TryGetValue(key, out var val) ? val : match.Value;
+                    string key = match.Groups[1].Value.Trim();
+                    return vars.TryGetValue(key, out string? val) ? val : match.Value;
                 }
             );
     }
@@ -108,8 +109,8 @@ public sealed partial class TemplateResolver : ITemplateResolver
         CancellationToken ct
     )
     {
-        var channelCtx = broadcasterId is not null ? _registry.Get(broadcasterId) : null;
-        var now = DateTimeOffset.UtcNow;
+        ChannelContext? channelCtx = broadcasterId is not null ? _registry.Get(broadcasterId) : null;
+        DateTimeOffset now = DateTimeOffset.UtcNow;
 
         // ── Time variables (no DB needed) ──────────────────────────────────
         if (NeedsAny(needed, "time", "time.utc", "date"))
@@ -152,7 +153,7 @@ public sealed partial class TemplateResolver : ITemplateResolver
 
                 if (channelCtx.IsLive && channelCtx.WentLiveAt.HasValue)
                 {
-                    var uptime = now - channelCtx.WentLiveAt.Value;
+                    TimeSpan uptime = now - channelCtx.WentLiveAt.Value;
                     vars.TryAdd("stream.uptime", FormatUptime(uptime));
                 }
                 else
@@ -173,7 +174,7 @@ public sealed partial class TemplateResolver : ITemplateResolver
         )
         {
             foreach (
-                var key in needed.Where(n =>
+                string key in needed.Where(n =>
                     n.StartsWith("random.", StringComparison.OrdinalIgnoreCase)
                 )
             )
@@ -183,7 +184,7 @@ public sealed partial class TemplateResolver : ITemplateResolver
 
                 if (key.Equals("random.user", StringComparison.OrdinalIgnoreCase))
                 {
-                    var chatters = channelCtx.SessionChatters.Values.ToList();
+                    List<string> chatters = channelCtx.SessionChatters.Values.ToList();
                     vars[key] =
                         chatters.Count > 0
                             ? chatters[Random.Shared.Next(chatters.Count)]
@@ -192,17 +193,17 @@ public sealed partial class TemplateResolver : ITemplateResolver
                 else if (key.StartsWith("random.number.", StringComparison.OrdinalIgnoreCase))
                 {
                     // random.number.100 → random 1-100
-                    var parts = key.Split('.');
-                    if (parts.Length == 3 && int.TryParse(parts[2], out var maxVal))
+                    string[] parts = key.Split('.');
+                    if (parts.Length == 3 && int.TryParse(parts[2], out int maxVal))
                         vars[key] = Random.Shared.Next(1, maxVal + 1).ToString();
                 }
                 else if (key.StartsWith("random.pick.", StringComparison.OrdinalIgnoreCase))
                 {
                     // random.pick.a.b.c → random pick from ["a", "b", "c"]
-                    var parts = key.Split('.');
+                    string[] parts = key.Split('.');
                     if (parts.Length > 2)
                     {
-                        var options = parts[2..];
+                        string[] options = parts[2..];
                         vars[key] = options[Random.Shared.Next(options.Length)];
                     }
                 }
@@ -229,7 +230,7 @@ public sealed partial class TemplateResolver : ITemplateResolver
             )
         )
         {
-            var userId = vars.GetValueOrDefault("user.id");
+            string? userId = vars.GetValueOrDefault("user.id");
             if (!string.IsNullOrEmpty(userId) && !string.IsNullOrEmpty(broadcasterId))
             {
                 await ResolveUserDbFieldsAsync(vars, userId, broadcasterId, ct);
@@ -239,7 +240,7 @@ public sealed partial class TemplateResolver : ITemplateResolver
         // ── Target DB lookups ──────────────────────────────────────────────
         if (NeedsAny(needed, "target.id", "target.name", "target.followAge"))
         {
-            var targetName = vars.GetValueOrDefault("target");
+            string? targetName = vars.GetValueOrDefault("target");
             if (!string.IsNullOrEmpty(targetName))
             {
                 await ResolveTargetAsync(vars, targetName, broadcasterId, ct);
@@ -258,16 +259,16 @@ public sealed partial class TemplateResolver : ITemplateResolver
     {
         try
         {
-            using var scope = _scopeFactory.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-            var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+            User? user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
             if (user is null)
                 return;
 
             if (!vars.ContainsKey("user.accountAge"))
             {
-                var age = DateTime.UtcNow - user.CreatedAt;
+                TimeSpan age = DateTime.UtcNow - user.CreatedAt;
                 vars["user.accountAge"] = FormatAge(age);
             }
 
@@ -295,10 +296,10 @@ public sealed partial class TemplateResolver : ITemplateResolver
     {
         try
         {
-            using var scope = _scopeFactory.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-            var target = await db.Users.FirstOrDefaultAsync(
+            User? target = await db.Users.FirstOrDefaultAsync(
                 u => u.Username == targetName.ToLowerInvariant(),
                 ct
             );
@@ -320,10 +321,10 @@ public sealed partial class TemplateResolver : ITemplateResolver
     {
         try
         {
-            using var scope = _scopeFactory.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-            var service = await db
+            Service? service = await db
                 .Services.Where(s => s.Name == "twitch_bot" && s.Enabled)
                 .FirstOrDefaultAsync(ct);
 
@@ -339,7 +340,7 @@ public sealed partial class TemplateResolver : ITemplateResolver
 
     private static HashSet<string> ExtractPlaceholders(string template)
     {
-        var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        HashSet<string> result = new(StringComparer.OrdinalIgnoreCase);
         foreach (Match m in VariablePattern().Matches(template))
             result.Add(m.Groups[1].Value.Trim());
         return result;
@@ -359,15 +360,15 @@ public sealed partial class TemplateResolver : ITemplateResolver
 
     private static string FormatAge(TimeSpan age)
     {
-        var years = (int)(age.TotalDays / 365);
-        var months = (int)((age.TotalDays % 365) / 30);
+        int years = (int)(age.TotalDays / 365);
+        int months = (int)((age.TotalDays % 365) / 30);
         if (years > 0)
             return months > 0
                 ? $"{years} year{(years == 1 ? "" : "s")}, {months} month{(months == 1 ? "" : "s")}"
                 : $"{years} year{(years == 1 ? "" : "s")}";
         if (months > 0)
             return $"{months} month{(months == 1 ? "" : "s")}";
-        var days = (int)age.TotalDays;
+        int days = (int)age.TotalDays;
         return days > 0 ? $"{days} day{(days == 1 ? "" : "s")}" : "less than a day";
     }
 

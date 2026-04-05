@@ -34,13 +34,13 @@ public class ModerationController : BaseController
         CancellationToken ct
     )
     {
-        var pagination = new PaginationParams(
+        PaginationParams pagination = new(
             request.Page,
             request.Take,
             request.Sort,
             request.Order
         );
-        var result = await _moderationService.ListRulesAsync(channelId, pagination, ct);
+        Result<PagedList<ModerationRuleListItem>> result = await _moderationService.ListRulesAsync(channelId, pagination, ct);
         if (result.IsFailure)
             return ResultResponse(result);
         return GetPaginatedResponse(result.Value, request);
@@ -54,7 +54,7 @@ public class ModerationController : BaseController
         CancellationToken ct
     )
     {
-        var result = await _moderationService.CreateRuleAsync(channelId, request, ct);
+        Result<ModerationRuleDetail> result = await _moderationService.CreateRuleAsync(channelId, request, ct);
         if (result.IsFailure)
             return ResultResponse(result);
 
@@ -78,7 +78,7 @@ public class ModerationController : BaseController
         CancellationToken ct
     )
     {
-        var result = await _moderationService.UpdateRuleAsync(channelId, ruleId, request, ct);
+        Result<ModerationRuleDetail> result = await _moderationService.UpdateRuleAsync(channelId, ruleId, request, ct);
         if (result.IsFailure)
             return ResultResponse(result);
         return Ok(new StatusResponseDto<ModerationRuleDetail> { Data = result.Value });
@@ -88,7 +88,7 @@ public class ModerationController : BaseController
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteRule(string channelId, int ruleId, CancellationToken ct)
     {
-        var result = await _moderationService.DeleteRuleAsync(channelId, ruleId, ct);
+        Result result = await _moderationService.DeleteRuleAsync(channelId, ruleId, ct);
         if (result.IsFailure)
             return ResultResponse(result);
         return NoContent();
@@ -104,13 +104,13 @@ public class ModerationController : BaseController
         CancellationToken ct
     )
     {
-        var pagination = new PaginationParams(
+        PaginationParams pagination = new(
             request.Page,
             request.Take,
             request.Sort,
             request.Order
         );
-        var result = await _moderationService.GetActionsAsync(channelId, pagination, ct);
+        Result<PagedList<ModerationActionLog>> result = await _moderationService.GetActionsAsync(channelId, pagination, ct);
         if (result.IsFailure)
             return ResultResponse(result);
         return GetPaginatedResponse(result.Value, request);

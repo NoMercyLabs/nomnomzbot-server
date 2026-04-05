@@ -13,22 +13,22 @@ public class VariableResolverTests
     [Fact]
     public void Resolve_EmptyTemplate_ReturnsEmpty()
     {
-        var result = VariableResolver.Resolve(string.Empty, new Dictionary<string, string>());
+        string result = VariableResolver.Resolve(string.Empty, new Dictionary<string, string>());
         result.Should().BeEmpty();
     }
 
     [Fact]
     public void Resolve_NoPlaceholders_ReturnsOriginal()
     {
-        var result = VariableResolver.Resolve("Hello world", new Dictionary<string, string>());
+        string result = VariableResolver.Resolve("Hello world", new Dictionary<string, string>());
         result.Should().Be("Hello world");
     }
 
     [Fact]
     public void Resolve_KnownVariable_Substitutes()
     {
-        var vars = new Dictionary<string, string> { { "user", "Alice" } };
-        var result = VariableResolver.Resolve("Hello {{user}}!", vars);
+        Dictionary<string, string> vars = new() { { "user", "Alice" } };
+        string result = VariableResolver.Resolve("Hello {{user}}!", vars);
 
         result.Should().Be("Hello Alice!");
     }
@@ -36,8 +36,8 @@ public class VariableResolverTests
     [Fact]
     public void Resolve_UnknownVariable_LeavesPlaceholderAsEmpty()
     {
-        var vars = new Dictionary<string, string>();
-        var result = VariableResolver.Resolve("Hello {{unknown}}!", vars);
+        Dictionary<string, string> vars = new();
+        string result = VariableResolver.Resolve("Hello {{unknown}}!", vars);
 
         // VariableResolver replaces unknown vars with empty string
         result.Should().Be("Hello !");
@@ -46,8 +46,8 @@ public class VariableResolverTests
     [Fact]
     public void Resolve_MultipleVariables_SubstitutesAll()
     {
-        var vars = new Dictionary<string, string> { { "greeting", "Hello" }, { "name", "Bob" } };
-        var result = VariableResolver.Resolve("{{greeting}}, {{name}}!", vars);
+        Dictionary<string, string> vars = new() { { "greeting", "Hello" }, { "name", "Bob" } };
+        string result = VariableResolver.Resolve("{{greeting}}, {{name}}!", vars);
 
         result.Should().Be("Hello, Bob!");
     }
@@ -55,8 +55,8 @@ public class VariableResolverTests
     [Fact]
     public void Resolve_SameVariableTwice_SubstitutesBoth()
     {
-        var vars = new Dictionary<string, string> { { "x", "10" } };
-        var result = VariableResolver.Resolve("{{x}} + {{x}} = 20", vars);
+        Dictionary<string, string> vars = new() { { "x", "10" } };
+        string result = VariableResolver.Resolve("{{x}} + {{x}} = 20", vars);
 
         result.Should().Be("10 + 10 = 20");
     }
@@ -66,18 +66,18 @@ public class VariableResolverTests
     [Fact]
     public void ResolveAll_ResolvesVariablesInEachParameter()
     {
-        var parameters = new Dictionary<string, object?>
+        Dictionary<string, object?> parameters = new()
         {
             { "message", "Hello {{user}}" },
             { "channel", "{{channel}}" },
         };
-        var vars = new Dictionary<string, string>
+        Dictionary<string, string> vars = new()
         {
             { "user", "Alice" },
             { "channel", "mychannel" },
         };
 
-        var result = VariableResolver.ResolveAll(parameters, vars);
+        IReadOnlyDictionary<string, string> result = VariableResolver.ResolveAll(parameters, vars);
 
         result["message"].Should().Be("Hello Alice");
         result["channel"].Should().Be("mychannel");
@@ -86,10 +86,10 @@ public class VariableResolverTests
     [Fact]
     public void ResolveAll_NullValue_TreatedAsEmptyString()
     {
-        var parameters = new Dictionary<string, object?> { { "key", null } };
-        var vars = new Dictionary<string, string>();
+        Dictionary<string, object?> parameters = new() { { "key", null } };
+        Dictionary<string, string> vars = new();
 
-        var result = VariableResolver.ResolveAll(parameters, vars);
+        IReadOnlyDictionary<string, string> result = VariableResolver.ResolveAll(parameters, vars);
 
         result["key"].Should().BeEmpty();
     }
@@ -97,10 +97,10 @@ public class VariableResolverTests
     [Fact]
     public void ResolveAll_IntegerValue_ConvertedToString()
     {
-        var parameters = new Dictionary<string, object?> { { "count", 42 } };
-        var vars = new Dictionary<string, string>();
+        Dictionary<string, object?> parameters = new() { { "count", 42 } };
+        Dictionary<string, string> vars = new();
 
-        var result = VariableResolver.ResolveAll(parameters, vars);
+        IReadOnlyDictionary<string, string> result = VariableResolver.ResolveAll(parameters, vars);
 
         result["count"].Should().Be("42");
     }
@@ -108,7 +108,7 @@ public class VariableResolverTests
     [Fact]
     public void ResolveAll_EmptyParameters_ReturnsEmptyDictionary()
     {
-        var result = VariableResolver.ResolveAll(
+        IReadOnlyDictionary<string, string> result = VariableResolver.ResolveAll(
             new Dictionary<string, object?>(),
             new Dictionary<string, string>()
         );

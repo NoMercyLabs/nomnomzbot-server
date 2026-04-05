@@ -18,16 +18,16 @@ public class PipelineEngineTests
 {
     private static PipelineEngine CreateEngine(params ICommandAction[] extraActions)
     {
-        var chat = Substitute.For<IChatProvider>();
+        IChatProvider? chat = Substitute.For<IChatProvider>();
         chat.SendMessageAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        var actionRegistry = new CommandActionRegistry();
-        var conditionRegistry = new ConditionEvaluatorRegistry();
-        var logger = NullLogger<PipelineEngine>.Instance;
+        CommandActionRegistry actionRegistry = new();
+        ConditionEvaluatorRegistry conditionRegistry = new();
+        NullLogger<PipelineEngine> logger = NullLogger<PipelineEngine>.Instance;
 
         // Core actions
-        var actions = new List<ICommandAction>
+        List<ICommandAction> actions = new()
         {
             new StopAction(),
             new SetVariableAction(),
@@ -36,7 +36,7 @@ public class PipelineEngineTests
         };
         actions.AddRange(extraActions);
 
-        return new PipelineEngine(
+        return new(
             actionRegistry,
             conditionRegistry,
             actions,
@@ -63,8 +63,8 @@ public class PipelineEngineTests
     [Fact]
     public async Task ExecuteAsync_EmptySteps_ReturnsCompleted()
     {
-        var engine = CreateEngine();
-        var result = await engine.ExecuteAsync(BuildRequest("""{"steps":[]}"""));
+        PipelineEngine engine = CreateEngine();
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest("""{"steps":[]}"""));
 
         result.Outcome.Should().Be(PipelineOutcome.Completed);
     }
@@ -72,8 +72,8 @@ public class PipelineEngineTests
     [Fact]
     public async Task ExecuteAsync_InvalidJson_ReturnsFailed()
     {
-        var engine = CreateEngine();
-        var result = await engine.ExecuteAsync(BuildRequest("not-json"));
+        PipelineEngine engine = CreateEngine();
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest("not-json"));
 
         result.Outcome.Should().Be(PipelineOutcome.Failed);
         result.ErrorMessage.Should().NotBeNullOrEmpty();
@@ -82,7 +82,7 @@ public class PipelineEngineTests
     [Fact]
     public async Task ExecuteAsync_SetVariable_StoresThenAvailable()
     {
-        var engine = CreateEngine();
+        PipelineEngine engine = CreateEngine();
         const string json = """
             {
               "steps": [
@@ -92,7 +92,7 @@ public class PipelineEngineTests
             }
             """;
 
-        var result = await engine.ExecuteAsync(BuildRequest(json));
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(json));
 
         result.Outcome.Should().Be(PipelineOutcome.Completed);
         result.StepsExecuted.Should().Be(2);
@@ -101,7 +101,7 @@ public class PipelineEngineTests
     [Fact]
     public async Task ExecuteAsync_StopAction_ReturnsStoppedOutcome()
     {
-        var engine = CreateEngine();
+        PipelineEngine engine = CreateEngine();
         const string json = """
             {
               "steps": [
@@ -111,7 +111,7 @@ public class PipelineEngineTests
             }
             """;
 
-        var result = await engine.ExecuteAsync(BuildRequest(json));
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(json));
 
         result.Outcome.Should().Be(PipelineOutcome.Stopped);
         result.StepsExecuted.Should().Be(1);
@@ -122,7 +122,7 @@ public class PipelineEngineTests
     [Fact]
     public async Task ExecuteAsync_ConditionFalse_SkipsStep()
     {
-        var engine = CreateEngine();
+        PipelineEngine engine = CreateEngine();
         const string json = """
             {
               "steps": [
@@ -134,7 +134,7 @@ public class PipelineEngineTests
             }
             """;
 
-        var result = await engine.ExecuteAsync(BuildRequest(json));
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(json));
 
         result.Outcome.Should().Be(PipelineOutcome.Completed);
         result.StepsSkipped.Should().Be(1);
@@ -143,7 +143,7 @@ public class PipelineEngineTests
     [Fact]
     public async Task ExecuteAsync_ConditionTrue_ExecutesStep()
     {
-        var engine = CreateEngine();
+        PipelineEngine engine = CreateEngine();
         const string json = """
             {
               "steps": [
@@ -156,7 +156,7 @@ public class PipelineEngineTests
             }
             """;
 
-        var result = await engine.ExecuteAsync(BuildRequest(json));
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(json));
 
         result.Outcome.Should().Be(PipelineOutcome.Stopped);
     }
@@ -166,10 +166,10 @@ public class PipelineEngineTests
     [Fact]
     public async Task ExecuteAsync_UnknownAction_ReturnsFailed()
     {
-        var engine = CreateEngine();
+        PipelineEngine engine = CreateEngine();
         const string json = """{"steps":[{"action":"does_not_exist"}]}""";
 
-        var result = await engine.ExecuteAsync(BuildRequest(json));
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(json));
 
         result.Outcome.Should().Be(PipelineOutcome.Failed);
     }
@@ -179,13 +179,13 @@ public class PipelineEngineTests
     [Fact]
     public async Task ExecuteAsync_CancelledBeforeStart_ReturnsCancelled()
     {
-        var engine = CreateEngine();
+        PipelineEngine engine = CreateEngine();
         const string json = """{"steps":[{"action":"delay","params":{"seconds":30}}]}""";
 
-        using var cts = new CancellationTokenSource();
+        using CancellationTokenSource cts = new();
         cts.Cancel();
 
-        var result = await engine.ExecuteAsync(BuildRequest(json), cts.Token);
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(json), cts.Token);
 
         result.Outcome.Should().Be(PipelineOutcome.Cancelled);
     }
@@ -196,7 +196,7 @@ public class PipelineEngineTests
     public async Task ExecuteAsync_BuiltInVariables_AreSeeded()
     {
         string? sentMessage = null;
-        var chat = Substitute.For<IChatProvider>();
+        IChatProvider? chat = Substitute.For<IChatProvider>();
         chat.SendMessageAsync(
                 Arg.Any<string>(),
                 Arg.Do<string>(m => sentMessage = m),
@@ -204,10 +204,10 @@ public class PipelineEngineTests
             )
             .Returns(Task.CompletedTask);
 
-        var actionRegistry = new CommandActionRegistry();
-        var conditionRegistry = new ConditionEvaluatorRegistry();
+        CommandActionRegistry actionRegistry = new();
+        ConditionEvaluatorRegistry conditionRegistry = new();
 
-        var engine = new PipelineEngine(
+        PipelineEngine engine = new(
             actionRegistry,
             conditionRegistry,
             [
@@ -222,7 +222,7 @@ public class PipelineEngineTests
 
         const string json =
             """{"steps":[{"action":"send_message","params":{"message":"Hello {{user}}"}}]}""";
-        var request = new PipelineRequest
+        PipelineRequest request = new()
         {
             BroadcasterId = "chan",
             TriggeredByUserId = "uid1",
@@ -230,7 +230,7 @@ public class PipelineEngineTests
             PipelineJson = json,
         };
 
-        var result = await engine.ExecuteAsync(request);
+        PipelineExecutionResult result = await engine.ExecuteAsync(request);
 
         result.Outcome.Should().Be(PipelineOutcome.Completed);
         sentMessage.Should().Be("Hello BobUser");
@@ -241,13 +241,13 @@ public class PipelineEngineTests
     [Fact]
     public async Task ExecuteAsync_ExceedsConcurrencyLimit_ReturnsFailed()
     {
-        var engine = CreateEngine();
+        PipelineEngine engine = CreateEngine();
         const string json = """{"steps":[{"action":"delay","params":{"seconds":30}}]}""";
 
         // Keep CTSes alive for the duration of the test
-        var ctsList = Enumerable.Range(0, 5).Select(_ => new CancellationTokenSource()).ToList();
+        List<CancellationTokenSource> ctsList = Enumerable.Range(0, 5).Select(_ => new CancellationTokenSource()).ToList();
 
-        var longTasks = ctsList
+        Task<PipelineExecutionResult>[] longTasks = ctsList
             .Select(cts => engine.ExecuteAsync(BuildRequest(json), cts.Token))
             .ToArray();
 
@@ -255,7 +255,7 @@ public class PipelineEngineTests
         await Task.Delay(200);
 
         // This 6th one should be rejected immediately
-        var overflow = await engine.ExecuteAsync(BuildRequest(json));
+        PipelineExecutionResult overflow = await engine.ExecuteAsync(BuildRequest(json));
 
         overflow.Outcome.Should().Be(PipelineOutcome.Failed);
         overflow.ErrorMessage.Should().Contain("concurrency");

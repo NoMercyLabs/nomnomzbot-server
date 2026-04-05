@@ -39,9 +39,9 @@ public class PipelineEngine : IPipelineEngine
         _actionRegistry = actionRegistry;
         _conditionRegistry = conditionRegistry;
         _logger = logger;
-        foreach (var a in actions)
+        foreach (ICommandAction a in actions)
             actionRegistry.Register(a);
-        foreach (var c in conditions)
+        foreach (IConditionEvaluator c in conditions)
             conditionRegistry.Register(c);
     }
 
@@ -50,8 +50,8 @@ public class PipelineEngine : IPipelineEngine
         CancellationToken ct = default
     )
     {
-        var executionId = Guid.NewGuid().ToString("N")[..12];
-        var started = DateTimeOffset.UtcNow;
+        string executionId = Guid.NewGuid().ToString("N")[..12];
+        DateTimeOffset started = DateTimeOffset.UtcNow;
 
         // Parse pipeline definition
         PipelineDefinition? definition;
@@ -73,7 +73,7 @@ public class PipelineEngine : IPipelineEngine
         }
 
         if (definition == null || definition.Steps.Count == 0)
-            return new PipelineExecutionResult
+            return new()
             {
                 ExecutionId = executionId,
                 Outcome = PipelineOutcome.Completed,
@@ -81,9 +81,9 @@ public class PipelineEngine : IPipelineEngine
             };
 
         // Check per-channel limit
-        var channelActive = _active.GetOrAdd(
+        ConcurrentDictionary<string, CancellationTokenSource> channelActive = _active.GetOrAdd(
             request.BroadcasterId,
-            _ => new ConcurrentDictionary<string, CancellationTokenSource>()
+            _ => new()
         );
         if (channelActive.Count >= MaxConcurrentPerChannel)
         {
@@ -95,14 +95,14 @@ public class PipelineEngine : IPipelineEngine
         }
 
         // Setup timeout + link caller's CT
-        var timeout = TimeSpan.FromSeconds(
+        TimeSpan timeout = TimeSpan.FromSeconds(
             definition.TimeoutSeconds > 0 ? definition.TimeoutSeconds : 300
         );
-        using var timeoutCts = new CancellationTokenSource(timeout);
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
+        using CancellationTokenSource timeoutCts = new(timeout);
+        using CancellationTokenSource linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
         channelActive[executionId] = linkedCts;
 
-        var ctx = new PipelineContext
+        PipelineContext ctx = new()
         {
             ExecutionId = executionId,
             BroadcasterId = request.BroadcasterId,
@@ -120,12 +120,12 @@ public class PipelineEngine : IPipelineEngine
         ctx.Variables["user_id"] = request.TriggeredByUserId;
         ctx.Variables["channel"] = request.BroadcasterId;
         ctx.Variables["random"] = Random.Shared.Next(1, 101).ToString();
-        foreach (var (k, v) in request.InitialVariables)
+        foreach ((string k, string v) in request.InitialVariables)
             ctx.Variables[k] = v;
 
         try
         {
-            var outcome = await ExecuteStepsAsync(ctx, definition);
+            PipelineOutcome outcome = await ExecuteStepsAsync(ctx, definition);
             return BuildResult(executionId, outcome, ctx, definition.Steps.Count, started);
         }
         catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested)
@@ -164,28 +164,28 @@ public class PipelineEngine : IPipelineEngine
         PipelineDefinition definition
     )
     {
-        for (var i = 0; i < definition.Steps.Count; i++)
+        for (int i = 0; i < definition.Steps.Count; i++)
         {
             ctx.CurrentStepIndex = i;
             ctx.CancellationToken.ThrowIfCancellationRequested();
 
-            var step = definition.Steps[i];
-            var stepStart = DateTimeOffset.UtcNow;
+            PipelineStepDefinition step = definition.Steps[i];
+            DateTimeOffset stepStart = DateTimeOffset.UtcNow;
 
             // Evaluate condition
             if (step.Condition != null)
             {
                 try
                 {
-                    var evaluator = _conditionRegistry.GetEvaluator(step.Condition.Type);
+                    IConditionEvaluator? evaluator = _conditionRegistry.GetEvaluator(step.Condition.Type);
                     if (evaluator != null)
                     {
-                        var actionCtx = BuildActionContext(ctx, step);
-                        var condResult = await evaluator.EvaluateAsync(step.Condition, actionCtx);
+                        ActionContext actionCtx = BuildActionContext(ctx, step);
+                        bool condResult = await evaluator.EvaluateAsync(step.Condition, actionCtx);
                         if (!condResult)
                         {
                             ctx.StepLogs.Add(
-                                new StepExecutionLog
+                                new()
                                 {
                                     StepIndex = i,
                                     ActionType = step.Action,
@@ -206,12 +206,12 @@ public class PipelineEngine : IPipelineEngine
             }
 
             // Get action handler
-            var action = _actionRegistry.GetAction(step.Action);
+            ICommandAction? action = _actionRegistry.GetAction(step.Action);
             if (action == null)
             {
                 _logger.LogWarning("Unknown action type '{Action}' at step {i}", step.Action, i);
                 ctx.StepLogs.Add(
-                    new StepExecutionLog
+                    new()
                     {
                         StepIndex = i,
                         ActionType = step.Action,
@@ -224,7 +224,7 @@ public class PipelineEngine : IPipelineEngine
             }
 
             // Execute action
-            var actionContext = BuildActionContext(ctx, step);
+            ActionContext actionContext = BuildActionContext(ctx, step);
             ActionResult result;
             try
             {
@@ -238,7 +238,7 @@ public class PipelineEngine : IPipelineEngine
             {
                 _logger.LogError(ex, "Action {Action} threw at step {i}", step.Action, i);
                 ctx.StepLogs.Add(
-                    new StepExecutionLog
+                    new()
                     {
                         StepIndex = i,
                         ActionType = step.Action,
@@ -251,11 +251,11 @@ public class PipelineEngine : IPipelineEngine
             }
 
             // Apply output variables
-            foreach (var (k, v) in result.VariablesSet)
+            foreach ((string k, string v) in result.VariablesSet)
                 ctx.Variables[k] = v;
 
             ctx.StepLogs.Add(
-                new StepExecutionLog
+                new()
                 {
                     StepIndex = i,
                     ActionType = step.Action,
@@ -294,16 +294,16 @@ public class PipelineEngine : IPipelineEngine
 
     public Task CancelAllForChannelAsync(string broadcasterId)
     {
-        if (_active.TryGetValue(broadcasterId, out var channel))
+        if (_active.TryGetValue(broadcasterId, out ConcurrentDictionary<string, CancellationTokenSource>? channel))
         {
-            foreach (var (_, cts) in channel)
+            foreach ((string _, CancellationTokenSource cts) in channel)
                 cts.Cancel();
         }
         return Task.CompletedTask;
     }
 
     public int GetActiveCountForChannel(string broadcasterId) =>
-        _active.TryGetValue(broadcasterId, out var ch) ? ch.Count : 0;
+        _active.TryGetValue(broadcasterId, out ConcurrentDictionary<string, CancellationTokenSource>? ch) ? ch.Count : 0;
 
     private static PipelineExecutionResult Fail(string id, string error, DateTimeOffset started) =>
         new()

@@ -39,7 +39,7 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
 
     public Task StartAsync(CancellationToken ct)
     {
-        _evictionTimer = new Timer(RunEviction, null, EvictionInterval, EvictionInterval);
+        _evictionTimer = new(RunEviction, null, EvictionInterval, EvictionInterval);
         return Task.CompletedTask;
     }
 
@@ -61,13 +61,13 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
         CancellationToken ct = default
     )
     {
-        if (_channels.TryGetValue(broadcasterId, out var existing))
+        if (_channels.TryGetValue(broadcasterId, out ChannelContext? existing))
         {
             existing.LastActivityAt = DateTimeOffset.UtcNow;
             return existing;
         }
 
-        var ctx = new ChannelContext { BroadcasterId = broadcasterId, ChannelName = channelName };
+        ChannelContext ctx = new() { BroadcasterId = broadcasterId, ChannelName = channelName };
 
         // Load commands from DB
         await LoadCommandsAsync(ctx, ct);
@@ -82,15 +82,15 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
     }
 
     public ChannelContext? Get(string broadcasterId) =>
-        _channels.TryGetValue(broadcasterId, out var ctx) ? ctx : null;
+        _channels.TryGetValue(broadcasterId, out ChannelContext? ctx) ? ctx : null;
 
     public async Task RemoveAsync(string broadcasterId, CancellationToken ct = default)
     {
-        if (!_channels.TryRemove(broadcasterId, out var ctx))
+        if (!_channels.TryRemove(broadcasterId, out ChannelContext? ctx))
             return;
 
         // Cancel all active pipelines before releasing the context
-        foreach (var (executionId, cts) in ctx.ActivePipelines)
+        foreach ((string executionId, CancellationTokenSource cts) in ctx.ActivePipelines)
         {
             try
             {
@@ -123,10 +123,10 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
 
     private async Task LoadCommandsAsync(ChannelContext ctx, CancellationToken ct)
     {
-        using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-        var commands = await db
+        List<CachedCommand> commands = await db
             .Commands.Where(c =>
                 c.BroadcasterId == ctx.BroadcasterId && c.IsEnabled && c.DeletedAt == null
             )
@@ -144,10 +144,10 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
             })
             .ToListAsync(ct);
 
-        foreach (var cmd in commands)
+        foreach (CachedCommand cmd in commands)
         {
             ctx.Commands[cmd.Name] = cmd;
-            foreach (var alias in cmd.Aliases)
+            foreach (string alias in cmd.Aliases)
                 ctx.Commands[alias] = cmd;
         }
 
@@ -160,12 +160,12 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
 
     private void RunEviction(object? state)
     {
-        var threshold = DateTimeOffset.UtcNow - EvictionThreshold;
-        var candidates = _channels
+        DateTimeOffset threshold = DateTimeOffset.UtcNow - EvictionThreshold;
+        List<ChannelContext> candidates = _channels
             .Values.Where(c => !c.IsLive && c.LastActivityAt < threshold)
             .ToList();
 
-        foreach (var ctx in candidates)
+        foreach (ChannelContext ctx in candidates)
         {
             if (_channels.TryRemove(ctx.BroadcasterId, out _))
                 _logger.LogInformation("Evicted idle channel {BroadcasterId}", ctx.BroadcasterId);

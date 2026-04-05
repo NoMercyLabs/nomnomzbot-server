@@ -73,7 +73,7 @@ public sealed class TrustService : ITrustService
         CancellationToken ct = default
     )
     {
-        var state = await GetOrLoadStateAsync(broadcasterId, userId, ct);
+        TrustState state = await GetOrLoadStateAsync(broadcasterId, userId, ct);
         return ComputeScore(state);
     }
 
@@ -84,7 +84,7 @@ public sealed class TrustService : ITrustService
         CancellationToken ct = default
     )
     {
-        var state = await GetOrLoadStateAsync(broadcasterId, userId, ct);
+        TrustState state = await GetOrLoadStateAsync(broadcasterId, userId, ct);
 
         state.ViolationCount++;
         state.ContentScore = state.ContentScore * (1 - ViolationPenalty);
@@ -107,10 +107,10 @@ public sealed class TrustService : ITrustService
         CancellationToken ct = default
     )
     {
-        var state = await GetOrLoadStateAsync(broadcasterId, userId, ct);
+        TrustState state = await GetOrLoadStateAsync(broadcasterId, userId, ct);
 
-        var currentScore = ComputeScore(state);
-        var boostedScore = currentScore + (1.0 - currentScore) * ReputationBoostFraction;
+        double currentScore = ComputeScore(state);
+        double boostedScore = currentScore + (1.0 - currentScore) * ReputationBoostFraction;
 
         // Distribute the boost proportionally across contentScore (primary reputation signal)
         state.ContentScore = Math.Min(1.0, state.ContentScore + (boostedScore - currentScore));
@@ -123,22 +123,22 @@ public sealed class TrustService : ITrustService
     private double ComputeScore(TrustState state)
     {
         // requestScore: decays as the user has queued more items
-        var requestScore = Math.Exp(-LambdaRequest * state.RequestCount);
+        double requestScore = Math.Exp(-LambdaRequest * state.RequestCount);
 
         // accountScore: grows with Twitch account age
-        var accountAgeDays = (DateTime.UtcNow - state.AccountCreatedAt).TotalDays;
-        var accountScore = 1.0 - Math.Exp(-LambdaAccount * accountAgeDays);
+        double accountAgeDays = (DateTime.UtcNow - state.AccountCreatedAt).TotalDays;
+        double accountScore = 1.0 - Math.Exp(-LambdaAccount * accountAgeDays);
 
         // contentScore: stored directly (maintained by violations/boosts)
-        var contentScore = Math.Clamp(state.ContentScore, 0.0, 1.0);
+        double contentScore = Math.Clamp(state.ContentScore, 0.0, 1.0);
 
         // popularityScore: grows with follow age
-        var followAgeDays = state.FollowedAt.HasValue
+        double followAgeDays = state.FollowedAt.HasValue
             ? (DateTime.UtcNow - state.FollowedAt.Value).TotalDays
             : 0;
-        var popularityScore = 1.0 - Math.Exp(-LambdaPopularity * followAgeDays);
+        double popularityScore = 1.0 - Math.Exp(-LambdaPopularity * followAgeDays);
 
-        var baseScore = (requestScore + accountScore + contentScore + popularityScore) / 4.0;
+        double baseScore = (requestScore + accountScore + contentScore + popularityScore) / 4.0;
 
         // Apply followage penalty for new followers (< 7 days)
         if (followAgeDays < FollowagePenaltyThresholdDays)
@@ -155,17 +155,17 @@ public sealed class TrustService : ITrustService
         CancellationToken ct
     )
     {
-        var cacheKey = $"{broadcasterId}:{userId}";
+        string cacheKey = $"{broadcasterId}:{userId}";
 
         if (
-            _stateCache.TryGetValue(cacheKey, out var cached)
+            _stateCache.TryGetValue(cacheKey, out TrustState? cached)
             && DateTime.UtcNow - cached.CachedAt < TimeSpan.FromMinutes(10)
         )
         {
             return cached;
         }
 
-        var state =
+        TrustState state =
             await LoadFromDbAsync(broadcasterId, userId, ct)
             ?? await BuildInitialStateAsync(broadcasterId, userId, ct);
 
@@ -182,10 +182,10 @@ public sealed class TrustService : ITrustService
     {
         try
         {
-            using var scope = _scopeFactory.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-            var record = await db.Records.FirstOrDefaultAsync(
+            Record? record = await db.Records.FirstOrDefaultAsync(
                 r =>
                     r.BroadcasterId == broadcasterId
                     && r.UserId == userId
@@ -196,7 +196,7 @@ public sealed class TrustService : ITrustService
             if (record is null)
                 return null;
 
-            var state = JsonSerializer.Deserialize<TrustState>(record.Data);
+            TrustState? state = JsonSerializer.Deserialize<TrustState>(record.Data);
             if (state is not null)
                 state.RecordId = record.Id;
             return state;
@@ -225,10 +225,10 @@ public sealed class TrustService : ITrustService
 
         try
         {
-            using var scope = _scopeFactory.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-            var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+            User? user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
             if (user is not null)
                 accountCreated = user.CreatedAt;
         }
@@ -237,7 +237,7 @@ public sealed class TrustService : ITrustService
             // Non-critical — use default
         }
 
-        return new TrustState
+        return new()
         {
             AccountCreatedAt = accountCreated,
             FollowedAt = followedAt,
@@ -256,14 +256,14 @@ public sealed class TrustService : ITrustService
     {
         try
         {
-            using var scope = _scopeFactory.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-            var data = JsonSerializer.Serialize(state);
+            string data = JsonSerializer.Serialize(state);
 
             if (state.RecordId.HasValue)
             {
-                var record = await db.Records.FindAsync([state.RecordId.Value], ct);
+                Record? record = await db.Records.FindAsync([state.RecordId.Value], ct);
                 if (record is not null)
                 {
                     record.Data = data;
@@ -273,7 +273,7 @@ public sealed class TrustService : ITrustService
                 }
             }
 
-            var newRecord = new Record
+            Record newRecord = new()
             {
                 BroadcasterId = broadcasterId,
                 UserId = userId,
@@ -284,7 +284,7 @@ public sealed class TrustService : ITrustService
             await db.SaveChangesAsync(ct);
             state.RecordId = newRecord.Id;
 
-            var cacheKey = $"{broadcasterId}:{userId}";
+            string cacheKey = $"{broadcasterId}:{userId}";
             state.CachedAt = DateTime.UtcNow;
             _stateCache[cacheKey] = state;
         }

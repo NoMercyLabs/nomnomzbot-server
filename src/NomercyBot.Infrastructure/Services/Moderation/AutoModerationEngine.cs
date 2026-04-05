@@ -123,11 +123,11 @@ public sealed class AutoModerationEngine : IAutoModerationEngine
         AutoModSettings settings
     )
     {
-        var roles = new HashSet<string>(userRoles, StringComparer.OrdinalIgnoreCase);
+        HashSet<string> roles = new(userRoles, StringComparer.OrdinalIgnoreCase);
 
         // Exempt users bypass all checks
         if (settings.ExemptRoles.Count > 0 && settings.ExemptRoles.Overlaps(roles))
-            return new AutoModResult(false, AutoModAction.None, 0, string.Empty);
+            return new(false, AutoModAction.None, 0, string.Empty);
 
         // 1. Slow mode
         if (settings.SlowModeSeconds > 0)
@@ -148,7 +148,7 @@ public sealed class AutoModerationEngine : IAutoModerationEngine
                     userId,
                     broadcasterId
                 );
-                return new AutoModResult(true, settings.SlowModeAction, 0, "Slow mode active");
+                return new(true, settings.SlowModeAction, 0, "Slow mode active");
             }
         }
 
@@ -162,7 +162,7 @@ public sealed class AutoModerationEngine : IAutoModerationEngine
                     userId,
                     broadcasterId
                 );
-                return new AutoModResult(true, settings.LinkAction, 0, "Links are not permitted");
+                return new(true, settings.LinkAction, 0, "Links are not permitted");
             }
         }
 
@@ -183,7 +183,7 @@ public sealed class AutoModerationEngine : IAutoModerationEngine
                         userId,
                         broadcasterId
                     );
-                    return new AutoModResult(
+                    return new(
                         true,
                         settings.CapsAction,
                         settings.CapsDurationSeconds,
@@ -196,7 +196,7 @@ public sealed class AutoModerationEngine : IAutoModerationEngine
         // 4. Banned phrases
         if (settings.BannedPhrases.Count > 0)
         {
-            foreach (var phrase in settings.BannedPhrases)
+            foreach (string phrase in settings.BannedPhrases)
             {
                 bool match = settings.BannedPhrasesUseRegex
                     ? IsRegexMatch(message, phrase)
@@ -209,7 +209,7 @@ public sealed class AutoModerationEngine : IAutoModerationEngine
                         userId,
                         broadcasterId
                     );
-                    return new AutoModResult(
+                    return new(
                         true,
                         settings.BannedPhrasesAction,
                         settings.BannedPhrasesDurationSeconds,
@@ -219,7 +219,7 @@ public sealed class AutoModerationEngine : IAutoModerationEngine
             }
         }
 
-        return new AutoModResult(false, AutoModAction.None, 0, string.Empty);
+        return new(false, AutoModAction.None, 0, string.Empty);
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
@@ -231,15 +231,15 @@ public sealed class AutoModerationEngine : IAutoModerationEngine
 
         foreach (Match match in UrlPattern.Matches(message))
         {
-            var hostMatch = HostnamePattern.Match(match.Value);
+            Match hostMatch = HostnamePattern.Match(match.Value);
             if (!hostMatch.Success)
                 continue;
 
-            var hostname = hostMatch.Groups[1].Value.ToLowerInvariant();
+            string hostname = hostMatch.Groups[1].Value.ToLowerInvariant();
 
             // Strip common subdomains for matching
-            var parts = hostname.Split('.');
-            var domain = parts.Length >= 2 ? string.Join('.', parts[^2..]) : hostname;
+            string[] parts = hostname.Split('.');
+            string domain = parts.Length >= 2 ? string.Join('.', parts[^2..]) : hostname;
 
             if (!allowedDomains.Contains(hostname) && !allowedDomains.Contains(domain))
                 return false;

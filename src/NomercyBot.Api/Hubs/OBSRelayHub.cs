@@ -17,7 +17,7 @@ public class OBSRelayHub : Hub<IOBSRelayClient>
 
     public override async Task OnConnectedAsync()
     {
-        var userId = Context.UserIdentifier ?? Context.User?.FindFirst("sub")?.Value;
+        string? userId = Context.UserIdentifier ?? Context.User?.FindFirst("sub")?.Value;
         if (userId == null)
         {
             Context.Abort();
@@ -31,13 +31,13 @@ public class OBSRelayHub : Hub<IOBSRelayClient>
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        if (_connectionBroadcaster.TryRemove(Context.ConnectionId, out var broadcasterId))
+        if (_connectionBroadcaster.TryRemove(Context.ConnectionId, out string? broadcasterId))
         {
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"obs-{broadcasterId}");
             // Implicitly fire OBSDisconnected event
             await Clients
                 .Group($"obs-{broadcasterId}")
-                .OBSCommand(new OBSCommandDto("", "disconnected", null));
+                .OBSCommand(new("", "disconnected", null));
         }
         await base.OnDisconnectedAsync(exception);
     }

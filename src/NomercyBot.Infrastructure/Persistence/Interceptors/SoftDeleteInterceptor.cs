@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using NoMercyBot.Domain.Common;
 
@@ -39,9 +40,9 @@ public sealed class SoftDeleteInterceptor : SaveChangesInterceptor
 
     private static void ConvertDeleteToSoftDelete(DbContext context)
     {
-        var utcNow = DateTime.UtcNow;
+        DateTime utcNow = DateTime.UtcNow;
 
-        foreach (var entry in context.ChangeTracker.Entries<SoftDeletableEntity>())
+        foreach (EntityEntry<SoftDeletableEntity> entry in context.ChangeTracker.Entries<SoftDeletableEntity>())
         {
             if (entry.State != EntityState.Deleted)
             {

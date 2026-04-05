@@ -37,10 +37,10 @@ public sealed class RewardLifecycleHandler
         if (string.IsNullOrEmpty(@event.BroadcasterId))
             return;
 
-        using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-        var existing = await db.Rewards.FirstOrDefaultAsync(
+        Reward? existing = await db.Rewards.FirstOrDefaultAsync(
             r =>
                 r.BroadcasterId == @event.BroadcasterId
                 && r.TwitchRewardId == @event.TwitchRewardId,
@@ -51,7 +51,7 @@ public sealed class RewardLifecycleHandler
             return; // already tracked
 
         db.Rewards.Add(
-            new Reward
+            new()
             {
                 Id = Guid.NewGuid(),
                 BroadcasterId = @event.BroadcasterId,
@@ -77,10 +77,10 @@ public sealed class RewardLifecycleHandler
         if (string.IsNullOrEmpty(@event.BroadcasterId))
             return;
 
-        using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-        var reward = await db.Rewards.FirstOrDefaultAsync(
+        Reward? reward = await db.Rewards.FirstOrDefaultAsync(
             r =>
                 r.BroadcasterId == @event.BroadcasterId
                 && r.TwitchRewardId == @event.TwitchRewardId,
@@ -101,10 +101,10 @@ public sealed class RewardLifecycleHandler
         if (string.IsNullOrEmpty(@event.BroadcasterId))
             return;
 
-        using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-        var reward = await db.Rewards.FirstOrDefaultAsync(
+        Reward? reward = await db.Rewards.FirstOrDefaultAsync(
             r =>
                 r.BroadcasterId == @event.BroadcasterId
                 && r.TwitchRewardId == @event.TwitchRewardId,

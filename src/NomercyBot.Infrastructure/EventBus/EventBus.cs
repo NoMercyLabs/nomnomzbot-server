@@ -33,15 +33,15 @@ public sealed class EventBus : IEventBus
     )
         where TEvent : class, IDomainEvent
     {
-        var eventType = typeof(TEvent).Name;
+        string eventType = typeof(TEvent).Name;
         _logger.LogDebug("Publishing event {EventType} ({EventId})", eventType, @event.EventId);
 
         _eventLogger.Log(@event);
 
         // Scope lives for the full duration of handler execution so that scoped
         // services (DbContext, IPipelineEngine, IChatProvider, …) remain valid.
-        await using var scope = _serviceProvider.CreateAsyncScope();
-        var handlers = scope.ServiceProvider.GetServices<IEventHandler<TEvent>>().ToList();
+        await using AsyncServiceScope scope = _serviceProvider.CreateAsyncScope();
+        List<IEventHandler<TEvent>> handlers = scope.ServiceProvider.GetServices<IEventHandler<TEvent>>().ToList();
 
         if (handlers.Count == 0)
         {
@@ -50,14 +50,14 @@ public sealed class EventBus : IEventBus
         }
 
         // Execute all handlers in parallel with failure isolation
-        var tasks = handlers.Select(handler => ExecuteHandler(handler, @event, cancellationToken));
+        IEnumerable<Task> tasks = handlers.Select(handler => ExecuteHandler(handler, @event, cancellationToken));
         await Task.WhenAll(tasks);
     }
 
     public void PublishFireAndForget<TEvent>(TEvent @event)
         where TEvent : class, IDomainEvent
     {
-        var eventType = typeof(TEvent).Name;
+        string eventType = typeof(TEvent).Name;
         _logger.LogDebug(
             "Publishing fire-and-forget event {EventType} ({EventId})",
             eventType,
@@ -70,13 +70,13 @@ public sealed class EventBus : IEventBus
         // completely detached from the caller's context
         _ = Task.Run(async () =>
         {
-            await using var scope = _serviceProvider.CreateAsyncScope();
-            var handlers = scope.ServiceProvider.GetServices<IEventHandler<TEvent>>().ToList();
+            await using AsyncServiceScope scope = _serviceProvider.CreateAsyncScope();
+            List<IEventHandler<TEvent>> handlers = scope.ServiceProvider.GetServices<IEventHandler<TEvent>>().ToList();
 
             if (handlers.Count == 0)
                 return;
 
-            var tasks = handlers.Select(handler =>
+            IEnumerable<Task> tasks = handlers.Select(handler =>
                 ExecuteHandler(handler, @event, CancellationToken.None)
             );
             await Task.WhenAll(tasks);
@@ -90,7 +90,7 @@ public sealed class EventBus : IEventBus
     )
         where TEvent : class, IDomainEvent
     {
-        var handlerName = handler.GetType().Name;
+        string handlerName = handler.GetType().Name;
         try
         {
             _logger.LogTrace(

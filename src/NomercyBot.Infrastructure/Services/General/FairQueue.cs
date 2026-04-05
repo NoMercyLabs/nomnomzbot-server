@@ -45,12 +45,12 @@ public sealed class FairQueue<T> : IFairQueue<T>
     {
         lock (_lock)
         {
-            var ownerUsage = _usageCounts.GetValueOrDefault(ownerKey, 0);
+            int ownerUsage = _usageCounts.GetValueOrDefault(ownerKey, 0);
 
             // Find the insertion point: after the last node whose owner usage <= this owner's usage
             // This places the new item after users who have requested the same amount or less,
             // but before users who have requested more.
-            var insertAfter = FindInsertionPoint(ownerUsage);
+            LinkedListNode<(string OwnerKey, T Item)>? insertAfter = FindInsertionPoint(ownerUsage);
 
             if (insertAfter is null)
                 _items.AddFirst((ownerKey, item));
@@ -66,8 +66,8 @@ public sealed class FairQueue<T> : IFairQueue<T>
             if (_items.Count == 0)
                 return default;
 
-            var node = _items.First!;
-            var (ownerKey, item) = node.Value;
+            LinkedListNode<(string OwnerKey, T Item)>? node = _items.First!;
+            (string ownerKey, T item) = node.Value;
             _items.RemoveFirst();
 
             _usageCounts[ownerKey] = _usageCounts.GetValueOrDefault(ownerKey, 0) + 1;
@@ -99,11 +99,11 @@ public sealed class FairQueue<T> : IFairQueue<T>
     {
         lock (_lock)
         {
-            var removed = 0;
-            var node = _items.First;
+            int removed = 0;
+            LinkedListNode<(string OwnerKey, T Item)>? node = _items.First;
             while (node is not null)
             {
-                var next = node.Next;
+                LinkedListNode<(string OwnerKey, T Item)>? next = node.Next;
                 if (
                     string.Equals(node.Value.OwnerKey, ownerKey, StringComparison.OrdinalIgnoreCase)
                 )
@@ -124,7 +124,7 @@ public sealed class FairQueue<T> : IFairQueue<T>
             if (position < 0 || position >= _items.Count)
                 return false;
 
-            var node = _items.First;
+            LinkedListNode<(string OwnerKey, T Item)>? node = _items.First;
             for (int i = 0; i < position; i++)
                 node = node!.Next;
 
@@ -137,9 +137,9 @@ public sealed class FairQueue<T> : IFairQueue<T>
     {
         lock (_lock)
         {
-            var result = new List<(T Item, int Rank, string OwnerKey)>();
+            List<(T Item, int Rank, string OwnerKey)> result = new();
             int rank = 1;
-            foreach (var (ownerKey, item) in _items)
+            foreach ((string ownerKey, T item) in _items)
                 result.Add((item, rank++, ownerKey));
             return result;
         }
@@ -154,11 +154,11 @@ public sealed class FairQueue<T> : IFairQueue<T>
     private LinkedListNode<(string OwnerKey, T Item)>? FindInsertionPoint(int ownerUsage)
     {
         LinkedListNode<(string OwnerKey, T Item)>? lastEligible = null;
-        var node = _items.First;
+        LinkedListNode<(string OwnerKey, T Item)>? node = _items.First;
 
         while (node is not null)
         {
-            var nodeOwnerUsage = _usageCounts.GetValueOrDefault(node.Value.OwnerKey, 0);
+            int nodeOwnerUsage = _usageCounts.GetValueOrDefault(node.Value.OwnerKey, 0);
             if (nodeOwnerUsage <= ownerUsage)
                 lastEligible = node;
             node = node.Next;

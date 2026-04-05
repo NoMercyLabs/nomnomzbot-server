@@ -49,36 +49,36 @@ public sealed class AzureTtsProvider : ITtsProvider
             return EmptyResult(voiceId);
         }
 
-        var ssml = $"""
-            <speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'>
-              <voice name='{voiceId}'>{System.Security.SecurityElement.Escape(text)}</voice>
-            </speak>
-            """;
+        string ssml = $"""
+                       <speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'>
+                         <voice name='{voiceId}'>{System.Security.SecurityElement.Escape(text)}</voice>
+                       </speak>
+                       """;
 
-        var url = $"https://{_region}.tts.speech.microsoft.com/cognitiveservices/v1";
+        string url = $"https://{_region}.tts.speech.microsoft.com/cognitiveservices/v1";
 
-        var request = new HttpRequestMessage(HttpMethod.Post, url);
+        HttpRequestMessage request = new(HttpMethod.Post, url);
         request.Headers.Add("Ocp-Apim-Subscription-Key", _apiKey);
         request.Headers.Add("X-Microsoft-OutputFormat", "audio-24khz-48kbitrate-mono-mp3");
         request.Content = new StringContent(ssml, Encoding.UTF8, "application/ssml+xml");
 
         try
         {
-            var response = await _http.SendAsync(request, cancellationToken);
+            HttpResponseMessage response = await _http.SendAsync(request, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogWarning("Azure TTS: Request failed {Status}", response.StatusCode);
                 return EmptyResult(voiceId);
             }
 
-            var audioData = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+            byte[] audioData = await response.Content.ReadAsByteArrayAsync(cancellationToken);
             int durationMs = (int)(audioData.Length / 16.0 * 1000.0 / 1024.0); // estimate
 
-            var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text + voiceId)))[
+            string hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text + voiceId)))[
                 ..16
             ];
 
-            return new TtsSynthesisResult
+            return new()
             {
                 AudioData = audioData,
                 DurationMs = durationMs,
@@ -101,17 +101,17 @@ public sealed class AzureTtsProvider : ITtsProvider
         if (string.IsNullOrEmpty(_apiKey))
             return [];
 
-        var url = $"https://{_region}.tts.speech.microsoft.com/cognitiveservices/voices/list";
-        var request = new HttpRequestMessage(HttpMethod.Get, url);
+        string url = $"https://{_region}.tts.speech.microsoft.com/cognitiveservices/voices/list";
+        HttpRequestMessage request = new(HttpMethod.Get, url);
         request.Headers.Add("Ocp-Apim-Subscription-Key", _apiKey);
 
         try
         {
-            var response = await _http.SendAsync(request, cancellationToken);
+            HttpResponseMessage response = await _http.SendAsync(request, cancellationToken);
             if (!response.IsSuccessStatusCode)
                 return [];
 
-            var voices = await response.Content.ReadFromJsonAsync<List<AzureVoice>>(
+            List<AzureVoice>? voices = await response.Content.ReadFromJsonAsync<List<AzureVoice>>(
                 cancellationToken: cancellationToken
             );
             if (voices is null)

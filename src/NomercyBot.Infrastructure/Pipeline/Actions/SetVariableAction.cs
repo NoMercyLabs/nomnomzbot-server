@@ -7,8 +7,8 @@ public sealed class SetVariableAction : ICommandAction
 
     public Task<ActionResult> ExecuteAsync(PipelineExecutionContext ctx, ActionDefinition action)
     {
-        var name = action.GetString("name");
-        var value = action.GetString("value") ?? string.Empty;
+        string? name = action.GetString("name");
+        string value = action.GetString("value") ?? string.Empty;
 
         if (string.IsNullOrEmpty(name))
             return Task.FromResult(ActionResult.Failure("set_variable requires 'name'"));

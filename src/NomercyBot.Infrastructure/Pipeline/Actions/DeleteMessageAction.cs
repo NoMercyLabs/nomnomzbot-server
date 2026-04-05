@@ -16,7 +16,7 @@ public sealed class DeleteMessageAction : ICommandAction
         ActionDefinition action
     )
     {
-        var messageId = action.GetString("message_id") ?? ctx.MessageId;
+        string messageId = action.GetString("message_id") ?? ctx.MessageId;
         if (string.IsNullOrEmpty(messageId))
             return ActionResult.Failure("delete_message: message_id not resolved");
 

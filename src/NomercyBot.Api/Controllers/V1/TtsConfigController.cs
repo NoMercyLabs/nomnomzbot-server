@@ -5,6 +5,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NoMercyBot.Api.Models;
+using NoMercyBot.Application.Common.Models;
 using NoMercyBot.Application.DTOs.Tts;
 using NoMercyBot.Application.Services;
 
@@ -27,7 +28,7 @@ public class TtsConfigController : BaseController
     [ProducesResponseType<StatusResponseDto<TtsConfigDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetConfig(string channelId, CancellationToken ct)
     {
-        var result = await _ttsConfigService.GetConfigAsync(channelId, ct);
+        Result<TtsConfigDto> result = await _ttsConfigService.GetConfigAsync(channelId, ct);
         return ResultResponse(result);
     }
 
@@ -39,7 +40,7 @@ public class TtsConfigController : BaseController
         CancellationToken ct
     )
     {
-        var result = await _ttsConfigService.UpdateConfigAsync(channelId, request, ct);
+        Result<TtsConfigDto> result = await _ttsConfigService.UpdateConfigAsync(channelId, request, ct);
         if (result.IsFailure)
             return ResultResponse(result);
         return Ok(new StatusResponseDto<TtsConfigDto> { Data = result.Value });
@@ -49,7 +50,7 @@ public class TtsConfigController : BaseController
     [ProducesResponseType<StatusResponseDto<IReadOnlyList<TtsVoiceDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetVoices(string channelId, CancellationToken ct)
     {
-        var result = await _ttsConfigService.GetVoicesAsync(ct);
+        Result<IReadOnlyList<TtsVoiceDto>> result = await _ttsConfigService.GetVoicesAsync(ct);
         return ResultResponse(result);
     }
 
@@ -61,7 +62,7 @@ public class TtsConfigController : BaseController
         CancellationToken ct
     )
     {
-        var result = await _ttsConfigService.TestVoiceAsync(channelId, request, ct);
+        Result<TtsTestResultDto> result = await _ttsConfigService.TestVoiceAsync(channelId, request, ct);
         if (result.IsFailure)
             return ResultResponse(result);
         return Ok(new StatusResponseDto<TtsTestResultDto> { Data = result.Value });

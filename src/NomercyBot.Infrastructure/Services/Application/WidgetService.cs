@@ -25,7 +25,7 @@ public class WidgetService : IWidgetService
         CancellationToken cancellationToken = default
     )
     {
-        var channelExists = await _db.Channels.AnyAsync(
+        bool channelExists = await _db.Channels.AnyAsync(
             c => c.Id == broadcasterId,
             cancellationToken
         );
@@ -33,7 +33,7 @@ public class WidgetService : IWidgetService
         if (!channelExists)
             return Errors.ChannelNotFound<WidgetDetail>(broadcasterId);
 
-        var widget = new Widget
+        Widget widget = new()
         {
             Id = Guid.NewGuid().ToString(),
             BroadcasterId = broadcasterId,
@@ -59,7 +59,7 @@ public class WidgetService : IWidgetService
         CancellationToken cancellationToken = default
     )
     {
-        var widget = await _db.Widgets.FirstOrDefaultAsync(
+        Widget? widget = await _db.Widgets.FirstOrDefaultAsync(
             w => w.Id == widgetId && w.BroadcasterId == broadcasterId,
             cancellationToken
         );
@@ -87,7 +87,7 @@ public class WidgetService : IWidgetService
         CancellationToken cancellationToken = default
     )
     {
-        var widget = await _db.Widgets.FirstOrDefaultAsync(
+        Widget? widget = await _db.Widgets.FirstOrDefaultAsync(
             w => w.Id == widgetId && w.BroadcasterId == broadcasterId,
             cancellationToken
         );
@@ -107,10 +107,10 @@ public class WidgetService : IWidgetService
         CancellationToken cancellationToken = default
     )
     {
-        var query = _db.Widgets.Where(w => w.BroadcasterId == broadcasterId);
-        var total = await query.CountAsync(cancellationToken);
+        IQueryable<Widget> query = _db.Widgets.Where(w => w.BroadcasterId == broadcasterId);
+        int total = await query.CountAsync(cancellationToken);
 
-        var items = await query
+        List<WidgetListItem> items = await query
             .OrderBy(w => w.Name)
             .Skip((pagination.Page - 1) * pagination.PageSize)
             .Take(pagination.PageSize)
@@ -128,7 +128,7 @@ public class WidgetService : IWidgetService
         CancellationToken cancellationToken = default
     )
     {
-        var widget = await _db.Widgets.FirstOrDefaultAsync(
+        Widget? widget = await _db.Widgets.FirstOrDefaultAsync(
             w => w.Id == widgetId && w.BroadcasterId == broadcasterId,
             cancellationToken
         );
@@ -145,7 +145,7 @@ public class WidgetService : IWidgetService
     )
     {
         // Widgets are accessed via channel overlay token; look up the channel first
-        var channel = await _db.Channels.FirstOrDefaultAsync(
+        Channel? channel = await _db.Channels.FirstOrDefaultAsync(
             c => c.OverlayToken == token,
             cancellationToken
         );
@@ -157,7 +157,7 @@ public class WidgetService : IWidgetService
             );
 
         // Return the first enabled widget for that channel as a representative
-        var widget = await _db
+        Widget? widget = await _db
             .Widgets.Where(w => w.BroadcasterId == channel.Id && w.IsEnabled)
             .OrderBy(w => w.Name)
             .FirstOrDefaultAsync(cancellationToken);

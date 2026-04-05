@@ -23,7 +23,7 @@ public class CreateCommandHandler
         CancellationToken ct = default
     )
     {
-        var exists = await _db.Commands.AnyAsync(
+        bool exists = await _db.Commands.AnyAsync(
             c => c.BroadcasterId == channelId && c.Name == request.Name,
             ct
         );
@@ -31,7 +31,7 @@ public class CreateCommandHandler
         if (exists)
             return Errors.AlreadyExists("command", request.Name).ToTyped<int>();
 
-        var command = new Command
+        Command command = new()
         {
             BroadcasterId = channelId,
             Name = request.Name.ToLowerInvariant(),

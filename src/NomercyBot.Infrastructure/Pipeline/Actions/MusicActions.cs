@@ -40,11 +40,11 @@ public sealed class SongRequestAction : ICommandAction
         ActionDefinition action
     )
     {
-        var query = ResolveParam(action.GetString("query") ?? string.Empty, ctx.Variables);
+        string query = ResolveParam(action.GetString("query") ?? string.Empty, ctx.Variables);
         if (string.IsNullOrWhiteSpace(query))
             return ActionResult.Failure("song_request requires a non-empty 'query'");
 
-        var results = await _music.SearchAsync(ctx.BroadcasterId, query, 1, ctx.CancellationToken);
+        IReadOnlyList<MusicTrack> results = await _music.SearchAsync(ctx.BroadcasterId, query, 1, ctx.CancellationToken);
         if (results.Count == 0)
         {
             await _chat.SendMessageAsync(
@@ -55,8 +55,8 @@ public sealed class SongRequestAction : ICommandAction
             return ActionResult.Failure($"no tracks found for query: {query}");
         }
 
-        var track = results[0];
-        var added = await _music.AddToQueueAsync(
+        MusicTrack track = results[0];
+        bool added = await _music.AddToQueueAsync(
             ctx.BroadcasterId,
             track.Uri,
             ctx.TriggeredByDisplayName,
@@ -108,7 +108,7 @@ public sealed class SongSkipAction : ICommandAction
         ActionDefinition action
     )
     {
-        var skipped = await _music.SkipAsync(ctx.BroadcasterId, ctx.CancellationToken);
+        bool skipped = await _music.SkipAsync(ctx.BroadcasterId, ctx.CancellationToken);
         if (!skipped)
             return ActionResult.Failure("skip failed");
 
@@ -151,7 +151,7 @@ public sealed class SongCurrentAction : ICommandAction
         ActionDefinition action
     )
     {
-        var now = await _music.GetNowPlayingAsync(ctx.BroadcasterId, ctx.CancellationToken);
+        NowPlaying? now = await _music.GetNowPlayingAsync(ctx.BroadcasterId, ctx.CancellationToken);
         if (now is null || string.IsNullOrWhiteSpace(now.TrackName))
         {
             await _chat.SendMessageAsync(
@@ -162,7 +162,7 @@ public sealed class SongCurrentAction : ICommandAction
             return ActionResult.Success("nothing playing");
         }
 
-        var msg = $"Now playing: {now.TrackName} by {now.Artist}";
+        string msg = $"Now playing: {now.TrackName} by {now.Artist}";
         if (now.RequestedBy is not null)
             msg += $" (requested by {now.RequestedBy})";
 
@@ -200,8 +200,8 @@ public sealed class SongQueueAction : ICommandAction
         ActionDefinition action
     )
     {
-        var max = action.GetInt("max", 5);
-        var queue = await _music.GetQueueAsync(ctx.BroadcasterId, ctx.CancellationToken);
+        int max = action.GetInt("max", 5);
+        MusicQueue queue = await _music.GetQueueAsync(ctx.BroadcasterId, ctx.CancellationToken);
 
         if (queue.Queue.Count == 0)
         {
@@ -213,7 +213,7 @@ public sealed class SongQueueAction : ICommandAction
             return ActionResult.Success("queue empty");
         }
 
-        var entries = queue
+        IEnumerable<string> entries = queue
             .Queue.Take(max)
             .Select(
                 (t, i) =>
@@ -264,12 +264,12 @@ public sealed class SongVolumeAction : ICommandAction
         ActionDefinition action
     )
     {
-        var volumeStr = action.GetString("volume");
+        string? volumeStr = action.GetString("volume");
         int volume;
 
         if (volumeStr is not null && volumeStr.StartsWith('{') && volumeStr.EndsWith('}'))
         {
-            ctx.Variables.TryGetValue(volumeStr[1..^1], out var resolved);
+            ctx.Variables.TryGetValue(volumeStr[1..^1], out string? resolved);
             if (!int.TryParse(resolved, out volume))
                 return ActionResult.Failure("song_volume: 'volume' could not be parsed as integer");
         }
@@ -281,7 +281,7 @@ public sealed class SongVolumeAction : ICommandAction
         if (volume is < 0 or > 100)
             return ActionResult.Failure("song_volume: 'volume' must be between 0 and 100");
 
-        var set = await _music.SetVolumeAsync(ctx.BroadcasterId, volume, ctx.CancellationToken);
+        bool set = await _music.SetVolumeAsync(ctx.BroadcasterId, volume, ctx.CancellationToken);
         if (!set)
             return ActionResult.Failure("song_volume: failed to set volume");
 

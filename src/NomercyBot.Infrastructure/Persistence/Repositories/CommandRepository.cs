@@ -15,7 +15,7 @@ public class CommandRepository : GenericRepository<Command>
         CancellationToken ct = default
     )
     {
-        var q = Set.Where(c => c.BroadcasterId == broadcasterId);
+        IQueryable<Command> q = Set.Where(c => c.BroadcasterId == broadcasterId);
         if (enabled.HasValue)
             q = q.Where(c => c.IsEnabled == enabled.Value);
         return q.OrderBy(c => c.Name).ToListAsync(ct);
@@ -46,7 +46,7 @@ public class CommandRepository : GenericRepository<Command>
         CancellationToken ct = default
     )
     {
-        var q = Set.Where(c => c.BroadcasterId == broadcasterId);
+        IQueryable<Command> q = Set.Where(c => c.BroadcasterId == broadcasterId);
         if (!string.IsNullOrWhiteSpace(search))
             q = q.Where(c => c.Name.Contains(search));
         return q.CountAsync(ct);
@@ -60,7 +60,7 @@ public class CommandRepository : GenericRepository<Command>
         CancellationToken ct = default
     )
     {
-        var q = Set.Where(c => c.BroadcasterId == broadcasterId);
+        IQueryable<Command> q = Set.Where(c => c.BroadcasterId == broadcasterId);
         if (!string.IsNullOrWhiteSpace(search))
             q = q.Where(c => c.Name.Contains(search));
         return q.OrderBy(c => c.Name).Skip((page - 1) * take).Take(take).ToListAsync(ct);

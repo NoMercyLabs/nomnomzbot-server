@@ -32,13 +32,13 @@ public class WidgetsController : BaseController
         CancellationToken ct
     )
     {
-        var pagination = new PaginationParams(
+        PaginationParams pagination = new(
             request.Page,
             request.Take,
             request.Sort,
             request.Order
         );
-        var result = await _widgetService.ListAsync(channelId, pagination, ct);
+        Result<PagedList<WidgetListItem>> result = await _widgetService.ListAsync(channelId, pagination, ct);
         if (result.IsFailure)
             return ResultResponse(result);
         return GetPaginatedResponse(result.Value, request);
@@ -52,7 +52,7 @@ public class WidgetsController : BaseController
         CancellationToken ct
     )
     {
-        var result = await _widgetService.GetAsync(channelId, widgetId, ct);
+        Result<WidgetDetail> result = await _widgetService.GetAsync(channelId, widgetId, ct);
         return ResultResponse(result);
     }
 
@@ -64,7 +64,7 @@ public class WidgetsController : BaseController
         CancellationToken ct
     )
     {
-        var result = await _widgetService.CreateAsync(channelId, request, ct);
+        Result<WidgetDetail> result = await _widgetService.CreateAsync(channelId, request, ct);
         if (result.IsFailure)
             return ResultResponse(result);
 
@@ -88,7 +88,7 @@ public class WidgetsController : BaseController
         CancellationToken ct
     )
     {
-        var result = await _widgetService.UpdateAsync(channelId, widgetId, request, ct);
+        Result<WidgetDetail> result = await _widgetService.UpdateAsync(channelId, widgetId, request, ct);
         if (result.IsFailure)
             return ResultResponse(result);
         return Ok(new StatusResponseDto<WidgetDetail> { Data = result.Value });
@@ -102,7 +102,7 @@ public class WidgetsController : BaseController
         CancellationToken ct
     )
     {
-        var result = await _widgetService.DeleteAsync(channelId, widgetId, ct);
+        Result result = await _widgetService.DeleteAsync(channelId, widgetId, ct);
         if (result.IsFailure)
             return ResultResponse(result);
         return NoContent();

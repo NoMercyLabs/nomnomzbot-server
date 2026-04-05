@@ -45,28 +45,28 @@ public sealed class ShoutoutAction : ICommandAction
         ActionDefinition action
     )
     {
-        var rawUserId = action.GetString("user_id") ?? string.Empty;
+        string? rawUserId = action.GetString("user_id") ?? string.Empty;
 
         // Resolve {variable} references inside the user_id param
         if (rawUserId.StartsWith('{') && rawUserId.EndsWith('}'))
         {
-            var key = rawUserId[1..^1];
+            string key = rawUserId[1..^1];
             ctx.Variables.TryGetValue(key, out rawUserId!);
         }
 
         if (string.IsNullOrWhiteSpace(rawUserId))
             return ActionResult.Failure("shoutout action requires a non-empty 'user_id'");
 
-        var perUserMinutes = action.GetInt("cooldown_minutes", 60);
-        var globalMinutes = action.GetInt("global_cooldown_minutes", 2);
-        var perUserCooldown = TimeSpan.FromMinutes(perUserMinutes);
-        var globalCooldown = TimeSpan.FromMinutes(globalMinutes > 0 ? globalMinutes : 2);
+        int perUserMinutes = action.GetInt("cooldown_minutes", 60);
+        int globalMinutes = action.GetInt("global_cooldown_minutes", 2);
+        TimeSpan perUserCooldown = TimeSpan.FromMinutes(perUserMinutes);
+        TimeSpan globalCooldown = TimeSpan.FromMinutes(globalMinutes > 0 ? globalMinutes : 2);
 
         // Check cooldowns via ChannelContext
-        var channelCtx = _registry.Get(ctx.BroadcasterId);
+        ChannelContext? channelCtx = _registry.Get(ctx.BroadcasterId);
         if (channelCtx is not null)
         {
-            var now = DateTimeOffset.UtcNow;
+            DateTimeOffset now = DateTimeOffset.UtcNow;
 
             // Global cooldown
             if (
@@ -83,7 +83,7 @@ public sealed class ShoutoutAction : ICommandAction
 
             // Per-user cooldown
             if (
-                channelCtx.LastShoutoutPerUser.TryGetValue(rawUserId, out var lastSo)
+                channelCtx.LastShoutoutPerUser.TryGetValue(rawUserId, out DateTimeOffset lastSo)
                 && now - lastSo < perUserCooldown
             )
             {
@@ -95,7 +95,7 @@ public sealed class ShoutoutAction : ICommandAction
             }
         }
 
-        var success = await _twitchApi.ShoutoutAsync(
+        bool success = await _twitchApi.ShoutoutAsync(
             ctx.BroadcasterId,
             rawUserId,
             ctx.BroadcasterId,
@@ -104,7 +104,7 @@ public sealed class ShoutoutAction : ICommandAction
 
         if (success && channelCtx is not null)
         {
-            var now = DateTimeOffset.UtcNow;
+            DateTimeOffset now = DateTimeOffset.UtcNow;
             channelCtx.LastGlobalShoutout = now;
             channelCtx.LastShoutoutPerUser[rawUserId] = now;
         }

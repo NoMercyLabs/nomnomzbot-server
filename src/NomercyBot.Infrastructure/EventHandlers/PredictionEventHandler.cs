@@ -89,8 +89,8 @@ public sealed class PredictionEndedHandler
 
     protected override Dictionary<string, string> BuildVariables(PredictionEndedEvent e)
     {
-        var winner = e.Outcomes.FirstOrDefault(o => o.Id == e.WinningOutcomeId);
-        return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        PredictionOutcome? winner = e.Outcomes.FirstOrDefault(o => o.Id == e.WinningOutcomeId);
+        return new(StringComparer.OrdinalIgnoreCase)
         {
             ["prediction.id"] = e.PredictionId,
             ["prediction.title"] = e.Title,

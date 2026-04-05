@@ -24,7 +24,7 @@ public class ChannelService : IChannelService
         CancellationToken cancellationToken = default
     )
     {
-        var channel = await _db.Channels.FirstOrDefaultAsync(
+        Channel? channel = await _db.Channels.FirstOrDefaultAsync(
             c => c.Id == broadcasterId,
             cancellationToken
         );
@@ -44,7 +44,7 @@ public class ChannelService : IChannelService
         CancellationToken cancellationToken = default
     )
     {
-        var channel = await _db.Channels.FirstOrDefaultAsync(
+        Channel? channel = await _db.Channels.FirstOrDefaultAsync(
             c => c.Id == broadcasterId,
             cancellationToken
         );
@@ -63,7 +63,7 @@ public class ChannelService : IChannelService
         CancellationToken cancellationToken = default
     )
     {
-        var channel = await _db
+        Channel? channel = await _db
             .Channels.Include(c => c.User)
             .FirstOrDefaultAsync(c => c.Id == broadcasterId, cancellationToken);
 
@@ -77,7 +77,7 @@ public class ChannelService : IChannelService
         CancellationToken cancellationToken = default
     )
     {
-        var channels = await _db
+        List<ChannelSummaryDto> channels = await _db
             .Channels.Include(c => c.User)
             .Where(c => c.Enabled && c.IsOnboarded)
             .OrderBy(c => c.Name)
@@ -102,13 +102,13 @@ public class ChannelService : IChannelService
     )
     {
         // Return channels where the user is the broadcaster or a moderator
-        var query = _db
+        IQueryable<Channel> query = _db
             .Channels.Include(c => c.User)
             .Where(c => c.Id == userId || c.Moderators.Any(m => m.UserId == userId));
 
-        var total = await query.CountAsync(cancellationToken);
+        int total = await query.CountAsync(cancellationToken);
 
-        var items = await query
+        List<ChannelSummaryDto> items = await query
             .OrderBy(c => c.Name)
             .Skip((pagination.Page - 1) * pagination.PageSize)
             .Take(pagination.PageSize)
@@ -134,7 +134,7 @@ public class ChannelService : IChannelService
         CancellationToken cancellationToken = default
     )
     {
-        var channel = await _db
+        Channel? channel = await _db
             .Channels.Include(c => c.User)
             .FirstOrDefaultAsync(c => c.Id == broadcasterId, cancellationToken);
 
@@ -158,7 +158,7 @@ public class ChannelService : IChannelService
         CancellationToken cancellationToken = default
     )
     {
-        var existing = await _db
+        Channel? existing = await _db
             .Channels.Include(c => c.User)
             .FirstOrDefaultAsync(c => c.Id == broadcasterId, cancellationToken);
 
@@ -171,7 +171,7 @@ public class ChannelService : IChannelService
         }
 
         // Check if user exists
-        var user = await _db.Users.FirstOrDefaultAsync(
+        User? user = await _db.Users.FirstOrDefaultAsync(
             u => u.Id == broadcasterId,
             cancellationToken
         );
@@ -181,7 +181,7 @@ public class ChannelService : IChannelService
                 "NOT_FOUND"
             );
 
-        var channel = new Channel
+        Channel channel = new()
         {
             Id = broadcasterId,
             Name = user.Username,
@@ -202,7 +202,7 @@ public class ChannelService : IChannelService
         CancellationToken cancellationToken = default
     )
     {
-        var channel = await _db.Channels.FirstOrDefaultAsync(
+        Channel? channel = await _db.Channels.FirstOrDefaultAsync(
             c => c.Id == broadcasterId,
             cancellationToken
         );

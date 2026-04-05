@@ -32,13 +32,13 @@ public class CommandsController : BaseController
         CancellationToken ct
     )
     {
-        var pagination = new PaginationParams(
+        PaginationParams pagination = new(
             request.Page,
             request.Take,
             request.Sort,
             request.Order
         );
-        var result = await _commandService.ListAsync(channelId, pagination, ct);
+        Result<PagedList<CommandListItem>> result = await _commandService.ListAsync(channelId, pagination, ct);
         if (result.IsFailure)
             return ResultResponse(result);
         return GetPaginatedResponse(result.Value, request);
@@ -52,7 +52,7 @@ public class CommandsController : BaseController
         CancellationToken ct
     )
     {
-        var result = await _commandService.GetAsync(channelId, commandName, ct);
+        Result<CommandDto> result = await _commandService.GetAsync(channelId, commandName, ct);
         return ResultResponse(result);
     }
 
@@ -64,7 +64,7 @@ public class CommandsController : BaseController
         CancellationToken ct
     )
     {
-        var result = await _commandService.CreateAsync(channelId, request, ct);
+        Result<CommandDto> result = await _commandService.CreateAsync(channelId, request, ct);
         if (result.IsFailure)
             return ResultResponse(result);
 
@@ -88,7 +88,7 @@ public class CommandsController : BaseController
         CancellationToken ct
     )
     {
-        var result = await _commandService.UpdateAsync(channelId, commandName, request, ct);
+        Result<CommandDto> result = await _commandService.UpdateAsync(channelId, commandName, request, ct);
         if (result.IsFailure)
             return ResultResponse(result);
         return Ok(new StatusResponseDto<CommandDto> { Data = result.Value });
@@ -102,7 +102,7 @@ public class CommandsController : BaseController
         CancellationToken ct
     )
     {
-        var result = await _commandService.DeleteAsync(channelId, commandName, ct);
+        Result result = await _commandService.DeleteAsync(channelId, commandName, ct);
         if (result.IsFailure)
             return ResultResponse(result);
         return NoContent();

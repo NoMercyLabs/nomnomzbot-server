@@ -19,7 +19,7 @@ public sealed class JwtTokenService : IJwtTokenService
 
     public JwtTokenService(IConfiguration configuration)
     {
-        var jwtSection = configuration.GetSection("Jwt");
+        IConfigurationSection jwtSection = configuration.GetSection("Jwt");
         _issuer = jwtSection["Issuer"] ?? "NomercyBot";
         _audience = jwtSection["Audience"] ?? "NomercyBot";
         _key = Encoding.UTF8.GetBytes(
@@ -30,7 +30,7 @@ public sealed class JwtTokenService : IJwtTokenService
 
     public string GenerateToken(string userId, string username, IEnumerable<string>? roles = null)
     {
-        var claims = new List<Claim>
+        List<Claim> claims = new()
         {
             new(ClaimTypes.NameIdentifier, userId),
             new(ClaimTypes.Name, username),
@@ -44,16 +44,16 @@ public sealed class JwtTokenService : IJwtTokenService
 
         if (roles is not null)
         {
-            foreach (var role in roles)
+            foreach (string role in roles)
             {
-                claims.Add(new Claim(ClaimTypes.Role, role));
+                claims.Add(new(ClaimTypes.Role, role));
             }
         }
 
-        var securityKey = new SymmetricSecurityKey(_key);
-        var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
+        SymmetricSecurityKey securityKey = new(_key);
+        SigningCredentials credentials = new(securityKey, SecurityAlgorithms.HmacSha256);
 
-        var token = new JwtSecurityToken(
+        JwtSecurityToken token = new(
             issuer: _issuer,
             audience: _audience,
             claims: claims,
@@ -66,8 +66,8 @@ public sealed class JwtTokenService : IJwtTokenService
 
     public ClaimsPrincipal? ValidateToken(string token)
     {
-        var tokenHandler = new JwtSecurityTokenHandler();
-        var validationParameters = new TokenValidationParameters
+        JwtSecurityTokenHandler tokenHandler = new();
+        TokenValidationParameters validationParameters = new()
         {
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(_key),

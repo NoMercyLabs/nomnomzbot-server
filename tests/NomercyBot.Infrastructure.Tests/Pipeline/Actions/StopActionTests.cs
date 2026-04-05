@@ -22,9 +22,9 @@ public class InfraStopActionTests
     [Fact]
     public async Task ExecuteAsync_SetsShouldStopOnContext()
     {
-        var action = new StopAction();
-        var ctx = BuildCtx();
-        var def = System.Text.Json.JsonSerializer.Deserialize<ActionDefinition>(
+        StopAction action = new();
+        PipelineExecutionContext ctx = BuildCtx();
+        ActionDefinition def = System.Text.Json.JsonSerializer.Deserialize<ActionDefinition>(
             """{"type":"stop"}"""
         )!;
 
@@ -36,13 +36,13 @@ public class InfraStopActionTests
     [Fact]
     public async Task ExecuteAsync_ReturnsSuccess()
     {
-        var action = new StopAction();
-        var ctx = BuildCtx();
-        var def = System.Text.Json.JsonSerializer.Deserialize<ActionDefinition>(
+        StopAction action = new();
+        PipelineExecutionContext ctx = BuildCtx();
+        ActionDefinition def = System.Text.Json.JsonSerializer.Deserialize<ActionDefinition>(
             """{"type":"stop"}"""
         )!;
 
-        var result = await action.ExecuteAsync(ctx, def);
+        ActionResult result = await action.ExecuteAsync(ctx, def);
 
         result.Succeeded.Should().BeTrue();
         result.Output.Should().Contain("stopped");
@@ -51,7 +51,7 @@ public class InfraStopActionTests
     [Fact]
     public void ActionType_IsStop()
     {
-        var action = new StopAction();
+        StopAction action = new();
         action.ActionType.Should().Be("stop");
     }
 }

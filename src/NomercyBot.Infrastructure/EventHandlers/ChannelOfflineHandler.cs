@@ -5,8 +5,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NoMercyBot.Application.Common.Interfaces;
+using NoMercyBot.Domain.Entities;
 using NoMercyBot.Domain.Events;
 using NoMercyBot.Domain.Interfaces;
+using Stream = NoMercyBot.Domain.Entities.Stream;
 
 namespace NoMercyBot.Infrastructure.EventHandlers;
 
@@ -40,14 +42,14 @@ public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
         CancellationToken cancellationToken = default
     )
     {
-        var broadcasterId = @event.BroadcasterId;
+        string? broadcasterId = @event.BroadcasterId;
         if (string.IsNullOrEmpty(broadcasterId))
             return;
 
-        using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-        var channel = await db.Channels.FindAsync([broadcasterId], cancellationToken);
+        Channel? channel = await db.Channels.FindAsync([broadcasterId], cancellationToken);
         if (channel is null)
         {
             _logger.LogWarning(
@@ -58,9 +60,9 @@ public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
         }
 
         // Compute actual stream duration from ChannelContext before resetting state
-        var channelCtx = _registry.Get(broadcasterId);
-        var endedAt = DateTimeOffset.UtcNow;
-        var streamDuration =
+        ChannelContext? channelCtx = _registry.Get(broadcasterId);
+        DateTimeOffset endedAt = DateTimeOffset.UtcNow;
+        TimeSpan streamDuration =
             channelCtx?.WentLiveAt.HasValue == true
                 ? endedAt - channelCtx.WentLiveAt.Value
                 : @event.StreamDuration;
@@ -68,7 +70,7 @@ public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
         // Finalize the Stream record with EndedAt
         if (channelCtx?.CurrentStreamId is not null)
         {
-            var streamRecord = await db.Streams.FindAsync(
+            Stream? streamRecord = await db.Streams.FindAsync(
                 [channelCtx.CurrentStreamId],
                 cancellationToken
             );
@@ -98,7 +100,7 @@ public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
             db,
             broadcasterId,
             "stream_offline",
-            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            new(StringComparer.OrdinalIgnoreCase)
             {
                 ["broadcaster"] = @event.BroadcasterDisplayName,
                 ["duration"] = streamDuration.ToString(@"hh\:mm\:ss"),
@@ -115,7 +117,7 @@ public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
         CancellationToken ct
     )
     {
-        var config = await db.Records.FirstOrDefaultAsync(
+        Record? config = await db.Records.FirstOrDefaultAsync(
             r => r.BroadcasterId == broadcasterId && r.RecordType == $"event_response:{eventType}",
             ct
         );
@@ -126,7 +128,7 @@ public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
         try
         {
             await _pipeline.ExecuteAsync(
-                new PipelineRequest
+                new()
                 {
                     BroadcasterId = broadcasterId,
                     PipelineJson = config.Data,

@@ -11,7 +11,7 @@ public class ChatBadgeTests
     [Fact]
     public void ChatBadge_CreatesWithSetIdAndId()
     {
-        var badge = new ChatBadge("subscriber", "3");
+        ChatBadge badge = new("subscriber", "3");
 
         badge.SetId.Should().Be("subscriber");
         badge.Id.Should().Be("3");
@@ -21,7 +21,7 @@ public class ChatBadgeTests
     [Fact]
     public void ChatBadge_CreatesWithInfo()
     {
-        var badge = new ChatBadge("subscriber", "3", "3 months");
+        ChatBadge badge = new("subscriber", "3", "3 months");
 
         badge.Info.Should().Be("3 months");
     }
@@ -29,8 +29,8 @@ public class ChatBadgeTests
     [Fact]
     public void ChatBadge_RecordEquality_SameValues_AreEqual()
     {
-        var a = new ChatBadge("moderator", "1");
-        var b = new ChatBadge("moderator", "1");
+        ChatBadge a = new("moderator", "1");
+        ChatBadge b = new("moderator", "1");
 
         a.Should().Be(b);
     }
@@ -38,8 +38,8 @@ public class ChatBadgeTests
     [Fact]
     public void ChatBadge_RecordEquality_DifferentSetId_AreNotEqual()
     {
-        var a = new ChatBadge("moderator", "1");
-        var b = new ChatBadge("subscriber", "1");
+        ChatBadge a = new("moderator", "1");
+        ChatBadge b = new("subscriber", "1");
 
         a.Should().NotBe(b);
     }
@@ -47,8 +47,8 @@ public class ChatBadgeTests
     [Fact]
     public void ChatBadge_RecordEquality_DifferentId_AreNotEqual()
     {
-        var a = new ChatBadge("subscriber", "1");
-        var b = new ChatBadge("subscriber", "3");
+        ChatBadge a = new("subscriber", "1");
+        ChatBadge b = new("subscriber", "3");
 
         a.Should().NotBe(b);
     }
@@ -56,8 +56,8 @@ public class ChatBadgeTests
     [Fact]
     public void ChatBadge_RecordEquality_InfoDiffers_AreNotEqual()
     {
-        var a = new ChatBadge("subscriber", "3", "3 months");
-        var b = new ChatBadge("subscriber", "3", "6 months");
+        ChatBadge a = new("subscriber", "3", "3 months");
+        ChatBadge b = new("subscriber", "3", "6 months");
 
         a.Should().NotBe(b);
     }
@@ -65,7 +65,7 @@ public class ChatBadgeTests
     [Fact]
     public void ChatBadge_ToString_ContainsFields()
     {
-        var badge = new ChatBadge("vip", "1");
+        ChatBadge badge = new("vip", "1");
         badge.ToString().Should().Contain("vip").And.Contain("1");
     }
 }
@@ -75,21 +75,21 @@ public class ChatMessageFragmentTests
     [Fact]
     public void ChatMessageFragment_DefaultType_IsText()
     {
-        var fragment = new ChatMessageFragment();
+        ChatMessageFragment fragment = new();
         fragment.Type.Should().Be("text");
     }
 
     [Fact]
     public void ChatMessageFragment_DefaultText_IsEmpty()
     {
-        var fragment = new ChatMessageFragment();
+        ChatMessageFragment fragment = new();
         fragment.Text.Should().BeEmpty();
     }
 
     [Fact]
     public void ChatMessageFragment_TextFragment_SetProperties()
     {
-        var fragment = new ChatMessageFragment { Type = "text", Text = "Hello world" };
+        ChatMessageFragment fragment = new() { Type = "text", Text = "Hello world" };
 
         fragment.Type.Should().Be("text");
         fragment.Text.Should().Be("Hello world");
@@ -98,7 +98,7 @@ public class ChatMessageFragmentTests
     [Fact]
     public void ChatMessageFragment_EmoteFragment_SetsEmoteFields()
     {
-        var fragment = new ChatMessageFragment
+        ChatMessageFragment fragment = new()
         {
             Type = "emote",
             Text = "Kappa",
@@ -118,7 +118,7 @@ public class ChatMessageFragmentTests
     [Fact]
     public void ChatMessageFragment_CheermoteFragment_SetsCheermoteFields()
     {
-        var fragment = new ChatMessageFragment
+        ChatMessageFragment fragment = new()
         {
             Type = "cheermote",
             Text = "Cheer100",
@@ -136,7 +136,7 @@ public class ChatMessageFragmentTests
     [Fact]
     public void ChatMessageFragment_MentionFragment_SetsMentionFields()
     {
-        var fragment = new ChatMessageFragment
+        ChatMessageFragment fragment = new()
         {
             Type = "mention",
             Text = "@someuser",
@@ -154,7 +154,7 @@ public class ChatMessageFragmentTests
     [Fact]
     public void ChatMessageFragment_NonEmoteFragment_EmoteFieldsAreNull()
     {
-        var fragment = new ChatMessageFragment { Type = "text", Text = "hi" };
+        ChatMessageFragment fragment = new() { Type = "text", Text = "hi" };
 
         fragment.EmoteId.Should().BeNull();
         fragment.EmoteSetId.Should().BeNull();
@@ -164,7 +164,7 @@ public class ChatMessageFragmentTests
     [Fact]
     public void ChatMessageFragment_NonCheermoteFragment_CheermoteFieldsAreNull()
     {
-        var fragment = new ChatMessageFragment { Type = "text", Text = "hi" };
+        ChatMessageFragment fragment = new() { Type = "text", Text = "hi" };
 
         fragment.CheermotePrefix.Should().BeNull();
         fragment.CheermoteBits.Should().BeNull();

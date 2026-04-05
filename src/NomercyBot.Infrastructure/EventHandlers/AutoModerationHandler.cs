@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NoMercyBot.Application.Common.Interfaces;
 using NoMercyBot.Application.Contracts.Twitch;
+using NoMercyBot.Domain.Entities;
 using NoMercyBot.Domain.Events;
 using NoMercyBot.Domain.Interfaces;
 
@@ -53,24 +54,24 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
         if (@event.IsModerator || @event.IsBroadcaster)
             return;
 
-        var broadcasterId = @event.BroadcasterId;
+        string broadcasterId = @event.BroadcasterId;
         if (string.IsNullOrEmpty(broadcasterId) || string.IsNullOrEmpty(@event.Message))
             return;
 
-        var rules = await GetRulesAsync(broadcasterId, cancellationToken);
+        IReadOnlyList<AutoModRule> rules = await GetRulesAsync(broadcasterId, cancellationToken);
         if (rules.Count == 0)
             return;
 
-        var message = @event.Message;
+        string message = @event.Message;
 
-        foreach (var rule in rules)
+        foreach (AutoModRule rule in rules)
         {
             if (!rule.IsEnabled)
                 continue;
             if (!ShouldApply(rule, @event))
                 continue;
 
-            var triggered = rule.Type switch
+            bool triggered = rule.Type switch
             {
                 "caps" => CheckCaps(message, rule),
                 "links" => CheckLinks(message),
@@ -109,22 +110,22 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
     private static bool CheckCaps(string message, AutoModRule rule)
     {
         // Only test alphabetic characters
-        var letters = message.Count(char.IsLetter);
+        int letters = message.Count(char.IsLetter);
         if (letters < 5)
             return false; // Too short to enforce
 
-        var upper = message.Count(char.IsUpper);
-        var ratio = (double)upper / letters;
+        int upper = message.Count(char.IsUpper);
+        double ratio = (double)upper / letters;
 
-        var threshold =
-            rule.Settings.TryGetValue("threshold", out var t)
+        double threshold =
+            rule.Settings.TryGetValue("threshold", out object? t)
             && t is JsonElement te
             && te.ValueKind == JsonValueKind.Number
                 ? te.GetDouble()
                 : 0.7; // Default: 70% caps
 
-        var minLength =
-            rule.Settings.TryGetValue("min_length", out var ml)
+        int minLength =
+            rule.Settings.TryGetValue("min_length", out object? ml)
             && ml is JsonElement mle
             && mle.ValueKind == JsonValueKind.Number
                 ? mle.GetInt32()
@@ -137,7 +138,7 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
 
     private static bool CheckBannedPhrases(string message, AutoModRule rule)
     {
-        if (!rule.Settings.TryGetValue("phrases", out var phrasesObj))
+        if (!rule.Settings.TryGetValue("phrases", out object? phrasesObj))
             return false;
         if (
             phrasesObj is not JsonElement phrasesElem
@@ -145,10 +146,10 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
         )
             return false;
 
-        var lower = message.ToLowerInvariant();
-        foreach (var phrase in phrasesElem.EnumerateArray())
+        string lower = message.ToLowerInvariant();
+        foreach (JsonElement phrase in phrasesElem.EnumerateArray())
         {
-            var p = phrase.GetString();
+            string? p = phrase.GetString();
             if (!string.IsNullOrEmpty(p) && lower.Contains(p.ToLowerInvariant()))
                 return true;
         }
@@ -161,14 +162,14 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
         AutoModRule rule
     )
     {
-        var maxEmotes =
-            rule.Settings.TryGetValue("max_emotes", out var maxObj)
+        int maxEmotes =
+            rule.Settings.TryGetValue("max_emotes", out object? maxObj)
             && maxObj is JsonElement maxElem
             && maxElem.ValueKind == JsonValueKind.Number
                 ? maxElem.GetInt32()
                 : 10; // Default: 10 emotes max
 
-        var emoteCount = fragments.Count(f =>
+        int emoteCount = fragments.Count(f =>
             f.Type.Equals("emote", StringComparison.OrdinalIgnoreCase)
         );
         return emoteCount > maxEmotes;
@@ -180,9 +181,9 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
         if (rule.ExemptRoles.Count == 0)
             return true;
 
-        foreach (var role in rule.ExemptRoles)
+        foreach (string role in rule.ExemptRoles)
         {
-            var exempt = role.ToLowerInvariant() switch
+            bool exempt = role.ToLowerInvariant() switch
             {
                 "subscriber" or "sub" => @event.IsSubscriber,
                 "vip" => @event.IsVip,
@@ -209,13 +210,13 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
     {
         try
         {
-            using var scope = _scopeFactory.CreateScope();
-            var twitchApi = scope.ServiceProvider.GetRequiredService<ITwitchApiService>();
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            ITwitchApiService twitchApi = scope.ServiceProvider.GetRequiredService<ITwitchApiService>();
 
             switch (rule.Action.ToLowerInvariant())
             {
                 case "timeout":
-                    var duration = rule.DurationSeconds ?? 60;
+                    int duration = rule.DurationSeconds ?? 60;
                     await twitchApi.TimeoutUserAsync(
                         broadcasterId,
                         userId,
@@ -261,18 +262,18 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
         CancellationToken ct
     )
     {
-        var now = DateTimeOffset.UtcNow;
+        DateTimeOffset now = DateTimeOffset.UtcNow;
 
         if (
-            _ruleCache.TryGetValue(broadcasterId, out var cached)
+            _ruleCache.TryGetValue(broadcasterId, out CachedRules? cached)
             && now - cached.CachedAt < RuleCacheExpiry
         )
         {
             return cached.Rules;
         }
 
-        var rules = await LoadRulesFromDbAsync(broadcasterId, ct);
-        _ruleCache[broadcasterId] = new CachedRules(rules, now);
+        IReadOnlyList<AutoModRule> rules = await LoadRulesFromDbAsync(broadcasterId, ct);
+        _ruleCache[broadcasterId] = new(rules, now);
         return rules;
     }
 
@@ -283,10 +284,10 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
     {
         try
         {
-            using var scope = _scopeFactory.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-            var records = await db
+            List<Record> records = await db
                 .Records.Where(r =>
                     r.BroadcasterId == broadcasterId && r.RecordType == "moderation_rule"
                 )
@@ -321,33 +322,33 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
 
     private static AutoModRule ParseRule(string data)
     {
-        using var doc = JsonDocument.Parse(data);
-        var root = doc.RootElement;
+        using JsonDocument doc = JsonDocument.Parse(data);
+        JsonElement root = doc.RootElement;
 
-        return new AutoModRule
+        return new()
         {
-            Name = root.TryGetProperty("Name", out var n)
+            Name = root.TryGetProperty("Name", out JsonElement n)
                 ? n.GetString() ?? string.Empty
                 : string.Empty,
-            Type = root.TryGetProperty("Type", out var t)
+            Type = root.TryGetProperty("Type", out JsonElement t)
                 ? t.GetString() ?? string.Empty
                 : string.Empty,
-            Action = root.TryGetProperty("Action", out var a)
+            Action = root.TryGetProperty("Action", out JsonElement a)
                 ? a.GetString() ?? "timeout"
                 : "timeout",
-            IsEnabled = !root.TryGetProperty("IsEnabled", out var e) || e.GetBoolean(),
+            IsEnabled = !root.TryGetProperty("IsEnabled", out JsonElement e) || e.GetBoolean(),
             DurationSeconds =
-                root.TryGetProperty("DurationSeconds", out var d)
+                root.TryGetProperty("DurationSeconds", out JsonElement d)
                 && d.ValueKind == JsonValueKind.Number
                     ? d.GetInt32()
                     : (int?)null,
-            Reason = root.TryGetProperty("Reason", out var r) ? r.GetString() : null,
+            Reason = root.TryGetProperty("Reason", out JsonElement r) ? r.GetString() : null,
             Settings =
-                root.TryGetProperty("Settings", out var s) && s.ValueKind == JsonValueKind.Object
+                root.TryGetProperty("Settings", out JsonElement s) && s.ValueKind == JsonValueKind.Object
                     ? s.EnumerateObject().ToDictionary(p => p.Name, p => (object)p.Value.Clone())
-                    : new Dictionary<string, object>(),
+                    : new(),
             ExemptRoles =
-                root.TryGetProperty("ExemptRoles", out var er)
+                root.TryGetProperty("ExemptRoles", out JsonElement er)
                 && er.ValueKind == JsonValueKind.Array
                     ? er.EnumerateArray()
                         .Select(x => x.GetString() ?? string.Empty)

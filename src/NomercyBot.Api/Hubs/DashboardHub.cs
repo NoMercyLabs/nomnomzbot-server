@@ -31,21 +31,21 @@ public class DashboardHub : Hub<IDashboardClient>
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        if (_connectionChannel.TryRemove(Context.ConnectionId, out var broadcasterId))
+        if (_connectionChannel.TryRemove(Context.ConnectionId, out string? broadcasterId))
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"channel-{broadcasterId}");
         await base.OnDisconnectedAsync(exception);
     }
 
     public async Task<JoinChannelResponse> JoinChannel(string broadcasterId)
     {
-        var ctx = _registry.Get(broadcasterId);
+        ChannelContext? ctx = _registry.Get(broadcasterId);
         await Groups.AddToGroupAsync(Context.ConnectionId, $"channel-{broadcasterId}");
         _connectionChannel[Context.ConnectionId] = broadcasterId;
         _logger.LogDebug("Connection {C} joined channel {B}", Context.ConnectionId, broadcasterId);
 
-        var status =
+        StreamStatusDto status =
             ctx != null
-                ? new StreamStatusDto(
+                ? new(
                     ctx.IsLive,
                     ctx.CurrentStreamId,
                     ctx.CurrentTitle,
@@ -54,7 +54,7 @@ public class DashboardHub : Hub<IDashboardClient>
                 )
                 : new StreamStatusDto(false, null, null, null, null);
 
-        return new JoinChannelResponse(true, null, status);
+        return new(true, null, status);
     }
 
     public async Task LeaveChannel(string broadcasterId)
@@ -66,17 +66,17 @@ public class DashboardHub : Hub<IDashboardClient>
     public async Task<SendMessageResponse> SendChatMessage(string broadcasterId, string message)
     {
         if (string.IsNullOrWhiteSpace(message) || message.Length > 500)
-            return new SendMessageResponse(false, "Message too long or empty", null);
+            return new(false, "Message too long or empty", null);
 
         try
         {
             await _chat.SendMessageAsync(broadcasterId, message);
-            return new SendMessageResponse(true, null, null);
+            return new(true, null, null);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to send chat message for {B}", broadcasterId);
-            return new SendMessageResponse(false, "Failed to send message", null);
+            return new(false, "Failed to send message", null);
         }
     }
 
@@ -88,6 +88,6 @@ public class DashboardHub : Hub<IDashboardClient>
     {
         _logger.LogInformation("TriggerAction {Action} for {B}", action, broadcasterId);
         // Action routing handled by business layer; return placeholder
-        return new ActionResponse(true, null);
+        return new(true, null);
     }
 }

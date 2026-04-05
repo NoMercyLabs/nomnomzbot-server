@@ -4,6 +4,7 @@
 using Microsoft.EntityFrameworkCore;
 using NoMercyBot.Application.Common.Interfaces;
 using NoMercyBot.Application.Common.Models;
+using NoMercyBot.Domain.Entities;
 
 namespace NoMercyBot.Application.Features.Commands.Commands.DeleteCommand;
 
@@ -22,7 +23,7 @@ public class DeleteCommandHandler
         CancellationToken ct = default
     )
     {
-        var command = await _db.Commands.FirstOrDefaultAsync(
+        Command? command = await _db.Commands.FirstOrDefaultAsync(
             c => c.BroadcasterId == channelId && c.Name == commandName,
             ct
         );

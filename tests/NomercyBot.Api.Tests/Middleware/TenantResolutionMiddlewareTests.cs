@@ -13,15 +13,15 @@ public class TenantResolutionMiddlewareTests
     private static TenantResolutionMiddleware CreateMiddleware(RequestDelegate? next = null)
     {
         next ??= _ => Task.CompletedTask;
-        return new TenantResolutionMiddleware(next);
+        return new(next);
     }
 
     [Fact]
     public async Task InvokeAsync_RouteValue_SetsTenant()
     {
-        var middleware = CreateMiddleware();
-        var tenantService = Substitute.For<ICurrentTenantService>();
-        var context = new DefaultHttpContext();
+        TenantResolutionMiddleware middleware = CreateMiddleware();
+        ICurrentTenantService? tenantService = Substitute.For<ICurrentTenantService>();
+        DefaultHttpContext context = new();
         context.Request.RouteValues["channelId"] = "chan-route-123";
 
         await middleware.InvokeAsync(context, tenantService);
@@ -32,9 +32,9 @@ public class TenantResolutionMiddlewareTests
     [Fact]
     public async Task InvokeAsync_XChannelIdHeader_SetsTenant()
     {
-        var middleware = CreateMiddleware();
-        var tenantService = Substitute.For<ICurrentTenantService>();
-        var context = new DefaultHttpContext();
+        TenantResolutionMiddleware middleware = CreateMiddleware();
+        ICurrentTenantService? tenantService = Substitute.For<ICurrentTenantService>();
+        DefaultHttpContext context = new();
         context.Request.Headers["X-Channel-Id"] = "chan-header-456";
 
         await middleware.InvokeAsync(context, tenantService);
@@ -45,10 +45,10 @@ public class TenantResolutionMiddlewareTests
     [Fact]
     public async Task InvokeAsync_QueryString_SetsTenant()
     {
-        var middleware = CreateMiddleware();
-        var tenantService = Substitute.For<ICurrentTenantService>();
-        var context = new DefaultHttpContext();
-        context.Request.QueryString = new QueryString("?channelId=chan-query-789");
+        TenantResolutionMiddleware middleware = CreateMiddleware();
+        ICurrentTenantService? tenantService = Substitute.For<ICurrentTenantService>();
+        DefaultHttpContext context = new();
+        context.Request.QueryString = new("?channelId=chan-query-789");
 
         await middleware.InvokeAsync(context, tenantService);
 
@@ -58,9 +58,9 @@ public class TenantResolutionMiddlewareTests
     [Fact]
     public async Task InvokeAsync_NoSource_DoesNotSetTenant()
     {
-        var middleware = CreateMiddleware();
-        var tenantService = Substitute.For<ICurrentTenantService>();
-        var context = new DefaultHttpContext();
+        TenantResolutionMiddleware middleware = CreateMiddleware();
+        ICurrentTenantService? tenantService = Substitute.For<ICurrentTenantService>();
+        DefaultHttpContext context = new();
 
         await middleware.InvokeAsync(context, tenantService);
 
@@ -70,9 +70,9 @@ public class TenantResolutionMiddlewareTests
     [Fact]
     public async Task InvokeAsync_RouteValueTakesPrecedenceOverHeader()
     {
-        var middleware = CreateMiddleware();
-        var tenantService = Substitute.For<ICurrentTenantService>();
-        var context = new DefaultHttpContext();
+        TenantResolutionMiddleware middleware = CreateMiddleware();
+        ICurrentTenantService? tenantService = Substitute.For<ICurrentTenantService>();
+        DefaultHttpContext context = new();
         context.Request.RouteValues["channelId"] = "from-route";
         context.Request.Headers["X-Channel-Id"] = "from-header";
 
@@ -85,11 +85,11 @@ public class TenantResolutionMiddlewareTests
     [Fact]
     public async Task InvokeAsync_HeaderTakesPrecedenceOverQuery()
     {
-        var middleware = CreateMiddleware();
-        var tenantService = Substitute.For<ICurrentTenantService>();
-        var context = new DefaultHttpContext();
+        TenantResolutionMiddleware middleware = CreateMiddleware();
+        ICurrentTenantService? tenantService = Substitute.For<ICurrentTenantService>();
+        DefaultHttpContext context = new();
         context.Request.Headers["X-Channel-Id"] = "from-header";
-        context.Request.QueryString = new QueryString("?channelId=from-query");
+        context.Request.QueryString = new("?channelId=from-query");
 
         await middleware.InvokeAsync(context, tenantService);
 
@@ -100,14 +100,14 @@ public class TenantResolutionMiddlewareTests
     [Fact]
     public async Task InvokeAsync_AlwaysCallsNext()
     {
-        var nextCalled = false;
-        var middleware = CreateMiddleware(_ =>
+        bool nextCalled = false;
+        TenantResolutionMiddleware middleware = CreateMiddleware(_ =>
         {
             nextCalled = true;
             return Task.CompletedTask;
         });
-        var tenantService = Substitute.For<ICurrentTenantService>();
-        var context = new DefaultHttpContext();
+        ICurrentTenantService? tenantService = Substitute.For<ICurrentTenantService>();
+        DefaultHttpContext context = new();
 
         await middleware.InvokeAsync(context, tenantService);
 
@@ -117,9 +117,9 @@ public class TenantResolutionMiddlewareTests
     [Fact]
     public async Task InvokeAsync_EmptyRouteValue_DoesNotSetTenant()
     {
-        var middleware = CreateMiddleware();
-        var tenantService = Substitute.For<ICurrentTenantService>();
-        var context = new DefaultHttpContext();
+        TenantResolutionMiddleware middleware = CreateMiddleware();
+        ICurrentTenantService? tenantService = Substitute.For<ICurrentTenantService>();
+        DefaultHttpContext context = new();
         context.Request.RouteValues["channelId"] = ""; // empty string
 
         await middleware.InvokeAsync(context, tenantService);

@@ -35,150 +35,150 @@ public class VariableEqualsConditionTests
     [Fact]
     public async Task EvaluateAsync_VariableEqualsValue_ReturnsTrue()
     {
-        var cond = new VariableEqualsCondition();
-        var ctx = BuildCtx(new Dictionary<string, string> { { "x", "42" } });
-        var def = BuildCond("x", "42");
+        VariableEqualsCondition cond = new();
+        ActionContext ctx = BuildCtx(new() { { "x", "42" } });
+        ConditionDefinition def = BuildCond("x", "42");
 
-        var result = await cond.EvaluateAsync(def, ctx);
+        bool result = await cond.EvaluateAsync(def, ctx);
         result.Should().BeTrue();
     }
 
     [Fact]
     public async Task EvaluateAsync_VariableNotEqualsValue_ReturnsFalse()
     {
-        var cond = new VariableEqualsCondition();
-        var ctx = BuildCtx(new Dictionary<string, string> { { "x", "10" } });
-        var def = BuildCond("x", "42");
+        VariableEqualsCondition cond = new();
+        ActionContext ctx = BuildCtx(new() { { "x", "10" } });
+        ConditionDefinition def = BuildCond("x", "42");
 
-        var result = await cond.EvaluateAsync(def, ctx);
+        bool result = await cond.EvaluateAsync(def, ctx);
         result.Should().BeFalse();
     }
 
     [Fact]
     public async Task EvaluateAsync_VariableNotSet_ReturnsFalse()
     {
-        var cond = new VariableEqualsCondition();
-        var ctx = BuildCtx(); // no variables
-        var def = BuildCond("missing", "value");
+        VariableEqualsCondition cond = new();
+        ActionContext ctx = BuildCtx(); // no variables
+        ConditionDefinition def = BuildCond("missing", "value");
 
-        var result = await cond.EvaluateAsync(def, ctx);
+        bool result = await cond.EvaluateAsync(def, ctx);
         result.Should().BeFalse();
     }
 
     [Fact]
     public async Task EvaluateAsync_NullVariable_ReturnsFalse()
     {
-        var cond = new VariableEqualsCondition();
-        var ctx = BuildCtx();
-        var def = BuildCond(null, "value");
+        VariableEqualsCondition cond = new();
+        ActionContext ctx = BuildCtx();
+        ConditionDefinition def = BuildCond(null, "value");
 
-        var result = await cond.EvaluateAsync(def, ctx);
+        bool result = await cond.EvaluateAsync(def, ctx);
         result.Should().BeFalse();
     }
 
     [Fact]
     public async Task EvaluateAsync_CaseInsensitiveComparison_ReturnsTrue()
     {
-        var cond = new VariableEqualsCondition();
-        var ctx = BuildCtx(new Dictionary<string, string> { { "name", "Alice" } });
-        var def = BuildCond("name", "alice"); // lowercase value
+        VariableEqualsCondition cond = new();
+        ActionContext ctx = BuildCtx(new() { { "name", "Alice" } });
+        ConditionDefinition def = BuildCond("name", "alice"); // lowercase value
 
-        var result = await cond.EvaluateAsync(def, ctx);
+        bool result = await cond.EvaluateAsync(def, ctx);
         result.Should().BeTrue();
     }
 
     [Fact]
     public async Task EvaluateAsync_NotEquals_ReturnsTrueWhenDifferent()
     {
-        var cond = new VariableEqualsCondition();
-        var ctx = BuildCtx(new Dictionary<string, string> { { "x", "10" } });
-        var def = BuildCond("x", "99", "not_equals");
+        VariableEqualsCondition cond = new();
+        ActionContext ctx = BuildCtx(new() { { "x", "10" } });
+        ConditionDefinition def = BuildCond("x", "99", "not_equals");
 
-        var result = await cond.EvaluateAsync(def, ctx);
+        bool result = await cond.EvaluateAsync(def, ctx);
         result.Should().BeTrue();
     }
 
     [Fact]
     public async Task EvaluateAsync_NotEquals_ReturnsFalseWhenSame()
     {
-        var cond = new VariableEqualsCondition();
-        var ctx = BuildCtx(new Dictionary<string, string> { { "x", "42" } });
-        var def = BuildCond("x", "42", "not_equals");
+        VariableEqualsCondition cond = new();
+        ActionContext ctx = BuildCtx(new() { { "x", "42" } });
+        ConditionDefinition def = BuildCond("x", "42", "not_equals");
 
-        var result = await cond.EvaluateAsync(def, ctx);
+        bool result = await cond.EvaluateAsync(def, ctx);
         result.Should().BeFalse();
     }
 
     [Fact]
     public async Task EvaluateAsync_Contains_ReturnsTrueWhenSubstring()
     {
-        var cond = new VariableEqualsCondition();
-        var ctx = BuildCtx(new Dictionary<string, string> { { "msg", "hello world" } });
-        var def = BuildCond("msg", "world", "contains");
+        VariableEqualsCondition cond = new();
+        ActionContext ctx = BuildCtx(new() { { "msg", "hello world" } });
+        ConditionDefinition def = BuildCond("msg", "world", "contains");
 
-        var result = await cond.EvaluateAsync(def, ctx);
+        bool result = await cond.EvaluateAsync(def, ctx);
         result.Should().BeTrue();
     }
 
     [Fact]
     public async Task EvaluateAsync_Contains_ReturnsFalseWhenNotSubstring()
     {
-        var cond = new VariableEqualsCondition();
-        var ctx = BuildCtx(new Dictionary<string, string> { { "msg", "hello world" } });
-        var def = BuildCond("msg", "xyz", "contains");
+        VariableEqualsCondition cond = new();
+        ActionContext ctx = BuildCtx(new() { { "msg", "hello world" } });
+        ConditionDefinition def = BuildCond("msg", "xyz", "contains");
 
-        var result = await cond.EvaluateAsync(def, ctx);
+        bool result = await cond.EvaluateAsync(def, ctx);
         result.Should().BeFalse();
     }
 
     [Fact]
     public async Task EvaluateAsync_StartsWith_ReturnsTrueWhenPrefix()
     {
-        var cond = new VariableEqualsCondition();
-        var ctx = BuildCtx(new Dictionary<string, string> { { "msg", "hello world" } });
-        var def = BuildCond("msg", "hello", "starts_with");
+        VariableEqualsCondition cond = new();
+        ActionContext ctx = BuildCtx(new() { { "msg", "hello world" } });
+        ConditionDefinition def = BuildCond("msg", "hello", "starts_with");
 
-        var result = await cond.EvaluateAsync(def, ctx);
+        bool result = await cond.EvaluateAsync(def, ctx);
         result.Should().BeTrue();
     }
 
     [Fact]
     public async Task EvaluateAsync_IsEmpty_ReturnsTrueForEmpty()
     {
-        var cond = new VariableEqualsCondition();
-        var ctx = BuildCtx(new Dictionary<string, string> { { "x", "" } });
-        var def = BuildCond("x", null, "is_empty");
+        VariableEqualsCondition cond = new();
+        ActionContext ctx = BuildCtx(new() { { "x", "" } });
+        ConditionDefinition def = BuildCond("x", null, "is_empty");
 
-        var result = await cond.EvaluateAsync(def, ctx);
+        bool result = await cond.EvaluateAsync(def, ctx);
         result.Should().BeTrue();
     }
 
     [Fact]
     public async Task EvaluateAsync_IsEmpty_ReturnsFalseForNonEmpty()
     {
-        var cond = new VariableEqualsCondition();
-        var ctx = BuildCtx(new Dictionary<string, string> { { "x", "value" } });
-        var def = BuildCond("x", null, "is_empty");
+        VariableEqualsCondition cond = new();
+        ActionContext ctx = BuildCtx(new() { { "x", "value" } });
+        ConditionDefinition def = BuildCond("x", null, "is_empty");
 
-        var result = await cond.EvaluateAsync(def, ctx);
+        bool result = await cond.EvaluateAsync(def, ctx);
         result.Should().BeFalse();
     }
 
     [Fact]
     public async Task EvaluateAsync_IsNotEmpty_ReturnsTrueForNonEmpty()
     {
-        var cond = new VariableEqualsCondition();
-        var ctx = BuildCtx(new Dictionary<string, string> { { "x", "hello" } });
-        var def = BuildCond("x", null, "is_not_empty");
+        VariableEqualsCondition cond = new();
+        ActionContext ctx = BuildCtx(new() { { "x", "hello" } });
+        ConditionDefinition def = BuildCond("x", null, "is_not_empty");
 
-        var result = await cond.EvaluateAsync(def, ctx);
+        bool result = await cond.EvaluateAsync(def, ctx);
         result.Should().BeTrue();
     }
 
     [Fact]
     public void Type_IsVariableEquals()
     {
-        var cond = new VariableEqualsCondition();
+        VariableEqualsCondition cond = new();
         cond.Type.Should().Be("variable_equals");
     }
 }

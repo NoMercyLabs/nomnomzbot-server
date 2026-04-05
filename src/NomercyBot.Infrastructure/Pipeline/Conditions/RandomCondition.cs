@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+
+using System.Text.Json;
+
 namespace NoMercyBot.Infrastructure.Pipeline.Conditions;
 
 /// <summary>
@@ -17,14 +20,14 @@ public sealed class RandomCondition : ICommandCondition
         if (condition.Parameters is not null)
         {
             if (
-                condition.Parameters.TryGetValue("chance", out var chance)
+                condition.Parameters.TryGetValue("chance", out JsonElement chance)
                 && chance.ValueKind == System.Text.Json.JsonValueKind.Number
             )
             {
                 threshold = chance.GetDouble();
             }
             else if (
-                condition.Parameters.TryGetValue("percent", out var pct)
+                condition.Parameters.TryGetValue("percent", out JsonElement pct)
                 && pct.ValueKind == System.Text.Json.JsonValueKind.Number
             )
             {

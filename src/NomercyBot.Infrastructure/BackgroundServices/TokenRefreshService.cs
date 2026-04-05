@@ -25,14 +25,14 @@ public class TokenRefreshService : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("Token refresh service started.");
-        using var timer = new PeriodicTimer(TimeSpan.FromMinutes(30));
+        using PeriodicTimer timer = new(TimeSpan.FromMinutes(30));
 
         while (await timer.WaitForNextTickAsync(stoppingToken))
         {
             try
             {
-                using var scope = _serviceProvider.CreateScope();
-                var authService = scope.ServiceProvider.GetRequiredService<ITwitchAuthService>();
+                using IServiceScope scope = _serviceProvider.CreateScope();
+                ITwitchAuthService authService = scope.ServiceProvider.GetRequiredService<ITwitchAuthService>();
                 await authService.RefreshExpiringTokensAsync(stoppingToken);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)

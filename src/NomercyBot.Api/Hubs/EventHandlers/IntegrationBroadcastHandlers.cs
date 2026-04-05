@@ -45,7 +45,7 @@ public sealed class IntegrationDisconnectedBroadcastHandler
 
         return _notifier.SendAlertAsync(
             @event.BroadcasterId,
-            new AlertDto(
+            new(
                 "integration_disconnected",
                 $"{@event.IntegrationName} disconnected",
                 new IntegrationEventDto(@event.IntegrationName)

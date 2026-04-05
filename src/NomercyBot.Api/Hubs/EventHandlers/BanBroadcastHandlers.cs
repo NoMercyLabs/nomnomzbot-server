@@ -21,7 +21,7 @@ public sealed class UserBannedBroadcastHandler : IEventHandler<UserBannedEvent>
 
         return _notifier.SendModActionAsync(
             @event.BroadcasterId,
-            new ModActionDto(
+            new(
                 "ban",
                 @event.ModeratorUserId,
                 @event.TargetUserId,
@@ -47,7 +47,7 @@ public sealed class UserTimedOutBroadcastHandler : IEventHandler<UserTimedOutEve
 
         return _notifier.SendModActionAsync(
             @event.BroadcasterId,
-            new ModActionDto(
+            new(
                 "timeout",
                 @event.ModeratorUserId,
                 @event.TargetUserId,
@@ -73,7 +73,7 @@ public sealed class UserUnbannedBroadcastHandler : IEventHandler<UserUnbannedEve
 
         return _notifier.SendModActionAsync(
             @event.BroadcasterId,
-            new ModActionDto("unban", @event.ModeratorUserId, @event.TargetUserId, null, null),
+            new("unban", @event.ModeratorUserId, @event.TargetUserId, null, null),
             ct
         );
     }

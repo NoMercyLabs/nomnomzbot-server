@@ -21,7 +21,7 @@ public sealed class CommandExecutedBroadcastHandler : IEventHandler<AfterCommand
 
         return _notifier.SendCommandExecutedAsync(
             @event.BroadcasterId,
-            new CommandExecutedDto(
+            new(
                 @event.CommandName,
                 @event.TriggeredByUserId,
                 @event.Succeeded,

@@ -54,8 +54,8 @@ public sealed class PollEndedHandler
 
     protected override Dictionary<string, string> BuildVariables(PollEndedEvent e)
     {
-        var winner = e.Choices.OrderByDescending(c => c.Votes).FirstOrDefault();
-        return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        PollChoice? winner = e.Choices.OrderByDescending(c => c.Votes).FirstOrDefault();
+        return new(StringComparer.OrdinalIgnoreCase)
         {
             ["poll.id"] = e.PollId,
             ["poll.title"] = e.Title,

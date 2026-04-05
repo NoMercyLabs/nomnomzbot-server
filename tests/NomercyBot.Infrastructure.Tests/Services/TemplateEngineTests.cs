@@ -15,31 +15,31 @@ public class TemplateEngineTests
     [Fact]
     public void Render_EmptyTemplate_ReturnsEmpty()
     {
-        var engine = Create();
+        TemplateEngine engine = Create();
         engine.Render(string.Empty, new Dictionary<string, string>()).Should().BeEmpty();
     }
 
     [Fact]
     public void Render_NullTemplate_ReturnsEmpty()
     {
-        var engine = Create();
+        TemplateEngine engine = Create();
         engine.Render(null!, new Dictionary<string, string>()).Should().BeEmpty();
     }
 
     [Fact]
     public void Render_NoPlaceholders_ReturnsOriginal()
     {
-        var engine = Create();
-        var result = engine.Render("Hello world", new Dictionary<string, string>());
+        TemplateEngine engine = Create();
+        string result = engine.Render("Hello world", new Dictionary<string, string>());
         result.Should().Be("Hello world");
     }
 
     [Fact]
     public void Render_KnownVariable_Substitutes()
     {
-        var engine = Create();
-        var vars = new Dictionary<string, string> { { "user", "Alice" } };
-        var result = engine.Render("Hello {{user}}!", vars);
+        TemplateEngine engine = Create();
+        Dictionary<string, string> vars = new() { { "user", "Alice" } };
+        string result = engine.Render("Hello {{user}}!", vars);
 
         result.Should().Be("Hello Alice!");
     }
@@ -47,9 +47,9 @@ public class TemplateEngineTests
     [Fact]
     public void Render_UnknownVariable_LeavesPlaceholderIntact()
     {
-        var engine = Create();
-        var vars = new Dictionary<string, string>();
-        var result = engine.Render("Hello {{unknown}}!", vars);
+        TemplateEngine engine = Create();
+        Dictionary<string, string> vars = new();
+        string result = engine.Render("Hello {{unknown}}!", vars);
 
         result.Should().Be("Hello {{unknown}}!");
     }
@@ -57,9 +57,9 @@ public class TemplateEngineTests
     [Fact]
     public void Render_MultipleVariables_SubstitutesAll()
     {
-        var engine = Create();
-        var vars = new Dictionary<string, string> { { "a", "foo" }, { "b", "bar" } };
-        var result = engine.Render("{{a}} and {{b}}", vars);
+        TemplateEngine engine = Create();
+        Dictionary<string, string> vars = new() { { "a", "foo" }, { "b", "bar" } };
+        string result = engine.Render("{{a}} and {{b}}", vars);
 
         result.Should().Be("foo and bar");
     }
@@ -67,9 +67,9 @@ public class TemplateEngineTests
     [Fact]
     public void Render_CaseInsensitiveKey_Substitutes()
     {
-        var engine = Create();
-        var vars = new Dictionary<string, string> { { "User", "Bob" } };
-        var result = engine.Render("Hello {{user}}!", vars); // lowercase in template
+        TemplateEngine engine = Create();
+        Dictionary<string, string> vars = new() { { "User", "Bob" } };
+        string result = engine.Render("Hello {{user}}!", vars); // lowercase in template
 
         result.Should().Be("Hello Bob!");
     }
@@ -77,10 +77,10 @@ public class TemplateEngineTests
     [Fact]
     public void Render_NullValue_ReplacesWithEmpty()
     {
-        var engine = Create();
+        TemplateEngine engine = Create();
         // Dictionary<string, string> can't have null values, but a cast to IReadOnlyDictionary could
-        var vars = new Dictionary<string, string?> { { "user", null } };
-        var result = engine.Render(
+        Dictionary<string, string?> vars = new() { { "user", null } };
+        string result = engine.Render(
             "Hello {{user}}!",
             (IReadOnlyDictionary<string, string>)
                 (IDictionary<string, string>)new Dictionary<string, string> { { "user", "" } }
@@ -92,9 +92,9 @@ public class TemplateEngineTests
     [Fact]
     public void Render_SamePlaceholderTwice_BothSubstituted()
     {
-        var engine = Create();
-        var vars = new Dictionary<string, string> { { "x", "10" } };
-        var result = engine.Render("{{x}} + {{x}}", vars);
+        TemplateEngine engine = Create();
+        Dictionary<string, string> vars = new() { { "x", "10" } };
+        string result = engine.Render("{{x}} + {{x}}", vars);
 
         result.Should().Be("10 + 10");
     }
@@ -103,9 +103,9 @@ public class TemplateEngineTests
     public void Render_WhitespaceInPlaceholder_Substitutes()
     {
         // TemplateEngine trims the variable name
-        var engine = Create();
-        var vars = new Dictionary<string, string> { { "user", "Carol" } };
-        var result = engine.Render("Hello {{ user }}!", vars);
+        TemplateEngine engine = Create();
+        Dictionary<string, string> vars = new() { { "user", "Carol" } };
+        string result = engine.Render("Hello {{ user }}!", vars);
 
         result.Should().Be("Hello Carol!");
     }
@@ -115,8 +115,8 @@ public class TemplateEngineTests
     [Fact]
     public void Render_SingleVar_Substitutes()
     {
-        var engine = Create();
-        var result = engine.Render("Hello {{name}}!", "name", "Dave");
+        TemplateEngine engine = Create();
+        string result = engine.Render("Hello {{name}}!", "name", "Dave");
 
         result.Should().Be("Hello Dave!");
     }
@@ -124,8 +124,8 @@ public class TemplateEngineTests
     [Fact]
     public void Render_SingleVar_UnrelatedPlaceholderUnchanged()
     {
-        var engine = Create();
-        var result = engine.Render("{{greeting}} {{name}}!", "name", "Eve");
+        TemplateEngine engine = Create();
+        string result = engine.Render("{{greeting}} {{name}}!", "name", "Eve");
 
         result.Should().Be("{{greeting}} Eve!");
     }
@@ -135,9 +135,9 @@ public class TemplateEngineTests
     [Fact]
     public async Task RenderAsync_WithObjectDictionary_Substitutes()
     {
-        var engine = Create();
-        var vars = new Dictionary<string, object> { { "count", 42 } };
-        var result = await engine.RenderAsync("Count: {{count}}", vars);
+        TemplateEngine engine = Create();
+        Dictionary<string, object> vars = new() { { "count", 42 } };
+        string result = await engine.RenderAsync("Count: {{count}}", vars);
 
         result.Should().Be("Count: 42");
     }
@@ -145,9 +145,9 @@ public class TemplateEngineTests
     [Fact]
     public async Task RenderAsync_NullObjectValue_UsesEmpty()
     {
-        var engine = Create();
-        var vars = new Dictionary<string, object> { { "val", null! } };
-        var result = await engine.RenderAsync("Value: {{val}}!", vars);
+        TemplateEngine engine = Create();
+        Dictionary<string, object> vars = new() { { "val", null! } };
+        string result = await engine.RenderAsync("Value: {{val}}!", vars);
 
         result.Should().Be("Value: !");
     }
@@ -155,14 +155,14 @@ public class TemplateEngineTests
     [Fact]
     public async Task RenderAsync_IsCompletedSynchronously_NoActualAsync()
     {
-        var engine = Create();
-        var task = engine.RenderAsync(
+        TemplateEngine engine = Create();
+        Task<string> task = engine.RenderAsync(
             "Hello {{x}}",
             new Dictionary<string, object> { { "x", "world" } }
         );
 
         task.IsCompleted.Should().BeTrue();
-        var result = await task;
+        string result = await task;
         result.Should().Be("Hello world");
     }
 }

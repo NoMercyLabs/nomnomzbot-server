@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using NoMercyBot.Api.Hubs.Clients;
 using NoMercyBot.Api.Hubs.Dtos;
 using NoMercyBot.Application.Common.Interfaces;
+using NoMercyBot.Domain.Entities;
 using NoMercyBot.Domain.Interfaces;
 
 namespace NoMercyBot.Api.Hubs;
@@ -30,14 +31,14 @@ public class OverlayHub : Hub<IOverlayClient>
     public override async Task OnConnectedAsync()
     {
         // Validate overlay token from query string
-        var token = Context.GetHttpContext()?.Request.Query["token"].ToString();
+        string? token = Context.GetHttpContext()?.Request.Query["token"].ToString();
         if (string.IsNullOrWhiteSpace(token))
         {
             Context.Abort();
             return;
         }
 
-        var channel = await _db.Channels.FirstOrDefaultAsync(c => c.OverlayToken == token);
+        Channel? channel = await _db.Channels.FirstOrDefaultAsync(c => c.OverlayToken == token);
         if (channel == null)
         {
             Context.Abort();
@@ -51,18 +52,18 @@ public class OverlayHub : Hub<IOverlayClient>
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        if (_connectionWidget.TryRemove(Context.ConnectionId, out var widgetId))
+        if (_connectionWidget.TryRemove(Context.ConnectionId, out string? widgetId))
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"widget-{widgetId}");
         await base.OnDisconnectedAsync(exception);
     }
 
     public async Task<JoinWidgetResponse> JoinWidget(string widgetId)
     {
-        var broadcasterId = Context.Items["BroadcasterId"] as string;
+        string? broadcasterId = Context.Items["BroadcasterId"] as string;
         if (broadcasterId == null)
-            return new JoinWidgetResponse(false, "Not authenticated", null);
+            return new(false, "Not authenticated", null);
 
-        var groupName = $"widget-{broadcasterId}-{widgetId}";
+        string groupName = $"widget-{broadcasterId}-{widgetId}";
         await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
         _connectionWidget[Context.ConnectionId] = $"{broadcasterId}-{widgetId}";
         _logger.LogDebug(
@@ -70,12 +71,12 @@ public class OverlayHub : Hub<IOverlayClient>
             Context.ConnectionId,
             widgetId
         );
-        return new JoinWidgetResponse(true, null, null);
+        return new(true, null, null);
     }
 
     public async Task LeaveWidget(string widgetId)
     {
-        var broadcasterId = Context.Items["BroadcasterId"] as string;
+        string? broadcasterId = Context.Items["BroadcasterId"] as string;
         if (broadcasterId == null)
             return;
         await Groups.RemoveFromGroupAsync(

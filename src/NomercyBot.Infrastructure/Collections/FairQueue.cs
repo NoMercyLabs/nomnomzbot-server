@@ -46,7 +46,7 @@ public sealed class FairQueue<T> : IFairQueue<T>
             int ownerCount = _queue.Count(e => e.OwnerKey == ownerKey);
             int rank = ownerCount + 1;
 
-            var entry = new QueueEntry(ownerKey, item, rank);
+            QueueEntry entry = new(ownerKey, item, rank);
 
             // Insert after all entries with rank <= this rank (stable FIFO within same rank)
             int insertAt = _queue.Count;
@@ -72,12 +72,12 @@ public sealed class FairQueue<T> : IFairQueue<T>
             if (_queue.Count == 0)
                 return default;
 
-            var entry = _queue[0];
+            QueueEntry entry = _queue[0];
             _queue.RemoveAt(0);
 
             // Recalculate ranks for remaining items by this owner
             int newRank = 1;
-            foreach (var e in _queue.Where(e => e.OwnerKey == entry.OwnerKey))
+            foreach (QueueEntry e in _queue.Where(e => e.OwnerKey == entry.OwnerKey))
                 e.Rank = newRank++;
 
             return entry.Item;
@@ -105,11 +105,11 @@ public sealed class FairQueue<T> : IFairQueue<T>
             int removed = _queue.RemoveAll(e => e.OwnerKey == ownerKey);
 
             // Recalculate ranks for all remaining owners after removal
-            var owners = _queue.Select(e => e.OwnerKey).Distinct().ToList();
-            foreach (var owner in owners)
+            List<string> owners = _queue.Select(e => e.OwnerKey).Distinct().ToList();
+            foreach (string owner in owners)
             {
                 int rank = 1;
-                foreach (var e in _queue.Where(e => e.OwnerKey == owner))
+                foreach (QueueEntry e in _queue.Where(e => e.OwnerKey == owner))
                     e.Rank = rank++;
             }
 
@@ -124,12 +124,12 @@ public sealed class FairQueue<T> : IFairQueue<T>
             if (position < 0 || position >= _queue.Count)
                 return false;
 
-            var removed = _queue[position];
+            QueueEntry removed = _queue[position];
             _queue.RemoveAt(position);
 
             // Recalculate ranks for the removed owner's remaining items
             int rank = 1;
-            foreach (var e in _queue.Where(e => e.OwnerKey == removed.OwnerKey))
+            foreach (QueueEntry e in _queue.Where(e => e.OwnerKey == removed.OwnerKey))
                 e.Rank = rank++;
 
             return true;

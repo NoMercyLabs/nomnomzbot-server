@@ -21,11 +21,11 @@ public sealed class SendReplyAction : ICommandAction
         ActionDefinition action
     )
     {
-        var template = action.GetString("message") ?? action.GetString("text") ?? string.Empty;
+        string template = action.GetString("message") ?? action.GetString("text") ?? string.Empty;
         if (string.IsNullOrEmpty(template))
             return ActionResult.Failure("send_reply requires a 'message' parameter");
 
-        var resolved = await _resolver.ResolveAsync(
+        string resolved = await _resolver.ResolveAsync(
             template,
             ctx.Variables,
             ctx.BroadcasterId,

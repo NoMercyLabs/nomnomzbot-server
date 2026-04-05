@@ -25,7 +25,7 @@ public sealed class PlaybackStateBroadcastHandler : IEventHandler<PlaybackStateC
 
         return _notifier.SendMusicStateAsync(
             @event.BroadcasterId,
-            new MusicStateDto(@event.IsPlaying, track),
+            new(@event.IsPlaying, track),
             ct
         );
     }

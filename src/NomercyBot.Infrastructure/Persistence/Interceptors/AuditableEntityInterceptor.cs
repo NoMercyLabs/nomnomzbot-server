@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using NoMercyBot.Domain.Common;
 
@@ -39,9 +40,9 @@ public sealed class AuditableEntityInterceptor : SaveChangesInterceptor
 
     private static void UpdateAuditFields(DbContext context)
     {
-        var utcNow = DateTime.UtcNow;
+        DateTime utcNow = DateTime.UtcNow;
 
-        foreach (var entry in context.ChangeTracker.Entries<BaseEntity>())
+        foreach (EntityEntry<BaseEntity> entry in context.ChangeTracker.Entries<BaseEntity>())
         {
             switch (entry.State)
             {

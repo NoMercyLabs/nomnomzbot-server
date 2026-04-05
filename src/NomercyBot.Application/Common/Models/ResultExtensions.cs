@@ -31,7 +31,7 @@ public static class ResultExtensions
         Func<TIn, Task<Result<TOut>>> binder
     )
     {
-        var result = await resultTask;
+        Result<TIn> result = await resultTask;
         return result.IsSuccess
             ? await binder(result.Value)
             : Result<TOut>.Failure(result.ErrorMessage!, result.ErrorCode, result.ErrorDetail);

@@ -22,10 +22,10 @@ public class DelayActionTests
     [Fact]
     public async Task ExecuteAsync_ValidSeconds_Succeeds()
     {
-        var action = new DelayAction();
-        var ctx = BuildCtx(new Dictionary<string, object?> { { "seconds", "0.1" } });
+        DelayAction action = new();
+        ActionContext ctx = BuildCtx(new() { { "seconds", "0.1" } });
 
-        var result = await action.ExecuteAsync(ctx);
+        ActionResult result = await action.ExecuteAsync(ctx);
 
         result.Success.Should().BeTrue();
     }
@@ -33,10 +33,10 @@ public class DelayActionTests
     [Fact]
     public async Task ExecuteAsync_MissingSeconds_ReturnsFail()
     {
-        var action = new DelayAction();
-        var ctx = BuildCtx(); // no seconds
+        DelayAction action = new();
+        ActionContext ctx = BuildCtx(); // no seconds
 
-        var result = await action.ExecuteAsync(ctx);
+        ActionResult result = await action.ExecuteAsync(ctx);
 
         result.Success.Should().BeFalse();
         result.ErrorMessage.Should().Contain("seconds");
@@ -45,10 +45,10 @@ public class DelayActionTests
     [Fact]
     public async Task ExecuteAsync_NonNumericSeconds_ReturnsFail()
     {
-        var action = new DelayAction();
-        var ctx = BuildCtx(new Dictionary<string, object?> { { "seconds", "not-a-number" } });
+        DelayAction action = new();
+        ActionContext ctx = BuildCtx(new() { { "seconds", "not-a-number" } });
 
-        var result = await action.ExecuteAsync(ctx);
+        ActionResult result = await action.ExecuteAsync(ctx);
 
         result.Success.Should().BeFalse();
     }
@@ -57,11 +57,11 @@ public class DelayActionTests
     public async Task ExecuteAsync_ZeroSeconds_ClampsToMinimum()
     {
         // 0 is below 0.1 minimum, so delay should be clamped to 0.1
-        var action = new DelayAction();
-        var ctx = BuildCtx(new Dictionary<string, object?> { { "seconds", "0" } });
+        DelayAction action = new();
+        ActionContext ctx = BuildCtx(new() { { "seconds", "0" } });
 
         // Should complete quickly without error (clamps to 0.1s)
-        var result = await action.ExecuteAsync(ctx);
+        ActionResult result = await action.ExecuteAsync(ctx);
 
         result.Success.Should().BeTrue();
     }
@@ -70,12 +70,12 @@ public class DelayActionTests
     public async Task ExecuteAsync_ExceedsMax_ClampsTo30Seconds()
     {
         // We can't wait 30s in a test, but we can verify cancellation works
-        var action = new DelayAction();
-        var ctx = BuildCtx(new Dictionary<string, object?> { { "seconds", "9999" } });
-        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
+        DelayAction action = new();
+        ActionContext ctx = BuildCtx(new() { { "seconds", "9999" } });
+        using CancellationTokenSource cts = new(TimeSpan.FromMilliseconds(50));
 
         // Use a context with a cancellation token
-        var cancelCtx = new ActionContext
+        ActionContext cancelCtx = new()
         {
             BroadcasterId = "chan",
             TriggeredByUserId = "u",
@@ -86,21 +86,21 @@ public class DelayActionTests
         };
 
         // With very short cancellation, should throw OperationCanceledException
-        var act = () => action.ExecuteAsync(cancelCtx);
+        Func<Task<ActionResult>> act = () => action.ExecuteAsync(cancelCtx);
         await act.Should().ThrowAsync<OperationCanceledException>();
     }
 
     [Fact]
     public void Type_IsDelay()
     {
-        var action = new DelayAction();
+        DelayAction action = new();
         action.Type.Should().Be("delay");
     }
 
     [Fact]
     public void Category_IsControl()
     {
-        var action = new DelayAction();
+        DelayAction action = new();
         action.Category.Should().Be("control");
     }
 }

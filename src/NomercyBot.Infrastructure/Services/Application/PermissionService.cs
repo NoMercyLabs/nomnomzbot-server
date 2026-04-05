@@ -37,7 +37,7 @@ public sealed class PermissionService : IPermissionService
             return Result.Success(true);
 
         // Check explicit user permission
-        var userPerm = await _db.Permissions.FirstOrDefaultAsync(
+        Permission? userPerm = await _db.Permissions.FirstOrDefaultAsync(
             p =>
                 p.BroadcasterId == broadcasterId
                 && p.SubjectType == "user"
@@ -51,7 +51,7 @@ public sealed class PermissionService : IPermissionService
             return Result.Success(userPerm.PermissionValue is "allow" or "1");
 
         // Check moderator status — moderators have elevated permissions
-        var isModerator = await _db.ChannelModerators.AnyAsync(
+        bool isModerator = await _db.ChannelModerators.AnyAsync(
             m => m.ChannelId == broadcasterId && m.UserId == userId,
             cancellationToken
         );
@@ -59,7 +59,7 @@ public sealed class PermissionService : IPermissionService
         if (isModerator)
         {
             // Moderators can manage most features except broadcaster-only ones
-            var broadcasterOnly = new[] { "channel.delete", "channel.transfer", "bot.configure" };
+            string[] broadcasterOnly = new[] { "channel.delete", "channel.transfer", "bot.configure" };
             return Result.Success(!broadcasterOnly.Contains(permission));
         }
 
@@ -74,7 +74,7 @@ public sealed class PermissionService : IPermissionService
         CancellationToken cancellationToken = default
     )
     {
-        var existing = await _db.Permissions.FirstOrDefaultAsync(
+        Permission? existing = await _db.Permissions.FirstOrDefaultAsync(
             p =>
                 p.BroadcasterId == broadcasterId
                 && p.SubjectType == "user"
@@ -91,7 +91,7 @@ public sealed class PermissionService : IPermissionService
         else
         {
             _db.Permissions.Add(
-                new Permission
+                new()
                 {
                     BroadcasterId = broadcasterId,
                     SubjectType = "user",
@@ -114,7 +114,7 @@ public sealed class PermissionService : IPermissionService
         CancellationToken cancellationToken = default
     )
     {
-        var existing = await _db.Permissions.FirstOrDefaultAsync(
+        Permission? existing = await _db.Permissions.FirstOrDefaultAsync(
             p =>
                 p.BroadcasterId == broadcasterId
                 && p.SubjectType == "user"
@@ -150,7 +150,7 @@ public sealed class PermissionService : IPermissionService
             ]);
         }
 
-        var permissions = await _db
+        List<string> permissions = await _db
             .Permissions.Where(p =>
                 p.BroadcasterId == broadcasterId
                 && p.SubjectType == "user"
@@ -161,7 +161,7 @@ public sealed class PermissionService : IPermissionService
             .ToListAsync(cancellationToken);
 
         // Add moderator base permissions
-        var isModerator = await _db.ChannelModerators.AnyAsync(
+        bool isModerator = await _db.ChannelModerators.AnyAsync(
             m => m.ChannelId == broadcasterId && m.UserId == userId,
             cancellationToken
         );
@@ -189,7 +189,7 @@ public sealed class PermissionService : IPermissionService
         if (userId == broadcasterId)
             return true;
 
-        var isModerator = await _db.ChannelModerators.AnyAsync(
+        bool isModerator = await _db.ChannelModerators.AnyAsync(
             m => m.ChannelId == broadcasterId && m.UserId == userId,
             cancellationToken
         );

@@ -8,6 +8,8 @@ using NoMercyBot.Application.Common.Models;
 using NoMercyBot.Application.Contracts.Tts;
 using NoMercyBot.Application.DTOs.Tts;
 using NoMercyBot.Application.Services;
+using NoMercyBot.Domain.Entities;
+using NoMercyBot.Domain.Interfaces;
 using ChannelConfiguration = NoMercyBot.Domain.Entities.Configuration;
 
 namespace NoMercyBot.Infrastructure.Services.Application;
@@ -30,7 +32,7 @@ public class TtsConfigService : ITtsConfigService
         CancellationToken cancellationToken = default
     )
     {
-        var config = await LoadConfigAsync(broadcasterId, cancellationToken);
+        TtsConfigDto config = await LoadConfigAsync(broadcasterId, cancellationToken);
         return Result.Success(config);
     }
 
@@ -40,15 +42,15 @@ public class TtsConfigService : ITtsConfigService
         CancellationToken cancellationToken = default
     )
     {
-        var existing = await _db.Configurations.FirstOrDefaultAsync(
+        ChannelConfiguration? existing = await _db.Configurations.FirstOrDefaultAsync(
             c => c.BroadcasterId == broadcasterId && c.Key == ConfigKey,
             cancellationToken
         );
 
-        var current = existing is not null
+        TtsConfigData current = existing is not null
             ? JsonSerializer.Deserialize<TtsConfigData>(existing.Value ?? "{}")
                 ?? new TtsConfigData()
-            : new TtsConfigData();
+            : new();
 
         if (request.IsEnabled.HasValue)
             current.IsEnabled = request.IsEnabled.Value;
@@ -63,7 +65,7 @@ public class TtsConfigService : ITtsConfigService
         if (request.ReadUsernames.HasValue)
             current.ReadUsernames = request.ReadUsernames.Value;
 
-        var json = JsonSerializer.Serialize(current);
+        string json = JsonSerializer.Serialize(current);
 
         if (existing is not null)
         {
@@ -72,7 +74,7 @@ public class TtsConfigService : ITtsConfigService
         else
         {
             _db.Configurations.Add(
-                new ChannelConfiguration
+                new()
                 {
                     BroadcasterId = broadcasterId,
                     Key = ConfigKey,
@@ -90,7 +92,7 @@ public class TtsConfigService : ITtsConfigService
         CancellationToken cancellationToken = default
     )
     {
-        var dbVoices = await _db
+        List<TtsVoice> dbVoices = await _db
             .TtsVoices.OrderBy(v => v.Provider)
             .ThenBy(v => v.Locale)
             .ThenBy(v => v.Name)
@@ -113,7 +115,7 @@ public class TtsConfigService : ITtsConfigService
         }
 
         // Fallback: enumerate directly from providers
-        var providerVoices = await _ttsService.GetAvailableVoicesAsync(cancellationToken);
+        IReadOnlyList<TtsVoiceInfo> providerVoices = await _ttsService.GetAvailableVoicesAsync(cancellationToken);
         IReadOnlyList<TtsVoiceDto> dtos = providerVoices
             .Select(v => new TtsVoiceDto(
                 v.Id,
@@ -136,12 +138,12 @@ public class TtsConfigService : ITtsConfigService
     {
         try
         {
-            var result = await _ttsService.SynthesizeAsync(
+            TtsResult result = await _ttsService.SynthesizeAsync(
                 request.Text,
                 request.VoiceId,
                 cancellationToken
             );
-            var base64 = Convert.ToBase64String(result.AudioData);
+            string base64 = Convert.ToBase64String(result.AudioData);
             return Result.Success(
                 new TtsTestResultDto(result.VoiceId, result.Provider, result.DurationMs, base64)
             );
@@ -157,15 +159,15 @@ public class TtsConfigService : ITtsConfigService
         CancellationToken cancellationToken
     )
     {
-        var entry = await _db.Configurations.FirstOrDefaultAsync(
+        ChannelConfiguration? entry = await _db.Configurations.FirstOrDefaultAsync(
             c => c.BroadcasterId == broadcasterId && c.Key == ConfigKey,
             cancellationToken
         );
 
         if (entry?.Value is null)
-            return ToDto(new TtsConfigData());
+            return ToDto(new());
 
-        var data = JsonSerializer.Deserialize<TtsConfigData>(entry.Value) ?? new TtsConfigData();
+        TtsConfigData data = JsonSerializer.Deserialize<TtsConfigData>(entry.Value) ?? new TtsConfigData();
         return ToDto(data);
     }
 

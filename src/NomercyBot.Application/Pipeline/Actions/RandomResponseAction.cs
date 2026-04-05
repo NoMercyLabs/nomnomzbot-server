@@ -14,7 +14,7 @@ public class RandomResponseAction : ICommandAction
 
     public async Task<ActionResult> ExecuteAsync(ActionContext ctx)
     {
-        if (!ctx.Parameters.TryGetValue("responses", out var respObj))
+        if (!ctx.Parameters.TryGetValue("responses", out object? respObj))
             return ActionResult.Fail("'responses' parameter is required");
 
         List<string> responses;
@@ -34,7 +34,7 @@ public class RandomResponseAction : ICommandAction
         if (responses.Count == 0)
             return ActionResult.Fail("'responses' list is empty");
 
-        var msg = VariableResolver.Resolve(
+        string msg = VariableResolver.Resolve(
             responses[Random.Shared.Next(responses.Count)],
             ctx.Variables
         );

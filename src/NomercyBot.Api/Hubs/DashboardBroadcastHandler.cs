@@ -23,7 +23,7 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
 
     public async Task HandleAsync(ChatMessageReceivedEvent evt, CancellationToken ct = default)
     {
-        var dto = new DashboardChatMessageDto(
+        DashboardChatMessageDto dto = new(
             MessageId: evt.MessageId,
             BroadcasterId: evt.BroadcasterId,
             UserId: evt.UserId,

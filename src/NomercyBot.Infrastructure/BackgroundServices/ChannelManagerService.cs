@@ -65,11 +65,11 @@ public class ChannelManagerService : BackgroundService
     {
         _logger.LogInformation("ChannelManagerService starting — joining enabled channels.");
 
-        using var scope = _serviceProvider.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
-        var chatService = scope.ServiceProvider.GetRequiredService<ITwitchChatService>();
-        var eventSubService = scope.ServiceProvider.GetRequiredService<ITwitchEventSubService>();
-        var registry = scope.ServiceProvider.GetRequiredService<IChannelRegistry>();
+        using IServiceScope scope = _serviceProvider.CreateScope();
+        IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        ITwitchChatService chatService = scope.ServiceProvider.GetRequiredService<ITwitchChatService>();
+        ITwitchEventSubService eventSubService = scope.ServiceProvider.GetRequiredService<ITwitchEventSubService>();
+        IChannelRegistry registry = scope.ServiceProvider.GetRequiredService<IChannelRegistry>();
 
         var channels = await db
             .Channels.Where(c => c.Enabled && c.IsOnboarded)
@@ -86,7 +86,7 @@ public class ChannelManagerService : BackgroundService
                 await chatService.JoinChannelAsync(channel.Name, stoppingToken);
 
                 // 2. Subscribe to all required EventSub events
-                foreach (var eventType in RequiredSubscriptions)
+                foreach (string eventType in RequiredSubscriptions)
                 {
                     try
                     {

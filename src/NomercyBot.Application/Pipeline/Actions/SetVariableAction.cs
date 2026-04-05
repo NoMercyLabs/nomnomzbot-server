@@ -9,12 +9,12 @@ public class SetVariableAction : ICommandAction
 
     public Task<ActionResult> ExecuteAsync(ActionContext ctx)
     {
-        var resolved = VariableResolver.ResolveAll(ctx.Parameters, ctx.Variables);
-        if (!resolved.TryGetValue("name", out var name) || string.IsNullOrWhiteSpace(name))
+        IReadOnlyDictionary<string, string> resolved = VariableResolver.ResolveAll(ctx.Parameters, ctx.Variables);
+        if (!resolved.TryGetValue("name", out string? name) || string.IsNullOrWhiteSpace(name))
             return Task.FromResult(ActionResult.Fail("'name' parameter is required"));
 
-        resolved.TryGetValue("value", out var value);
-        var vars = new Dictionary<string, string> { { name, value ?? string.Empty } };
+        resolved.TryGetValue("value", out string? value);
+        Dictionary<string, string> vars = new() { { name, value ?? string.Empty } };
         return Task.FromResult(ActionResult.Ok(vars: vars));
     }
 }

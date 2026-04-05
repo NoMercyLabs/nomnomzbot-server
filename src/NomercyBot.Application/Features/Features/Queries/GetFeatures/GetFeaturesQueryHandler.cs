@@ -21,7 +21,7 @@ public class GetFeaturesQueryHandler
         CancellationToken ct = default
     )
     {
-        var features = await _db
+        List<FeatureStatusDto> features = await _db
             .ChannelFeatures.Where(f => f.BroadcasterId == channelId)
             .Select(f => new FeatureStatusDto(
                 f.FeatureKey,

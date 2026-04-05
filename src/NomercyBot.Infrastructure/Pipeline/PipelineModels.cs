@@ -49,7 +49,7 @@ public sealed class ActionDefinition
     {
         if (Parameters is null)
             return null;
-        if (!Parameters.TryGetValue(key, out var elem))
+        if (!Parameters.TryGetValue(key, out JsonElement elem))
             return null;
         return elem.ValueKind == JsonValueKind.String ? elem.GetString() : elem.ToString();
     }
@@ -59,7 +59,7 @@ public sealed class ActionDefinition
     {
         if (Parameters is null)
             return defaultValue;
-        if (!Parameters.TryGetValue(key, out var elem))
+        if (!Parameters.TryGetValue(key, out JsonElement elem))
             return defaultValue;
         return elem.ValueKind == JsonValueKind.Number ? elem.GetInt32() : defaultValue;
     }

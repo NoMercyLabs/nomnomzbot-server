@@ -23,7 +23,7 @@ public class QueuedHostedService : BackgroundService
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            var workItem = await _taskQueue.DequeueAsync(stoppingToken);
+            Func<CancellationToken, ValueTask> workItem = await _taskQueue.DequeueAsync(stoppingToken);
             try
             {
                 await workItem(stoppingToken);

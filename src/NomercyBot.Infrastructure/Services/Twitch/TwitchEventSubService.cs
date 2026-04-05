@@ -14,6 +14,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NoMercyBot.Application.Common.Interfaces;
 using NoMercyBot.Application.Contracts.Twitch;
+using NoMercyBot.Domain.Entities;
 using NoMercyBot.Domain.Events;
 using NoMercyBot.Domain.Interfaces;
 using NoMercyBot.Domain.ValueObjects;
@@ -117,7 +118,7 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
         {
             // Queue for when the session is ready
             _pendingSubscriptions
-                .GetOrAdd(broadcasterId, _ => new ConcurrentBag<string>())
+                .GetOrAdd(broadcasterId, _ => new())
                 .Add(eventType);
 
             _logger.LogDebug(
@@ -133,18 +134,18 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
 
     public async Task UnsubscribeAsync(string subscriptionId, CancellationToken ct = default)
     {
-        var token = await GetBotTokenAsync(ct);
+        string? token = await GetBotTokenAsync(ct);
         if (token is null)
             return;
 
-        var request = new HttpRequestMessage(
+        HttpRequestMessage request = new(
             HttpMethod.Delete,
             $"{HelixBase}/eventsub/subscriptions?id={Uri.EscapeDataString(subscriptionId)}"
         );
         request.Headers.Add("Authorization", $"Bearer {token}");
         request.Headers.Add("Client-Id", _options.ClientId);
 
-        var resp = await _http.SendAsync(request, ct);
+        HttpResponseMessage resp = await _http.SendAsync(request, ct);
 
         if (resp.IsSuccessStatusCode)
         {
@@ -177,12 +178,12 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
 
     private async Task RunWithReconnectAsync(CancellationToken ct)
     {
-        var delay = TimeSpan.FromSeconds(1);
-        var connectUrl = DefaultWsUrl;
+        TimeSpan delay = TimeSpan.FromSeconds(1);
+        string connectUrl = DefaultWsUrl;
 
         while (!ct.IsCancellationRequested)
         {
-            var cleanClose = false;
+            bool cleanClose = false;
             try
             {
                 connectUrl = await ConnectAndReceiveAsync(connectUrl, ct);
@@ -211,7 +212,7 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
             // configured yet), back off longer rather than tight-looping.
             if (cleanClose && _activeSubscriptions.IsEmpty)
             {
-                var idleDelay = TimeSpan.FromMinutes(5);
+                TimeSpan idleDelay = TimeSpan.FromMinutes(5);
                 _logger.LogInformation(
                     "EventSub: No subscriptions — waiting {Delay:g} before reconnect",
                     idleDelay
@@ -233,14 +234,14 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
     private async Task<string> ConnectAndReceiveAsync(string url, CancellationToken ct)
     {
         _ws?.Dispose();
-        _ws = new ClientWebSocket();
+        _ws = new();
 
         _logger.LogInformation("EventSub: Connecting to {Url}", url);
-        await _ws.ConnectAsync(new Uri(url), ct);
+        await _ws.ConnectAsync(new(url), ct);
         _logger.LogInformation("EventSub: Connected");
 
-        var buffer = new byte[16384];
-        var sb = new StringBuilder();
+        byte[] buffer = new byte[16384];
+        StringBuilder sb = new();
 
         while (_ws.State == WebSocketState.Open && !ct.IsCancellationRequested)
         {
@@ -255,7 +256,7 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
                 sb.Append(Encoding.UTF8.GetString(buffer, 0, result.Count));
             } while (!result.EndOfMessage);
 
-            var reconnectUrl = await HandleEventSubMessageAsync(sb.ToString(), ct);
+            string? reconnectUrl = await HandleEventSubMessageAsync(sb.ToString(), ct);
             if (reconnectUrl is not null)
                 return reconnectUrl;
         }
@@ -298,12 +299,12 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
                 break;
 
             case "session_reconnect":
-                var reconnectUrl = envelope.Payload?.Session?.ReconnectUrl;
+                string? reconnectUrl = envelope.Payload?.Session?.ReconnectUrl;
                 _logger.LogWarning("EventSub: Server requested reconnect to {Url}", reconnectUrl);
                 return reconnectUrl ?? DefaultWsUrl;
 
             case "revocation":
-                var subId = envelope.Payload?.Subscription?.Id;
+                string? subId = envelope.Payload?.Subscription?.Id;
                 if (subId is not null)
                 {
                     _activeSubscriptions.TryRemove(subId, out _);
@@ -319,9 +320,9 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
 
     private async Task HandleNotificationAsync(EventSubEnvelope envelope, CancellationToken ct)
     {
-        var subscriptionType = envelope.Payload?.Subscription?.Type;
-        var eventData = envelope.Payload?.Event;
-        var broadcasterId =
+        string? subscriptionType = envelope.Payload?.Subscription?.Type;
+        JsonElement? eventData = envelope.Payload?.Event;
+        string broadcasterId =
             eventData?.GetProp("broadcaster_user_id")
             ?? eventData?.GetProp("to_broadcaster_user_id")
             ?? string.Empty;
@@ -344,7 +345,7 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
                         UserDisplayName = eventData?.GetProp("user_name") ?? string.Empty,
                         FollowedAt = DateTimeOffset.TryParse(
                             eventData?.GetProp("followed_at"),
-                            out var fa
+                            out DateTimeOffset fa
                         )
                             ? fa
                             : DateTimeOffset.UtcNow,
@@ -367,8 +368,8 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
                 break;
 
             case "channel.subscription.gift":
-                int.TryParse(eventData?.GetProp("total"), out var giftCount);
-                var isAnon = eventData?.GetProp("is_anonymous") == "true";
+                int.TryParse(eventData?.GetProp("total"), out int giftCount);
+                bool isAnon = eventData?.GetProp("is_anonymous") == "true";
 
                 await _eventBus.PublishAsync(
                     new GiftSubscriptionEvent
@@ -386,7 +387,7 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
                 break;
 
             case "channel.cheer":
-                int.TryParse(eventData?.GetProp("bits"), out var bits);
+                int.TryParse(eventData?.GetProp("bits"), out int bits);
                 await _eventBus.PublishAsync(
                     new CheerEvent
                     {
@@ -402,7 +403,7 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
                 break;
 
             case "channel.raid":
-                int.TryParse(eventData?.GetProp("viewers"), out var viewers);
+                int.TryParse(eventData?.GetProp("viewers"), out int viewers);
                 await _eventBus.PublishAsync(
                     new RaidEvent
                     {
@@ -421,10 +422,10 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
             case "channel.ban":
                 if (eventData.HasValue)
                 {
-                    var isPermanent = eventData.Value.GetProp("is_permanent") == "true";
-                    var banDurationStr = eventData.Value.GetProp("ban_duration_seconds");
-                    int.TryParse(banDurationStr, out var banDuration);
-                    var hasDuration = !isPermanent && banDuration > 0;
+                    bool isPermanent = eventData.Value.GetProp("is_permanent") == "true";
+                    string? banDurationStr = eventData.Value.GetProp("ban_duration_seconds");
+                    int.TryParse(banDurationStr, out int banDuration);
+                    bool hasDuration = !isPermanent && banDuration > 0;
 
                     if (hasDuration)
                     {
@@ -490,8 +491,8 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
                 break;
 
             case "channel.channel_points_custom_reward_redemption.add":
-                var reward =
-                    envelope.Payload?.Event?.TryGetProperty("reward", out var rewardProp) == true
+                JsonElement? reward =
+                    envelope.Payload?.Event?.TryGetProperty("reward", out JsonElement rewardProp) == true
                         ? rewardProp
                         : (JsonElement?)null;
 
@@ -503,7 +504,7 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
                         RewardId = reward?.GetProp("id") ?? string.Empty,
                         RewardTitle = reward?.GetProp("title") ?? string.Empty,
                         Cost =
-                            reward?.TryGetProperty("cost", out var costProp) == true
+                            reward?.TryGetProperty("cost", out JsonElement costProp) == true
                                 ? costProp.GetInt32()
                                 : 0,
                         UserId = eventData?.GetProp("user_id") ?? string.Empty,
@@ -515,9 +516,9 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
                 break;
 
             case "stream.online":
-                var streamTitle = eventData?.GetProp("title") ?? string.Empty;
-                var gameName = eventData?.GetProp("category_name") ?? string.Empty;
-                DateTimeOffset.TryParse(eventData?.GetProp("started_at"), out var startedAt);
+                string streamTitle = eventData?.GetProp("title") ?? string.Empty;
+                string gameName = eventData?.GetProp("category_name") ?? string.Empty;
+                DateTimeOffset.TryParse(eventData?.GetProp("started_at"), out DateTimeOffset startedAt);
 
                 await _eventBus.PublishAsync(
                     new ChannelOnlineEvent
@@ -554,7 +555,7 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
                         TwitchRewardId = eventData?.GetProp("id") ?? string.Empty,
                         Title = eventData?.GetProp("title") ?? string.Empty,
                         Cost =
-                            envelope.Payload?.Event?.TryGetProperty("cost", out var cp) == true
+                            envelope.Payload?.Event?.TryGetProperty("cost", out JsonElement cp) == true
                                 ? cp.GetInt32()
                                 : 0,
                         IsEnabled = eventData?.GetProp("is_enabled") != "false",
@@ -571,7 +572,7 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
                         TwitchRewardId = eventData?.GetProp("id") ?? string.Empty,
                         Title = eventData?.GetProp("title") ?? string.Empty,
                         Cost =
-                            envelope.Payload?.Event?.TryGetProperty("cost", out var cup) == true
+                            envelope.Payload?.Event?.TryGetProperty("cost", out JsonElement cup) == true
                                 ? cup.GetInt32()
                                 : 0,
                         IsEnabled = eventData?.GetProp("is_enabled") != "false",
@@ -618,10 +619,10 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
                 break;
 
             case "channel.hype_train.begin":
-                int.TryParse(eventData?.GetProp("level"), out var htLevel);
-                int.TryParse(eventData?.GetProp("total"), out var htTotal);
-                int.TryParse(eventData?.GetProp("goal"), out var htGoal);
-                DateTimeOffset.TryParse(eventData?.GetProp("expires_at"), out var htExpires);
+                int.TryParse(eventData?.GetProp("level"), out int htLevel);
+                int.TryParse(eventData?.GetProp("total"), out int htTotal);
+                int.TryParse(eventData?.GetProp("goal"), out int htGoal);
+                DateTimeOffset.TryParse(eventData?.GetProp("expires_at"), out DateTimeOffset htExpires);
                 await _eventBus.PublishAsync(
                     new HypeTrainBeganEvent
                     {
@@ -638,8 +639,8 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
                 break;
 
             case "channel.hype_train.end":
-                int.TryParse(eventData?.GetProp("level"), out var hteLevel);
-                int.TryParse(eventData?.GetProp("total"), out var hteTotal);
+                int.TryParse(eventData?.GetProp("level"), out int hteLevel);
+                int.TryParse(eventData?.GetProp("total"), out int hteTotal);
                 await _eventBus.PublishAsync(
                     new HypeTrainEndedEvent
                     {
@@ -683,9 +684,9 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
         CancellationToken ct
     )
     {
-        var choices = ParsePollChoices(ev);
-        int.TryParse(ev.GetProp("duration_seconds"), out var duration);
-        DateTimeOffset.TryParse(ev.GetProp("ends_at"), out var endsAt);
+        IReadOnlyList<PollChoice> choices = ParsePollChoices(ev);
+        int.TryParse(ev.GetProp("duration_seconds"), out int duration);
+        DateTimeOffset.TryParse(ev.GetProp("ends_at"), out DateTimeOffset endsAt);
 
         await _eventBus.PublishAsync(
             new PollBeganEvent
@@ -707,7 +708,7 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
         CancellationToken ct
     )
     {
-        var choices = ParsePollChoices(ev);
+        IReadOnlyList<PollChoice> choices = ParsePollChoices(ev);
         await _eventBus.PublishAsync(
             new PollEndedEvent
             {
@@ -723,18 +724,18 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
 
     private static IReadOnlyList<PollChoice> ParsePollChoices(JsonElement ev)
     {
-        var choices = new List<PollChoice>();
+        List<PollChoice> choices = new();
         if (
-            ev.TryGetProperty("choices", out var choicesArr)
+            ev.TryGetProperty("choices", out JsonElement choicesArr)
             && choicesArr.ValueKind == JsonValueKind.Array
         )
         {
-            foreach (var c in choicesArr.EnumerateArray())
+            foreach (JsonElement c in choicesArr.EnumerateArray())
             {
-                c.TryGetProperty("votes", out var votesEl);
-                c.TryGetProperty("channel_points_votes", out var cpVotesEl);
+                c.TryGetProperty("votes", out JsonElement votesEl);
+                c.TryGetProperty("channel_points_votes", out JsonElement cpVotesEl);
                 choices.Add(
-                    new PollChoice(
+                    new(
                         c.GetProp("id") ?? string.Empty,
                         c.GetProp("title") ?? string.Empty,
                         votesEl.ValueKind == JsonValueKind.Number ? votesEl.GetInt32() : 0,
@@ -752,9 +753,9 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
         CancellationToken ct
     )
     {
-        var outcomes = ParsePredictionOutcomes(ev);
-        int.TryParse(ev.GetProp("prediction_window"), out var window);
-        DateTimeOffset.TryParse(ev.GetProp("locks_at"), out var locksAt);
+        IReadOnlyList<PredictionOutcome> outcomes = ParsePredictionOutcomes(ev);
+        int.TryParse(ev.GetProp("prediction_window"), out int window);
+        DateTimeOffset.TryParse(ev.GetProp("locks_at"), out DateTimeOffset locksAt);
 
         await _eventBus.PublishAsync(
             new PredictionBeganEvent
@@ -776,7 +777,7 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
         CancellationToken ct
     )
     {
-        var outcomes = ParsePredictionOutcomes(ev);
+        IReadOnlyList<PredictionOutcome> outcomes = ParsePredictionOutcomes(ev);
         await _eventBus.PublishAsync(
             new PredictionLockedEvent
             {
@@ -795,7 +796,7 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
         CancellationToken ct
     )
     {
-        var outcomes = ParsePredictionOutcomes(ev);
+        IReadOnlyList<PredictionOutcome> outcomes = ParsePredictionOutcomes(ev);
         await _eventBus.PublishAsync(
             new PredictionEndedEvent
             {
@@ -812,18 +813,18 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
 
     private static IReadOnlyList<PredictionOutcome> ParsePredictionOutcomes(JsonElement ev)
     {
-        var outcomes = new List<PredictionOutcome>();
+        List<PredictionOutcome> outcomes = new();
         if (
-            ev.TryGetProperty("outcomes", out var outcomesArr)
+            ev.TryGetProperty("outcomes", out JsonElement outcomesArr)
             && outcomesArr.ValueKind == JsonValueKind.Array
         )
         {
-            foreach (var o in outcomesArr.EnumerateArray())
+            foreach (JsonElement o in outcomesArr.EnumerateArray())
             {
-                o.TryGetProperty("channel_points", out var cpEl);
-                o.TryGetProperty("users", out var usersEl);
+                o.TryGetProperty("channel_points", out JsonElement cpEl);
+                o.TryGetProperty("users", out JsonElement usersEl);
                 outcomes.Add(
-                    new PredictionOutcome(
+                    new(
                         o.GetProp("id") ?? string.Empty,
                         o.GetProp("title") ?? string.Empty,
                         cpEl.ValueKind == JsonValueKind.Number ? cpEl.GetInt32() : 0,
@@ -844,27 +845,27 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
         CancellationToken ct
     )
     {
-        var messageId = eventData.GetProp("message_id") ?? Guid.NewGuid().ToString();
-        var userId = eventData.GetProp("chatter_user_id") ?? string.Empty;
-        var userLogin = eventData.GetProp("chatter_user_login") ?? string.Empty;
-        var userDisplayName = eventData.GetProp("chatter_user_name") ?? userLogin;
-        var colorHex = eventData.GetProp("color");
-        var messageType = eventData.GetProp("message_type") ?? "text";
+        string messageId = eventData.GetProp("message_id") ?? Guid.NewGuid().ToString();
+        string userId = eventData.GetProp("chatter_user_id") ?? string.Empty;
+        string userLogin = eventData.GetProp("chatter_user_login") ?? string.Empty;
+        string userDisplayName = eventData.GetProp("chatter_user_name") ?? userLogin;
+        string? colorHex = eventData.GetProp("color");
+        string messageType = eventData.GetProp("message_type") ?? "text";
 
         // Parse message object
         string rawText = string.Empty;
         List<ChatMessageFragment> fragments = [];
 
-        if (eventData.TryGetProperty("message", out var messageObj))
+        if (eventData.TryGetProperty("message", out JsonElement messageObj))
         {
             rawText = messageObj.GetProp("text") ?? string.Empty;
 
             if (
-                messageObj.TryGetProperty("fragments", out var fragmentsArr)
+                messageObj.TryGetProperty("fragments", out JsonElement fragmentsArr)
                 && fragmentsArr.ValueKind == JsonValueKind.Array
             )
             {
-                foreach (var frag in fragmentsArr.EnumerateArray())
+                foreach (JsonElement frag in fragmentsArr.EnumerateArray())
                 {
                     fragments.Add(ParseFragment(frag));
                 }
@@ -874,24 +875,24 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
         // Parse badges
         List<ChatBadge> badges = [];
         if (
-            eventData.TryGetProperty("badges", out var badgesArr)
+            eventData.TryGetProperty("badges", out JsonElement badgesArr)
             && badgesArr.ValueKind == JsonValueKind.Array
         )
         {
-            foreach (var badge in badgesArr.EnumerateArray())
+            foreach (JsonElement badge in badgesArr.EnumerateArray())
             {
-                var setId = badge.GetProp("set_id") ?? string.Empty;
-                var badgeId = badge.GetProp("id") ?? string.Empty;
-                var info = badge.GetProp("info");
-                badges.Add(new ChatBadge(setId, badgeId, info));
+                string setId = badge.GetProp("set_id") ?? string.Empty;
+                string badgeId = badge.GetProp("id") ?? string.Empty;
+                string? info = badge.GetProp("info");
+                badges.Add(new(setId, badgeId, info));
             }
         }
 
         // Parse cheer bits
         int bits = 0;
         if (
-            eventData.TryGetProperty("cheer", out var cheerObj)
-            && cheerObj.TryGetProperty("bits", out var bitsEl)
+            eventData.TryGetProperty("cheer", out JsonElement cheerObj)
+            && cheerObj.TryGetProperty("bits", out JsonElement bitsEl)
         )
         {
             bits = bitsEl.GetInt32();
@@ -902,7 +903,7 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
         string? replyParentBody = null;
         string? replyParentUserName = null;
 
-        if (eventData.TryGetProperty("reply", out var replyObj))
+        if (eventData.TryGetProperty("reply", out JsonElement replyObj))
         {
             replyParentId = replyObj.GetProp("parent_message_id");
             replyParentBody = replyObj.GetProp("parent_message_body");
@@ -943,19 +944,19 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
 
     private static ChatMessageFragment ParseFragment(JsonElement frag)
     {
-        var type = frag.GetProp("type") ?? "text";
-        var text = frag.GetProp("text") ?? string.Empty;
+        string type = frag.GetProp("type") ?? "text";
+        string text = frag.GetProp("text") ?? string.Empty;
 
         switch (type)
         {
             case "emote":
             {
-                if (!frag.TryGetProperty("emote", out var emoteObj))
-                    return new ChatMessageFragment { Type = type, Text = text };
+                if (!frag.TryGetProperty("emote", out JsonElement emoteObj))
+                    return new() { Type = type, Text = text };
 
-                var formats = Array.Empty<string>();
+                string[] formats = Array.Empty<string>();
                 if (
-                    emoteObj.TryGetProperty("format", out var fmtArr)
+                    emoteObj.TryGetProperty("format", out JsonElement fmtArr)
                     && fmtArr.ValueKind == JsonValueKind.Array
                 )
                 {
@@ -965,7 +966,7 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
                         .ToArray();
                 }
 
-                return new ChatMessageFragment
+                return new()
                 {
                     Type = type,
                     Text = text,
@@ -978,18 +979,18 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
 
             case "cheermote":
             {
-                if (!frag.TryGetProperty("cheermote", out var cheerObj))
-                    return new ChatMessageFragment { Type = type, Text = text };
+                if (!frag.TryGetProperty("cheermote", out JsonElement cheerObj))
+                    return new() { Type = type, Text = text };
 
                 int bits = 0;
-                if (cheerObj.TryGetProperty("bits", out var bitsEl))
+                if (cheerObj.TryGetProperty("bits", out JsonElement bitsEl))
                     bits = bitsEl.GetInt32();
 
                 int tier = 1;
-                if (cheerObj.TryGetProperty("tier", out var tierEl))
+                if (cheerObj.TryGetProperty("tier", out JsonElement tierEl))
                     tier = tierEl.GetInt32();
 
-                return new ChatMessageFragment
+                return new()
                 {
                     Type = type,
                     Text = text,
@@ -1001,10 +1002,10 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
 
             case "mention":
             {
-                if (!frag.TryGetProperty("mention", out var mentionObj))
-                    return new ChatMessageFragment { Type = type, Text = text };
+                if (!frag.TryGetProperty("mention", out JsonElement mentionObj))
+                    return new() { Type = type, Text = text };
 
-                return new ChatMessageFragment
+                return new()
                 {
                     Type = type,
                     Text = text,
@@ -1015,7 +1016,7 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
             }
 
             default:
-                return new ChatMessageFragment { Type = type, Text = text };
+                return new() { Type = type, Text = text };
         }
     }
 
@@ -1023,9 +1024,9 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
 
     private async Task SubscribePendingAsync(string sessionId, CancellationToken ct)
     {
-        foreach (var (broadcasterId, eventTypes) in _pendingSubscriptions)
+        foreach ((string broadcasterId, ConcurrentBag<string> eventTypes) in _pendingSubscriptions)
         {
-            foreach (var eventType in eventTypes)
+            foreach (string eventType in eventTypes)
             {
                 try
                 {
@@ -1053,7 +1054,7 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
         CancellationToken ct
     )
     {
-        var token = await GetBotTokenAsync(ct);
+        string? token = await GetBotTokenAsync(ct);
         if (token is null)
         {
             _logger.LogWarning(
@@ -1063,8 +1064,8 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
             return;
         }
 
-        var condition = BuildCondition(broadcasterId, eventType);
-        var version = GetSubscriptionVersion(eventType);
+        Dictionary<string, string> condition = BuildCondition(broadcasterId, eventType);
+        string version = GetSubscriptionVersion(eventType);
 
         var body = new
         {
@@ -1074,7 +1075,7 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
             transport = new { method = "websocket", session_id = sessionId },
         };
 
-        var request = new HttpRequestMessage(
+        HttpRequestMessage request = new(
             HttpMethod.Post,
             $"{HelixBase}/eventsub/subscriptions"
         );
@@ -1082,10 +1083,10 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
         request.Headers.Add("Client-Id", _options.ClientId);
         request.Content = JsonContent.Create(body);
 
-        var resp = await _http.SendAsync(request, ct);
+        HttpResponseMessage resp = await _http.SendAsync(request, ct);
         if (!resp.IsSuccessStatusCode)
         {
-            var err = await resp.Content.ReadAsStringAsync(ct);
+            string err = await resp.Content.ReadAsStringAsync(ct);
             _logger.LogWarning(
                 "EventSub: Failed to subscribe {EventType} for {BroadcasterId}: {Status} — {Error}",
                 eventType,
@@ -1096,10 +1097,10 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
             return;
         }
 
-        var result = await resp.Content.ReadFromJsonAsync<HelixDataResponse<EventSubSubscription>>(
+        HelixDataResponse<EventSubSubscription>? result = await resp.Content.ReadFromJsonAsync<HelixDataResponse<EventSubSubscription>>(
             cancellationToken: ct
         );
-        var sub = result?.Data?.FirstOrDefault();
+        EventSubSubscription? sub = result?.Data?.FirstOrDefault();
 
         if (sub is not null)
         {
@@ -1158,11 +1159,11 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
 
     private async Task<string?> GetBotTokenAsync(CancellationToken ct)
     {
-        using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
-        var encryption = scope.ServiceProvider.GetRequiredService<IEncryptionService>();
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        IEncryptionService encryption = scope.ServiceProvider.GetRequiredService<IEncryptionService>();
 
-        var service = await db
+        Service? service = await db
             .Services.Where(s => s.Name == "twitch_bot" && s.Enabled && s.AccessToken != null)
             .OrderByDescending(s => s.TokenExpiry)
             .FirstOrDefaultAsync(ct);
@@ -1247,5 +1248,5 @@ file static class JsonElementExtensions
     /// where <c>element</c> is <c>JsonElement?</c>.
     /// </summary>
     public static string? GetProp(this JsonElement element, string propertyName) =>
-        element.TryGetProperty(propertyName, out var prop) ? prop.GetString() : null;
+        element.TryGetProperty(propertyName, out JsonElement prop) ? prop.GetString() : null;
 }

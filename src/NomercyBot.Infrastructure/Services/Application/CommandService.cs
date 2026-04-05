@@ -25,9 +25,9 @@ public class CommandService : ICommandService
         CancellationToken cancellationToken = default
     )
     {
-        var normalizedName = request.Name.ToLowerInvariant();
+        string normalizedName = request.Name.ToLowerInvariant();
 
-        var exists = await _db.Commands.AnyAsync(
+        bool exists = await _db.Commands.AnyAsync(
             c => c.BroadcasterId == broadcasterId && c.Name == normalizedName,
             cancellationToken
         );
@@ -35,7 +35,7 @@ public class CommandService : ICommandService
         if (exists)
             return Errors.AlreadyExists("command", request.Name).ToTyped<CommandDto>();
 
-        var command = new Command
+        Command command = new()
         {
             BroadcasterId = broadcasterId,
             Name = normalizedName,
@@ -63,7 +63,7 @@ public class CommandService : ICommandService
         CancellationToken cancellationToken = default
     )
     {
-        var command = await _db.Commands.FirstOrDefaultAsync(
+        Command? command = await _db.Commands.FirstOrDefaultAsync(
             c => c.BroadcasterId == broadcasterId && c.Name == commandName,
             cancellationToken
         );
@@ -101,7 +101,7 @@ public class CommandService : ICommandService
         CancellationToken cancellationToken = default
     )
     {
-        var command = await _db.Commands.FirstOrDefaultAsync(
+        Command? command = await _db.Commands.FirstOrDefaultAsync(
             c => c.BroadcasterId == broadcasterId && c.Name == commandName,
             cancellationToken
         );
@@ -121,7 +121,7 @@ public class CommandService : ICommandService
         CancellationToken cancellationToken = default
     )
     {
-        var command = await _db.Commands.FirstOrDefaultAsync(
+        Command? command = await _db.Commands.FirstOrDefaultAsync(
             c => c.BroadcasterId == broadcasterId && c.Name == commandName,
             cancellationToken
         );
@@ -138,10 +138,10 @@ public class CommandService : ICommandService
         CancellationToken cancellationToken = default
     )
     {
-        var query = _db.Commands.Where(c => c.BroadcasterId == broadcasterId);
-        var total = await query.CountAsync(cancellationToken);
+        IQueryable<Command> query = _db.Commands.Where(c => c.BroadcasterId == broadcasterId);
+        int total = await query.CountAsync(cancellationToken);
 
-        var items = await query
+        List<CommandListItem> items = await query
             .OrderBy(c => c.Name)
             .Skip((pagination.Page - 1) * pagination.PageSize)
             .Take(pagination.PageSize)
@@ -172,7 +172,7 @@ public class CommandService : ICommandService
         CancellationToken cancellationToken = default
     )
     {
-        var command = await _db.Commands.FirstOrDefaultAsync(
+        Command? command = await _db.Commands.FirstOrDefaultAsync(
             c => c.BroadcasterId == broadcasterId && c.Name == commandName && c.IsEnabled,
             cancellationToken
         );
@@ -180,7 +180,7 @@ public class CommandService : ICommandService
         if (command is null)
             return Errors.NotFound<string>("Command", commandName);
 
-        var response =
+        string? response =
             command.Response ?? (command.Responses.Count > 0 ? command.Responses[0] : null);
 
         return Result.Success(response ?? string.Empty);

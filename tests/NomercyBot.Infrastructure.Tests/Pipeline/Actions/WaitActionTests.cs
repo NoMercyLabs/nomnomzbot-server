@@ -22,73 +22,73 @@ public class WaitActionTests
 
     private static ActionDefinition BuildAction(string json)
     {
-        var def = System.Text.Json.JsonSerializer.Deserialize<ActionDefinition>(json)!;
+        ActionDefinition def = System.Text.Json.JsonSerializer.Deserialize<ActionDefinition>(json)!;
         return def;
     }
 
     [Fact]
     public async Task ExecuteAsync_ZeroDelay_ReturnsImmediately()
     {
-        var action = new WaitAction();
-        var ctx = BuildCtx();
-        var def = BuildAction("""{"type":"wait","milliseconds":0}""");
+        WaitAction action = new();
+        PipelineExecutionContext ctx = BuildCtx();
+        ActionDefinition def = BuildAction("""{"type":"wait","milliseconds":0}""");
 
-        var result = await action.ExecuteAsync(ctx, def);
+        ActionResult result = await action.ExecuteAsync(ctx, def);
         result.Succeeded.Should().BeTrue();
     }
 
     [Fact]
     public async Task ExecuteAsync_SmallDelay_Succeeds()
     {
-        var action = new WaitAction();
-        var ctx = BuildCtx();
-        var def = BuildAction("""{"type":"wait","milliseconds":50}""");
+        WaitAction action = new();
+        PipelineExecutionContext ctx = BuildCtx();
+        ActionDefinition def = BuildAction("""{"type":"wait","milliseconds":50}""");
 
-        var result = await action.ExecuteAsync(ctx, def);
+        ActionResult result = await action.ExecuteAsync(ctx, def);
         result.Succeeded.Should().BeTrue();
     }
 
     [Fact]
     public async Task ExecuteAsync_SecondsParam_Converts()
     {
-        var action = new WaitAction();
-        var ctx = BuildCtx();
-        var def = BuildAction("""{"type":"wait","seconds":0}"""); // 0 = no delay
+        WaitAction action = new();
+        PipelineExecutionContext ctx = BuildCtx();
+        ActionDefinition def = BuildAction("""{"type":"wait","seconds":0}"""); // 0 = no delay
 
-        var result = await action.ExecuteAsync(ctx, def);
+        ActionResult result = await action.ExecuteAsync(ctx, def);
         result.Succeeded.Should().BeTrue();
     }
 
     [Fact]
     public async Task ExecuteAsync_ExceedsMax_ClampsTo30Seconds()
     {
-        var action = new WaitAction();
-        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
-        var ctx = BuildCtx(cts.Token);
-        var def = BuildAction("""{"type":"wait","milliseconds":60000}"""); // 60s → clamped to 30s
+        WaitAction action = new();
+        using CancellationTokenSource cts = new(TimeSpan.FromMilliseconds(100));
+        PipelineExecutionContext ctx = BuildCtx(cts.Token);
+        ActionDefinition def = BuildAction("""{"type":"wait","milliseconds":60000}"""); // 60s → clamped to 30s
 
         // With fast cancellation, we can verify it waits (clamped), then gets cancelled
-        var act = () => action.ExecuteAsync(ctx, def);
+        Func<Task<ActionResult>> act = () => action.ExecuteAsync(ctx, def);
         await act.Should().ThrowAsync<OperationCanceledException>();
     }
 
     [Fact]
     public async Task ExecuteAsync_Cancelled_ThrowsOperationCancelled()
     {
-        var action = new WaitAction();
-        using var cts = new CancellationTokenSource();
+        WaitAction action = new();
+        using CancellationTokenSource cts = new();
         cts.Cancel();
-        var ctx = BuildCtx(cts.Token);
-        var def = BuildAction("""{"type":"wait","milliseconds":5000}""");
+        PipelineExecutionContext ctx = BuildCtx(cts.Token);
+        ActionDefinition def = BuildAction("""{"type":"wait","milliseconds":5000}""");
 
-        var act = () => action.ExecuteAsync(ctx, def);
+        Func<Task<ActionResult>> act = () => action.ExecuteAsync(ctx, def);
         await act.Should().ThrowAsync<OperationCanceledException>();
     }
 
     [Fact]
     public void ActionType_IsWait()
     {
-        var action = new WaitAction();
+        WaitAction action = new();
         action.ActionType.Should().Be("wait");
     }
 }

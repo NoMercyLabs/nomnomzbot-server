@@ -62,7 +62,7 @@ public class DashboardNotifier : IDashboardNotifier
         _hub
             .Clients.Group($"channel-{broadcasterId}")
             .ChannelEvent(
-                new ChannelEventDto(
+                new(
                     method,
                     broadcasterId,
                     null,

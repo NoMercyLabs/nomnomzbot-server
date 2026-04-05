@@ -22,10 +22,10 @@ public class StopActionTests
     [Fact]
     public async Task ExecuteAsync_ReturnsSuccessWithStopFlag()
     {
-        var action = new StopAction();
-        var ctx = BuildCtx();
+        StopAction action = new();
+        ActionContext ctx = BuildCtx();
 
-        var result = await action.ExecuteAsync(ctx);
+        ActionResult result = await action.ExecuteAsync(ctx);
 
         result.Success.Should().BeTrue();
         result.StopPipeline.Should().BeTrue();
@@ -34,8 +34,8 @@ public class StopActionTests
     [Fact]
     public async Task ExecuteAsync_HasNoErrorMessage()
     {
-        var action = new StopAction();
-        var result = await action.ExecuteAsync(BuildCtx());
+        StopAction action = new();
+        ActionResult result = await action.ExecuteAsync(BuildCtx());
 
         result.ErrorMessage.Should().BeNull();
     }
@@ -43,14 +43,14 @@ public class StopActionTests
     [Fact]
     public void Type_IsStop()
     {
-        var action = new StopAction();
+        StopAction action = new();
         action.Type.Should().Be("stop");
     }
 
     [Fact]
     public void Category_IsControl()
     {
-        var action = new StopAction();
+        StopAction action = new();
         action.Category.Should().Be("control");
     }
 }

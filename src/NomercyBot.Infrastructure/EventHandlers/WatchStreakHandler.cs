@@ -54,15 +54,15 @@ public sealed class WatchStreakHandler
     {
         try
         {
-            using var scope = ScopeFactory.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+            using IServiceScope scope = ScopeFactory.CreateScope();
+            IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-            var today = DateOnly.FromDateTime(DateTime.UtcNow);
-            var broadcasterId = e.BroadcasterId;
+            DateOnly today = DateOnly.FromDateTime(DateTime.UtcNow);
+            string? broadcasterId = e.BroadcasterId;
             if (string.IsNullOrEmpty(broadcasterId))
                 return;
 
-            var existing = await db.WatchStreaks.FirstOrDefaultAsync(
+            WatchStreak? existing = await db.WatchStreaks.FirstOrDefaultAsync(
                 w => w.BroadcasterId == broadcasterId && w.UserId == e.UserId,
                 ct
             );
@@ -70,7 +70,7 @@ public sealed class WatchStreakHandler
             if (existing is null)
             {
                 db.WatchStreaks.Add(
-                    new WatchStreak
+                    new()
                     {
                         Id = Guid.NewGuid(),
                         BroadcasterId = broadcasterId,

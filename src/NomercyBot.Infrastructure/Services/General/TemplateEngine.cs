@@ -25,10 +25,10 @@ public sealed partial class TemplateEngine : ITemplateEngine
                 template,
                 match =>
                 {
-                    var variableName = match.Groups[1].Value.Trim();
+                    string variableName = match.Groups[1].Value.Trim();
 
                     // Case-insensitive lookup
-                    foreach (var kvp in variables)
+                    foreach (KeyValuePair<string, string> kvp in variables)
                     {
                         if (
                             string.Equals(kvp.Key, variableName, StringComparison.OrdinalIgnoreCase)
@@ -66,7 +66,7 @@ public sealed partial class TemplateEngine : ITemplateEngine
         CancellationToken cancellationToken = default
     )
     {
-        var stringVars = variables.ToDictionary(
+        Dictionary<string, string> stringVars = variables.ToDictionary(
             kvp => kvp.Key,
             kvp => kvp.Value?.ToString() ?? string.Empty
         );

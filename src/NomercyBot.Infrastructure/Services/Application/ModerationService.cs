@@ -41,7 +41,7 @@ public class ModerationService : IModerationService
         CancellationToken cancellationToken = default
     )
     {
-        var result = await RecordActionAsync(
+        Result<ModerationActionResult> result = await RecordActionAsync(
             broadcasterId,
             "timeout",
             targetUserId,
@@ -52,7 +52,7 @@ public class ModerationService : IModerationService
 
         if (result.IsSuccess)
         {
-            var ok = await _twitchApi.TimeoutUserAsync(
+            bool ok = await _twitchApi.TimeoutUserAsync(
                 broadcasterId,
                 targetUserId,
                 durationSeconds,
@@ -77,7 +77,7 @@ public class ModerationService : IModerationService
         CancellationToken cancellationToken = default
     )
     {
-        var result = await RecordActionAsync(
+        Result<ModerationActionResult> result = await RecordActionAsync(
             broadcasterId,
             "ban",
             targetUserId,
@@ -88,7 +88,7 @@ public class ModerationService : IModerationService
 
         if (result.IsSuccess)
         {
-            var ok = await _twitchApi.BanUserAsync(
+            bool ok = await _twitchApi.BanUserAsync(
                 broadcasterId,
                 targetUserId,
                 reason,
@@ -111,7 +111,7 @@ public class ModerationService : IModerationService
         CancellationToken cancellationToken = default
     )
     {
-        var result = await RecordActionAsync(
+        Result<ModerationActionResult> result = await RecordActionAsync(
             broadcasterId,
             "unban",
             targetUserId,
@@ -122,7 +122,7 @@ public class ModerationService : IModerationService
 
         if (result.IsSuccess)
         {
-            var ok = await _twitchApi.UnbanUserAsync(
+            bool ok = await _twitchApi.UnbanUserAsync(
                 broadcasterId,
                 targetUserId,
                 cancellationToken
@@ -144,14 +144,14 @@ public class ModerationService : IModerationService
         CancellationToken cancellationToken = default
     )
     {
-        var channelExists = await _db.Channels.AnyAsync(
+        bool channelExists = await _db.Channels.AnyAsync(
             c => c.Id == broadcasterId,
             cancellationToken
         );
         if (!channelExists)
             return Errors.ChannelNotFound<ModerationRuleDetail>(broadcasterId);
 
-        var ruleData = new ModerationRuleData
+        ModerationRuleData ruleData = new()
         {
             Name = request.Name,
             Type = request.Type,
@@ -163,7 +163,7 @@ public class ModerationService : IModerationService
             IsEnabled = true,
         };
 
-        var record = new Record
+        Record record = new()
         {
             BroadcasterId = broadcasterId,
             RecordType = RuleRecordType,
@@ -197,7 +197,7 @@ public class ModerationService : IModerationService
         CancellationToken cancellationToken = default
     )
     {
-        var record = await _db.Records.FirstOrDefaultAsync(
+        Record? record = await _db.Records.FirstOrDefaultAsync(
             r =>
                 r.Id == ruleId
                 && r.BroadcasterId == broadcasterId
@@ -221,7 +221,7 @@ public class ModerationService : IModerationService
         CancellationToken cancellationToken = default
     )
     {
-        var record = await _db.Records.FirstOrDefaultAsync(
+        Record? record = await _db.Records.FirstOrDefaultAsync(
             r =>
                 r.Id == ruleId
                 && r.BroadcasterId == broadcasterId
@@ -232,7 +232,7 @@ public class ModerationService : IModerationService
         if (record is null)
             return Errors.NotFound<ModerationRuleDetail>("Moderation rule", ruleId.ToString());
 
-        var ruleData =
+        ModerationRuleData ruleData =
             JsonSerializer.Deserialize<ModerationRuleData>(record.Data) ?? new ModerationRuleData();
 
         if (request.Name is not null)
@@ -278,22 +278,22 @@ public class ModerationService : IModerationService
         CancellationToken cancellationToken = default
     )
     {
-        var query = _db.Records.Where(r =>
+        IQueryable<Record> query = _db.Records.Where(r =>
             r.BroadcasterId == broadcasterId && r.RecordType == RuleRecordType
         );
 
-        var total = await query.CountAsync(cancellationToken);
+        int total = await query.CountAsync(cancellationToken);
 
-        var records = await query
+        List<Record> records = await query
             .OrderByDescending(r => r.CreatedAt)
             .Skip((pagination.Page - 1) * pagination.PageSize)
             .Take(pagination.PageSize)
             .ToListAsync(cancellationToken);
 
-        var items = records
+        List<ModerationRuleListItem> items = records
             .Select(r =>
             {
-                var data =
+                ModerationRuleData data =
                     JsonSerializer.Deserialize<ModerationRuleData>(r.Data)
                     ?? new ModerationRuleData();
                 return new ModerationRuleListItem(
@@ -324,22 +324,22 @@ public class ModerationService : IModerationService
         CancellationToken cancellationToken = default
     )
     {
-        var query = _db
+        IQueryable<Record> query = _db
             .Records.Include(r => r.User)
             .Where(r => r.BroadcasterId == broadcasterId && r.RecordType == ActionRecordType);
 
-        var total = await query.CountAsync(cancellationToken);
+        int total = await query.CountAsync(cancellationToken);
 
-        var records = await query
+        List<Record> records = await query
             .OrderByDescending(r => r.CreatedAt)
             .Skip((pagination.Page - 1) * pagination.PageSize)
             .Take(pagination.PageSize)
             .ToListAsync(cancellationToken);
 
-        var items = records
+        List<ModerationActionLog> items = records
             .Select(r =>
             {
-                var data =
+                ModerationActionData data =
                     JsonSerializer.Deserialize<ModerationActionData>(r.Data)
                     ?? new ModerationActionData();
                 return new ModerationActionLog(
@@ -372,19 +372,19 @@ public class ModerationService : IModerationService
         CancellationToken cancellationToken
     )
     {
-        var channelExists = await _db.Channels.AnyAsync(
+        bool channelExists = await _db.Channels.AnyAsync(
             c => c.Id == broadcasterId,
             cancellationToken
         );
         if (!channelExists)
             return Errors.ChannelNotFound<ModerationActionResult>(broadcasterId);
 
-        var targetUser = await _db.Users.FirstOrDefaultAsync(
+        User? targetUser = await _db.Users.FirstOrDefaultAsync(
             u => u.Id == targetUserId,
             cancellationToken
         );
 
-        var actionData = new ModerationActionData
+        ModerationActionData actionData = new()
         {
             Action = action,
             TargetUserId = targetUserId,
@@ -393,7 +393,7 @@ public class ModerationService : IModerationService
             DurationSeconds = durationSeconds,
         };
 
-        var record = new Record
+        Record record = new()
         {
             BroadcasterId = broadcasterId,
             RecordType = ActionRecordType,

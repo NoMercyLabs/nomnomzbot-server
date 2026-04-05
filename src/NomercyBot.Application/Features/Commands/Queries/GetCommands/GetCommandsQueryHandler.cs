@@ -4,6 +4,7 @@
 using Microsoft.EntityFrameworkCore;
 using NoMercyBot.Application.Common.Interfaces;
 using NoMercyBot.Application.Common.Models;
+using NoMercyBot.Domain.Entities;
 
 namespace NoMercyBot.Application.Features.Commands.Queries.GetCommands;
 
@@ -21,11 +22,11 @@ public class GetCommandsQueryHandler
         CancellationToken ct = default
     )
     {
-        var q = _db.Commands.Where(c => c.BroadcasterId == query.ChannelId);
+        IQueryable<Command> q = _db.Commands.Where(c => c.BroadcasterId == query.ChannelId);
         if (!query.IncludeDisabled)
             q = q.Where(c => c.IsEnabled);
 
-        var commands = await q.OrderBy(c => c.Name)
+        List<CommandListItemDto> commands = await q.OrderBy(c => c.Name)
             .Select(c => new CommandListItemDto(
                 c.Id,
                 c.Name,

@@ -21,7 +21,7 @@ public sealed class ChannelOnlineBroadcastHandler : IEventHandler<ChannelOnlineE
         if (string.IsNullOrEmpty(@event.BroadcasterId))
             return Task.CompletedTask;
 
-        var dto = new StreamStatusDto(
+        StreamStatusDto dto = new(
             IsLive: true,
             StreamId: null,
             Title: @event.StreamTitle,
@@ -47,7 +47,7 @@ public sealed class ChannelOfflineBroadcastHandler : IEventHandler<ChannelOfflin
         if (string.IsNullOrEmpty(@event.BroadcasterId))
             return Task.CompletedTask;
 
-        var dto = new StreamStatusDto(
+        StreamStatusDto dto = new(
             IsLive: false,
             StreamId: null,
             Title: null,

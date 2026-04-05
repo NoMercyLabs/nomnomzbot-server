@@ -19,19 +19,19 @@ public class InfraPipelineEngineTests
         chat.SendMessageAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        var registry = Substitute.For<IChannelRegistry>();
+        IChannelRegistry? registry = Substitute.For<IChannelRegistry>();
         registry.Get(Arg.Any<string>()).Returns((ChannelContext?)null);
 
-        var actions = new ICommandAction[]
+        ICommandAction[] actions = new ICommandAction[]
         {
             new StopAction(),
             new SetVariableAction(),
             new WaitAction(),
         };
 
-        var conditions = new ICommandCondition[] { new UserRoleCondition(), new RandomCondition() };
+        ICommandCondition[] conditions = new ICommandCondition[] { new UserRoleCondition(), new RandomCondition() };
 
-        return new PipelineEngine(
+        return new(
             registry,
             actions,
             conditions,
@@ -59,8 +59,8 @@ public class InfraPipelineEngineTests
     [Fact]
     public async Task ExecuteAsync_EmptySteps_ReturnsCompleted()
     {
-        var engine = CreateEngine();
-        var result = await engine.ExecuteAsync(BuildRequest("""{"steps":[]}"""));
+        PipelineEngine engine = CreateEngine();
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest("""{"steps":[]}"""));
 
         result.Outcome.Should().Be(PipelineOutcome.Completed);
     }
@@ -68,8 +68,8 @@ public class InfraPipelineEngineTests
     [Fact]
     public async Task ExecuteAsync_InvalidJson_ReturnsFailed()
     {
-        var engine = CreateEngine();
-        var result = await engine.ExecuteAsync(BuildRequest("not-json"));
+        PipelineEngine engine = CreateEngine();
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest("not-json"));
 
         result.Outcome.Should().Be(PipelineOutcome.Failed);
         result.ErrorMessage.Should().NotBeNullOrEmpty();
@@ -79,8 +79,8 @@ public class InfraPipelineEngineTests
     public async Task ExecuteAsync_NullDefinition_ReturnsCompleted()
     {
         // null JSON deserializes to null definition → treated as empty pipeline → Completed
-        var engine = CreateEngine();
-        var result = await engine.ExecuteAsync(BuildRequest("null"));
+        PipelineEngine engine = CreateEngine();
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest("null"));
 
         result.Outcome.Should().Be(PipelineOutcome.Completed);
     }
@@ -88,10 +88,10 @@ public class InfraPipelineEngineTests
     [Fact]
     public async Task ExecuteAsync_UnknownAction_ContinuesExecution()
     {
-        var engine = CreateEngine();
-        var json =
+        PipelineEngine engine = CreateEngine();
+        string json =
             """{"steps":[{"action":{"type":"does_not_exist"}},{"action":{"type":"stop"}}]}""";
-        var result = await engine.ExecuteAsync(BuildRequest(json));
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(json));
 
         // Unknown action is logged as warning and fails the step, but execution continues (fail-open)
         result.StepLogs.Should().HaveCount(2);
@@ -102,7 +102,7 @@ public class InfraPipelineEngineTests
     [Fact]
     public async Task ExecuteAsync_StopAction_SetsShouldStopAndBreaks()
     {
-        var engine = CreateEngine();
+        PipelineEngine engine = CreateEngine();
         const string json = """
             {
               "steps": [
@@ -112,7 +112,7 @@ public class InfraPipelineEngineTests
             }
             """;
 
-        var result = await engine.ExecuteAsync(BuildRequest(json));
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(json));
 
         // Pipeline completes (not failed) but only one step ran
         result.StepsExecuted.Should().Be(1);
@@ -123,7 +123,7 @@ public class InfraPipelineEngineTests
     [Fact]
     public async Task ExecuteAsync_SetVariable_StoresInContext()
     {
-        var engine = CreateEngine();
+        PipelineEngine engine = CreateEngine();
         const string json = """
             {
               "steps": [
@@ -133,7 +133,7 @@ public class InfraPipelineEngineTests
             }
             """;
 
-        var result = await engine.ExecuteAsync(BuildRequest(json));
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(json));
 
         result.Outcome.Should().Be(PipelineOutcome.Completed);
         result.StepLogs.Should().HaveCount(2);
@@ -144,7 +144,7 @@ public class InfraPipelineEngineTests
     [Fact]
     public async Task ExecuteAsync_ConditionFalse_SkipsStep()
     {
-        var engine = CreateEngine();
+        PipelineEngine engine = CreateEngine();
         const string json = """
             {
               "steps": [
@@ -156,7 +156,7 @@ public class InfraPipelineEngineTests
             }
             """;
         // No user.role variable → defaults to viewer → condition false → skip
-        var result = await engine.ExecuteAsync(BuildRequest(json));
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(json));
 
         result.StepsSkipped.Should().Be(1);
         result.StepsExecuted.Should().Be(0);
@@ -165,7 +165,7 @@ public class InfraPipelineEngineTests
     [Fact]
     public async Task ExecuteAsync_ConditionTrue_ExecutesStep()
     {
-        var engine = CreateEngine();
+        PipelineEngine engine = CreateEngine();
         const string json = """
             {
               "steps": [
@@ -176,7 +176,7 @@ public class InfraPipelineEngineTests
               ]
             }
             """;
-        var request = new PipelineRequest
+        PipelineRequest request = new()
         {
             BroadcasterId = "chan",
             TriggeredByUserId = "mod1",
@@ -187,7 +187,7 @@ public class InfraPipelineEngineTests
             InitialVariables = { { "user.role", "moderator" } },
         };
 
-        var result = await engine.ExecuteAsync(request);
+        PipelineExecutionResult result = await engine.ExecuteAsync(request);
 
         result.StepsExecuted.Should().Be(1);
     }
@@ -197,13 +197,13 @@ public class InfraPipelineEngineTests
     [Fact]
     public async Task ExecuteAsync_AlreadyCancelled_ReturnsCancelled()
     {
-        var engine = CreateEngine();
+        PipelineEngine engine = CreateEngine();
         const string json = """{"steps":[{"action":{"type":"wait","milliseconds":5000}}]}""";
 
-        using var cts = new CancellationTokenSource();
+        using CancellationTokenSource cts = new();
         cts.Cancel();
 
-        var result = await engine.ExecuteAsync(BuildRequest(json), cts.Token);
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(json), cts.Token);
 
         result.Outcome.Should().Be(PipelineOutcome.Cancelled);
     }
@@ -213,14 +213,14 @@ public class InfraPipelineEngineTests
     [Fact]
     public void GetActiveCountForChannel_NoActivePipelines_ReturnsZero()
     {
-        var engine = CreateEngine();
+        PipelineEngine engine = CreateEngine();
         engine.GetActiveCountForChannel("chan").Should().Be(0);
     }
 
     [Fact]
     public async Task ExecuteAsync_AfterCompletion_DecrementsActiveCount()
     {
-        var engine = CreateEngine();
+        PipelineEngine engine = CreateEngine();
         const string json = """{"steps":[{"action":{"type":"stop"}}]}""";
 
         await engine.ExecuteAsync(BuildRequest(json));
@@ -231,19 +231,19 @@ public class InfraPipelineEngineTests
     [Fact]
     public async Task ExecuteAsync_ExceedsConcurrencyLimit_ReturnsFailed()
     {
-        var engine = CreateEngine();
+        PipelineEngine engine = CreateEngine();
         const string json = """{"steps":[{"action":{"type":"wait","milliseconds":5000}}]}""";
 
         // Start 5 long-running pipelines
-        var ctsList = Enumerable.Range(0, 5).Select(_ => new CancellationTokenSource()).ToList();
-        var longTasks = ctsList
+        List<CancellationTokenSource> ctsList = Enumerable.Range(0, 5).Select(_ => new CancellationTokenSource()).ToList();
+        Task<PipelineExecutionResult>[] longTasks = ctsList
             .Select(cts => engine.ExecuteAsync(BuildRequest(json, "chan"), cts.Token))
             .ToArray();
 
         await Task.Delay(100); // Let them register
 
         // 6th should fail
-        var overflow = await engine.ExecuteAsync(BuildRequest(json, "chan"));
+        PipelineExecutionResult overflow = await engine.ExecuteAsync(BuildRequest(json, "chan"));
 
         overflow.Outcome.Should().Be(PipelineOutcome.Failed);
         overflow.ErrorMessage.Should().NotBeNullOrEmpty();
@@ -264,7 +264,7 @@ public class InfraPipelineEngineTests
     [Fact]
     public async Task ExecuteAsync_StopOnMatch_StopsAfterSuccessfulStep()
     {
-        var engine = CreateEngine();
+        PipelineEngine engine = CreateEngine();
         const string json = """
             {
               "steps": [
@@ -274,7 +274,7 @@ public class InfraPipelineEngineTests
             }
             """;
 
-        var result = await engine.ExecuteAsync(BuildRequest(json));
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(json));
 
         // stop_on_match=true on step 0, so only 1 step executed
         result.StepsExecuted.Should().Be(1);

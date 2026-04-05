@@ -58,11 +58,11 @@ public sealed class PipelineEngine : IPipelineEngine
 
     public async Task CancelAllForChannelAsync(string broadcasterId)
     {
-        var ctx = _registry.Get(broadcasterId);
+        ChannelContext? ctx = _registry.Get(broadcasterId);
         if (ctx is null)
             return;
 
-        foreach (var (id, cts) in ctx.ActivePipelines)
+        foreach ((string id, CancellationTokenSource cts) in ctx.ActivePipelines)
         {
             try
             {
@@ -84,14 +84,14 @@ public sealed class PipelineEngine : IPipelineEngine
         CancellationToken ct = default
     )
     {
-        var startedAt = DateTimeOffset.UtcNow;
+        DateTimeOffset startedAt = DateTimeOffset.UtcNow;
 
         // Concurrency gate
-        var current = _activeCount.AddOrUpdate(request.BroadcasterId, 1, (_, v) => v + 1);
+        int current = _activeCount.AddOrUpdate(request.BroadcasterId, 1, (_, v) => v + 1);
         if (current > MaxConcurrentPerChannel)
         {
             _activeCount.AddOrUpdate(request.BroadcasterId, 0, (_, v) => Math.Max(0, v - 1));
-            return new PipelineExecutionResult
+            return new()
             {
                 ExecutionId = Guid.NewGuid().ToString("N")[..12],
                 Outcome = PipelineOutcome.Failed,
@@ -113,7 +113,7 @@ public sealed class PipelineEngine : IPipelineEngine
         catch (Exception ex)
         {
             _activeCount.AddOrUpdate(request.BroadcasterId, 0, (_, v) => Math.Max(0, v - 1));
-            return new PipelineExecutionResult
+            return new()
             {
                 ExecutionId = Guid.NewGuid().ToString("N")[..12],
                 Outcome = PipelineOutcome.Failed,
@@ -125,7 +125,7 @@ public sealed class PipelineEngine : IPipelineEngine
         if (definition is null || definition.Steps.Count == 0)
         {
             _activeCount.AddOrUpdate(request.BroadcasterId, 0, (_, v) => Math.Max(0, v - 1));
-            return new PipelineExecutionResult
+            return new()
             {
                 ExecutionId = Guid.NewGuid().ToString("N")[..12],
                 Outcome = PipelineOutcome.Completed,
@@ -134,7 +134,7 @@ public sealed class PipelineEngine : IPipelineEngine
         }
 
         // Build execution context
-        var execCtx = new PipelineExecutionContext
+        PipelineExecutionContext execCtx = new()
         {
             BroadcasterId = request.BroadcasterId,
             TriggeredByUserId = request.TriggeredByUserId,
@@ -147,13 +147,13 @@ public sealed class PipelineEngine : IPipelineEngine
         };
 
         // Seed initial variables
-        foreach (var (k, v) in request.InitialVariables)
+        foreach ((string k, string v) in request.InitialVariables)
             execCtx.Variables[k] = v;
 
         // Register for cancellation via ChannelContext
-        using var timeoutCts = new CancellationTokenSource(ExecutionTimeout);
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
-        var channelCtx = _registry.Get(request.BroadcasterId);
+        using CancellationTokenSource timeoutCts = new(ExecutionTimeout);
+        using CancellationTokenSource linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
+        ChannelContext? channelCtx = _registry.Get(request.BroadcasterId);
         if (channelCtx is not null)
             channelCtx.ActivePipelines[execCtx.ExecutionId] = linkedCts;
 
@@ -168,7 +168,7 @@ public sealed class PipelineEngine : IPipelineEngine
                 execCtx.ExecutionId,
                 request.BroadcasterId
             );
-            return new PipelineExecutionResult
+            return new()
             {
                 ExecutionId = execCtx.ExecutionId,
                 Outcome = PipelineOutcome.TimedOut,
@@ -180,7 +180,7 @@ public sealed class PipelineEngine : IPipelineEngine
         }
         catch (OperationCanceledException)
         {
-            return new PipelineExecutionResult
+            return new()
             {
                 ExecutionId = execCtx.ExecutionId,
                 Outcome = PipelineOutcome.Cancelled,
@@ -206,23 +206,23 @@ public sealed class PipelineEngine : IPipelineEngine
         CancellationToken ct
     )
     {
-        var executed = 0;
-        var skipped = 0;
+        int executed = 0;
+        int skipped = 0;
 
-        for (var i = 0; i < definition.Steps.Count; i++)
+        for (int i = 0; i < definition.Steps.Count; i++)
         {
             ct.ThrowIfCancellationRequested();
             ctx.CurrentStepIndex = i;
 
-            var step = definition.Steps[i];
-            var stepStart = DateTimeOffset.UtcNow;
+            PipelineStepDefinition step = definition.Steps[i];
+            DateTimeOffset stepStart = DateTimeOffset.UtcNow;
 
             // Evaluate condition (skip step if condition false)
             if (step.Condition is not null && !EvaluateCondition(ctx, step.Condition))
             {
                 skipped++;
                 ctx.StepLogs.Add(
-                    new StepExecutionLog
+                    new()
                     {
                         StepIndex = i,
                         ActionType = step.Action.Type,
@@ -253,7 +253,7 @@ public sealed class PipelineEngine : IPipelineEngine
                     i
                 );
                 ctx.StepLogs.Add(
-                    new StepExecutionLog
+                    new()
                     {
                         StepIndex = i,
                         ActionType = step.Action.Type,
@@ -268,7 +268,7 @@ public sealed class PipelineEngine : IPipelineEngine
             }
 
             ctx.StepLogs.Add(
-                new StepExecutionLog
+                new()
                 {
                     StepIndex = i,
                     ActionType = step.Action.Type,
@@ -287,7 +287,7 @@ public sealed class PipelineEngine : IPipelineEngine
                 break;
         }
 
-        return new PipelineExecutionResult
+        return new()
         {
             ExecutionId = ctx.ExecutionId,
             Outcome = PipelineOutcome.Completed,
@@ -301,7 +301,7 @@ public sealed class PipelineEngine : IPipelineEngine
 
     private bool EvaluateCondition(PipelineExecutionContext ctx, ConditionDefinition condition)
     {
-        var evaluator = _conditions.FirstOrDefault(c =>
+        ICommandCondition? evaluator = _conditions.FirstOrDefault(c =>
             string.Equals(c.ConditionType, condition.Type, StringComparison.OrdinalIgnoreCase)
         );
 
@@ -323,7 +323,7 @@ public sealed class PipelineEngine : IPipelineEngine
         CancellationToken ct
     )
     {
-        var executor = _actions.FirstOrDefault(a =>
+        ICommandAction? executor = _actions.FirstOrDefault(a =>
             string.Equals(a.ActionType, action.Type, StringComparison.OrdinalIgnoreCase)
         );
 

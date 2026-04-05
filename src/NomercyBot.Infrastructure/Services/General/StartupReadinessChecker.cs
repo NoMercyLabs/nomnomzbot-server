@@ -32,7 +32,7 @@ public sealed class StartupReadinessChecker(
         {
             try
             {
-                await using NpgsqlConnection conn = new NpgsqlConnection(connectionString);
+                await using NpgsqlConnection conn = new(connectionString);
                 await conn.OpenAsync(cancellationToken);
                 logger.LogInformation("PostgreSQL is ready");
                 return;

@@ -56,13 +56,13 @@ public abstract class GenericRepository<T>
         CancellationToken ct = default
     )
     {
-        var query = filter != null ? Set.Where(filter) : Set.AsQueryable();
-        var total = await query.CountAsync(ct);
-        var items = await query
+        IQueryable<T> query = filter != null ? Set.Where(filter) : Set.AsQueryable();
+        int total = await query.CountAsync(ct);
+        List<T> items = await query
             .Skip((paging.Page - 1) * paging.PageSize)
             .Take(paging.PageSize)
             .ToListAsync(ct);
-        return new PagedList<T>(items, total, paging.Page, paging.PageSize);
+        return new(items, total, paging.Page, paging.PageSize);
     }
 
     public async Task<int> SaveChangesAsync(CancellationToken ct = default) =>

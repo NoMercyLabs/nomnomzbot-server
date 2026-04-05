@@ -12,18 +12,18 @@ public class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
 {
     public AppDbContext CreateDbContext(string[] args)
     {
-        var configuration = new ConfigurationBuilder()
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .SetBasePath(Directory.GetCurrentDirectory())
             .AddJsonFile("appsettings.json", optional: true)
             .AddJsonFile("appsettings.Development.json", optional: true)
             .AddEnvironmentVariables()
             .Build();
 
-        var connectionString =
+        string connectionString =
             configuration.GetConnectionString("DefaultConnection")
             ?? "Host=localhost;Database=nomercybot;Username=postgres;Password=postgres";
 
-        var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
+        DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
         optionsBuilder.UseNpgsql(
             connectionString,
             npgsqlOptions =>
@@ -32,6 +32,6 @@ public class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
             }
         );
 
-        return new AppDbContext(optionsBuilder.Options);
+        return new(optionsBuilder.Options);
     }
 }

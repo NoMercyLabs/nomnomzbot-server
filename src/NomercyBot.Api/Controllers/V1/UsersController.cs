@@ -38,13 +38,13 @@ public class UsersController : BaseController
         if (string.IsNullOrWhiteSpace(query))
             return BadRequestResponse("A search query is required.");
 
-        var pagination = new PaginationParams(
+        PaginationParams pagination = new(
             request.Page,
             request.Take,
             request.Sort,
             request.Order
         );
-        var result = await _userService.SearchAsync(query, pagination, ct);
+        Result<PagedList<UserSearchResult>> result = await _userService.SearchAsync(query, pagination, ct);
         if (result.IsFailure)
             return ResultResponse(result);
         return GetPaginatedResponse(result.Value, request);
@@ -54,7 +54,7 @@ public class UsersController : BaseController
     [ProducesResponseType<StatusResponseDto<UserDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetUser(string userId, CancellationToken ct)
     {
-        var result = await _userService.GetAsync(userId, ct);
+        Result<UserDto> result = await _userService.GetAsync(userId, ct);
         return ResultResponse(result);
     }
 
@@ -62,7 +62,7 @@ public class UsersController : BaseController
     [ProducesResponseType<StatusResponseDto<UserProfileDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetUserProfile(string userId, CancellationToken ct)
     {
-        var result = await _userService.GetProfileAsync(userId, ct);
+        Result<UserProfileDto> result = await _userService.GetProfileAsync(userId, ct);
         return ResultResponse(result);
     }
 
@@ -74,7 +74,7 @@ public class UsersController : BaseController
         CancellationToken ct
     )
     {
-        var result = await _userService.UpdateProfileAsync(userId, request, ct);
+        Result<UserProfileDto> result = await _userService.UpdateProfileAsync(userId, request, ct);
         if (result.IsFailure)
             return ResultResponse(result);
         return Ok(new StatusResponseDto<UserProfileDto> { Data = result.Value });
@@ -91,15 +91,15 @@ public class UsersController : BaseController
     public async Task<IActionResult> ExportUserData(string userId, CancellationToken ct)
     {
         // Only the user themselves or admins may export
-        var callerId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        string? callerId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         if (callerId != userId)
             return UnauthorizedResponse("You may only export your own data.");
 
-        var result = await _gdpr.ExportUserDataAsync(userId, ct);
+        Result<string> result = await _gdpr.ExportUserDataAsync(userId, ct);
         if (result.IsFailure)
             return ResultResponse(result);
 
-        var bytes = System.Text.Encoding.UTF8.GetBytes(result.Value);
+        byte[] bytes = System.Text.Encoding.UTF8.GetBytes(result.Value);
         return File(
             bytes,
             "application/json",
@@ -115,11 +115,11 @@ public class UsersController : BaseController
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> DeleteUserData(string userId, CancellationToken ct)
     {
-        var callerId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        string? callerId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         if (callerId != userId)
             return UnauthorizedResponse("You may only delete your own data.");
 
-        var result = await _gdpr.DeleteUserDataAsync(userId, ct);
+        Result result = await _gdpr.DeleteUserDataAsync(userId, ct);
         return ResultResponse(result);
     }
 }

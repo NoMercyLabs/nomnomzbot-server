@@ -14,8 +14,8 @@ public class SendMessageAction : ICommandAction
 
     public async Task<ActionResult> ExecuteAsync(ActionContext ctx)
     {
-        var resolved = VariableResolver.ResolveAll(ctx.Parameters, ctx.Variables);
-        if (!resolved.TryGetValue("message", out var message) || string.IsNullOrWhiteSpace(message))
+        IReadOnlyDictionary<string, string> resolved = VariableResolver.ResolveAll(ctx.Parameters, ctx.Variables);
+        if (!resolved.TryGetValue("message", out string? message) || string.IsNullOrWhiteSpace(message))
             return ActionResult.Fail("'message' parameter is required");
 
         await _chat.SendMessageAsync(ctx.BroadcasterId, message, ctx.CancellationToken);

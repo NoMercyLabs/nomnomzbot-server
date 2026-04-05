@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NoMercyBot.Application.Common.Interfaces;
 using NoMercyBot.Application.Common.Models;
+using NoMercyBot.Domain.Entities;
 
 namespace NoMercyBot.Infrastructure.Services.Application;
 
@@ -36,7 +37,7 @@ public sealed class GdprService
         CancellationToken cancellationToken = default
     )
     {
-        var user = await _db
+        User? user = await _db
             .Users.Include(u => u.Pronoun)
             .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 
@@ -100,7 +101,7 @@ public sealed class GdprService
             ConnectedServices = services,
         };
 
-        var json = JsonSerializer.Serialize(
+        string json = JsonSerializer.Serialize(
             export,
             new JsonSerializerOptions { WriteIndented = true }
         );
@@ -123,25 +124,25 @@ public sealed class GdprService
         CancellationToken cancellationToken = default
     )
     {
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+        User? user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 
         if (user is null)
             return Result.Failure($"User '{userId}' was not found.", "NOT_FOUND");
 
         // Hard delete: chat messages
-        var messages = await _db
+        List<ChatMessage> messages = await _db
             .ChatMessages.Where(m => m.UserId == userId)
             .ToListAsync(cancellationToken);
         _db.ChatMessages.RemoveRange(messages);
 
         // Hard delete: records
-        var records = await _db
+        List<Record> records = await _db
             .Records.Where(r => r.UserId == userId)
             .ToListAsync(cancellationToken);
         _db.Records.RemoveRange(records);
 
         // Hard delete: service tokens (revoke and remove)
-        var services = await _db
+        List<Service> services = await _db
             .Services.Where(s => s.UserId == userId)
             .ToListAsync(cancellationToken);
         _db.Services.RemoveRange(services);
@@ -155,12 +156,12 @@ public sealed class GdprService
         user.Enabled = false;
 
         // Log deletion audit (hash the userId for privacy — audit trail without storing PII)
-        var idHash = Convert.ToHexString(
+        string idHash = Convert.ToHexString(
             System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(userId))
         )[..16];
 
         _db.DeletionAuditLogs.Add(
-            new Domain.Entities.DeletionAuditLog
+            new()
             {
                 RequestType = "GDPR_ERASURE",
                 SubjectIdHash = idHash,

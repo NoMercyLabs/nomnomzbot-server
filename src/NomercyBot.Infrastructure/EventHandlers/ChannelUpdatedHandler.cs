@@ -4,6 +4,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NoMercyBot.Application.Common.Interfaces;
+using NoMercyBot.Domain.Entities;
 using NoMercyBot.Domain.Events;
 using NoMercyBot.Domain.Interfaces;
 
@@ -31,14 +32,14 @@ public sealed class ChannelUpdatedHandler : IEventHandler<ChannelUpdatedEvent>
         CancellationToken cancellationToken = default
     )
     {
-        var broadcasterId = @event.BroadcasterId;
+        string? broadcasterId = @event.BroadcasterId;
         if (string.IsNullOrEmpty(broadcasterId))
             return;
 
-        using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-        var channel = await db.Channels.FindAsync([broadcasterId], cancellationToken);
+        Channel? channel = await db.Channels.FindAsync([broadcasterId], cancellationToken);
         if (channel is null)
             return;
 

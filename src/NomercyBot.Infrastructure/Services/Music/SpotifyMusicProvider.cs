@@ -8,6 +8,7 @@ using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NoMercyBot.Application.Common.Interfaces;
+using NoMercyBot.Domain.Entities;
 using NoMercyBot.Domain.Interfaces;
 
 namespace NoMercyBot.Infrastructure.Services.Music;
@@ -48,7 +49,7 @@ public sealed class SpotifyMusicProvider : IMusicProvider
 
     public async Task PlayAsync(string broadcasterId, CancellationToken cancellationToken = default)
     {
-        var token = await GetTokenAsync(broadcasterId, cancellationToken);
+        string? token = await GetTokenAsync(broadcasterId, cancellationToken);
         if (token is null)
             return;
 
@@ -66,7 +67,7 @@ public sealed class SpotifyMusicProvider : IMusicProvider
         CancellationToken cancellationToken = default
     )
     {
-        var token = await GetTokenAsync(broadcasterId, cancellationToken);
+        string? token = await GetTokenAsync(broadcasterId, cancellationToken);
         if (token is null)
             return;
 
@@ -81,7 +82,7 @@ public sealed class SpotifyMusicProvider : IMusicProvider
 
     public async Task SkipAsync(string broadcasterId, CancellationToken cancellationToken = default)
     {
-        var token = await GetTokenAsync(broadcasterId, cancellationToken);
+        string? token = await GetTokenAsync(broadcasterId, cancellationToken);
         if (token is null)
             return;
 
@@ -99,11 +100,11 @@ public sealed class SpotifyMusicProvider : IMusicProvider
         CancellationToken cancellationToken = default
     )
     {
-        var token = await GetTokenAsync(broadcasterId, cancellationToken);
+        string? token = await GetTokenAsync(broadcasterId, cancellationToken);
         if (token is null)
             return null;
 
-        var response = await SendAsync(
+        HttpResponseMessage? response = await SendAsync(
             HttpMethod.Get,
             $"{SpotifyApiBase}/me/player/currently-playing",
             token,
@@ -115,7 +116,7 @@ public sealed class SpotifyMusicProvider : IMusicProvider
         if (!response.IsSuccessStatusCode)
             return null;
 
-        var json = await response.Content.ReadFromJsonAsync<SpotifyCurrentlyPlaying>(
+        SpotifyCurrentlyPlaying? json = await response.Content.ReadFromJsonAsync<SpotifyCurrentlyPlaying>(
             cancellationToken: cancellationToken
         );
         if (json?.Item is null)
@@ -131,20 +132,20 @@ public sealed class SpotifyMusicProvider : IMusicProvider
         CancellationToken cancellationToken = default
     )
     {
-        var token = await GetTokenAsync(broadcasterId, cancellationToken);
+        string? token = await GetTokenAsync(broadcasterId, cancellationToken);
         if (token is null)
             return [];
 
         // Feb 2026: max 10 results per type
-        var limit = Math.Min(maxResults, 10);
-        var url =
+        int limit = Math.Min(maxResults, 10);
+        string url =
             $"{SpotifyApiBase}/search?q={Uri.EscapeDataString(query)}&type=track&limit={limit}";
 
-        var response = await SendAsync(HttpMethod.Get, url, token, cancellationToken);
+        HttpResponseMessage? response = await SendAsync(HttpMethod.Get, url, token, cancellationToken);
         if (response is null || !response.IsSuccessStatusCode)
             return [];
 
-        var json = await response.Content.ReadFromJsonAsync<SpotifySearchResponse>(
+        SpotifySearchResponse? json = await response.Content.ReadFromJsonAsync<SpotifySearchResponse>(
             cancellationToken: cancellationToken
         );
         if (json?.Tracks?.Items is null)
@@ -159,12 +160,12 @@ public sealed class SpotifyMusicProvider : IMusicProvider
         CancellationToken cancellationToken = default
     )
     {
-        var token = await GetTokenAsync(broadcasterId, cancellationToken);
+        string? token = await GetTokenAsync(broadcasterId, cancellationToken);
         if (token is null)
             return false;
 
-        var url = $"{SpotifyApiBase}/me/player/queue?uri={Uri.EscapeDataString(trackUri)}";
-        var response = await SendPlayerCommandAsync(
+        string url = $"{SpotifyApiBase}/me/player/queue?uri={Uri.EscapeDataString(trackUri)}";
+        HttpResponseMessage? response = await SendPlayerCommandAsync(
             HttpMethod.Post,
             url,
             token,
@@ -182,7 +183,7 @@ public sealed class SpotifyMusicProvider : IMusicProvider
         CancellationToken cancellationToken
     )
     {
-        var service = await _db.Services.FirstOrDefaultAsync(
+        Service? service = await _db.Services.FirstOrDefaultAsync(
             s =>
                 s.BroadcasterId == broadcasterId
                 && s.Name == ProviderName
@@ -206,7 +207,7 @@ public sealed class SpotifyMusicProvider : IMusicProvider
             && service.TokenExpiry.Value <= DateTime.UtcNow.AddMinutes(5)
         )
         {
-            var refreshed = await RefreshTokenAsync(service, cancellationToken);
+            string? refreshed = await RefreshTokenAsync(service, cancellationToken);
             if (refreshed is null)
                 return null;
             return refreshed;
@@ -223,15 +224,15 @@ public sealed class SpotifyMusicProvider : IMusicProvider
         if (service.RefreshToken is null)
             return null;
 
-        var refreshToken = _encryption.TryDecrypt(service.RefreshToken);
+        string? refreshToken = _encryption.TryDecrypt(service.RefreshToken);
         if (refreshToken is null)
             return null;
 
         // Client credentials required for refresh (stored on the service)
-        var clientId = service.ClientId is not null
+        string? clientId = service.ClientId is not null
             ? _encryption.TryDecrypt(service.ClientId)
             : null;
-        var clientSecret = service.ClientSecret is not null
+        string? clientSecret = service.ClientSecret is not null
             ? _encryption.TryDecrypt(service.ClientSecret)
             : null;
 
@@ -244,7 +245,7 @@ public sealed class SpotifyMusicProvider : IMusicProvider
             return null;
         }
 
-        var form = new FormUrlEncodedContent(
+        FormUrlEncodedContent form = new(
             new Dictionary<string, string>
             {
                 ["grant_type"] = "refresh_token",
@@ -256,7 +257,7 @@ public sealed class SpotifyMusicProvider : IMusicProvider
 
         try
         {
-            var response = await _http.PostAsync(SpotifyTokenEndpoint, form, cancellationToken);
+            HttpResponseMessage response = await _http.PostAsync(SpotifyTokenEndpoint, form, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogWarning(
@@ -267,7 +268,7 @@ public sealed class SpotifyMusicProvider : IMusicProvider
                 return null;
             }
 
-            var json = await response.Content.ReadFromJsonAsync<SpotifyTokenResponse>(
+            SpotifyTokenResponse? json = await response.Content.ReadFromJsonAsync<SpotifyTokenResponse>(
                 cancellationToken: cancellationToken
             );
             if (json is null)
@@ -308,29 +309,29 @@ public sealed class SpotifyMusicProvider : IMusicProvider
         CancellationToken cancellationToken
     )
     {
-        var request = new HttpRequestMessage(method, url);
-        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(
+        HttpRequestMessage request = new(method, url);
+        request.Headers.Authorization = new(
             "Bearer",
             token
         );
 
         try
         {
-            var response = await _http.SendAsync(request, cancellationToken);
+            HttpResponseMessage response = await _http.SendAsync(request, cancellationToken);
 
             if (response.StatusCode == HttpStatusCode.TooManyRequests)
             {
                 if (
-                    response.Headers.TryGetValues("Retry-After", out var values)
-                    && int.TryParse(values.First(), out var retryAfter)
+                    response.Headers.TryGetValues("Retry-After", out IEnumerable<string>? values)
+                    && int.TryParse(values.First(), out int retryAfter)
                 )
                 {
                     _logger.LogWarning("Spotify rate limited, retry-after={Seconds}s", retryAfter);
                     await Task.Delay(TimeSpan.FromSeconds(retryAfter), cancellationToken);
                     // Retry once after backoff
-                    request = new HttpRequestMessage(method, url);
+                    request = new(method, url);
                     request.Headers.Authorization =
-                        new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                        new("Bearer", token);
                     return await _http.SendAsync(request, cancellationToken);
                 }
             }
@@ -352,8 +353,8 @@ public sealed class SpotifyMusicProvider : IMusicProvider
         CancellationToken cancellationToken
     )
     {
-        var request = new HttpRequestMessage(method, url);
-        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(
+        HttpRequestMessage request = new(method, url);
+        request.Headers.Authorization = new(
             "Bearer",
             token
         );

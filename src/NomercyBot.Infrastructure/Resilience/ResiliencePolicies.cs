@@ -94,7 +94,7 @@ public static class ResiliencePolicies
                         Delay = TimeSpan.FromSeconds(1),
                         ShouldHandle = args =>
                         {
-                            var status = args.Outcome.Result?.StatusCode;
+                            HttpStatusCode? status = args.Outcome.Result?.StatusCode;
                             return ValueTask.FromResult(
                                 status == HttpStatusCode.TooManyRequests
                                     || status == HttpStatusCode.ServiceUnavailable
@@ -108,8 +108,8 @@ public static class ResiliencePolicies
                                 if (
                                     args.Outcome.Result.Headers.TryGetValues(
                                         "Retry-After",
-                                        out var values
-                                    ) && int.TryParse(values.FirstOrDefault(), out var retryAfter)
+                                        out IEnumerable<string>? values
+                                    ) && int.TryParse(values.FirstOrDefault(), out int retryAfter)
                                 )
                                 {
                                     return ValueTask.FromResult<TimeSpan?>(

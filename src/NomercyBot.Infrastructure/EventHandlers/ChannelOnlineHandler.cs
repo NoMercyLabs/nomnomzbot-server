@@ -6,8 +6,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NoMercyBot.Application.Common.Interfaces;
 using NoMercyBot.Application.Contracts.Twitch;
+using NoMercyBot.Domain.Entities;
 using NoMercyBot.Domain.Events;
 using NoMercyBot.Domain.Interfaces;
+using Stream = NoMercyBot.Domain.Entities.Stream;
 
 namespace NoMercyBot.Infrastructure.EventHandlers;
 
@@ -42,14 +44,14 @@ public sealed class ChannelOnlineHandler : IEventHandler<ChannelOnlineEvent>
         CancellationToken cancellationToken = default
     )
     {
-        var broadcasterId = @event.BroadcasterId;
+        string? broadcasterId = @event.BroadcasterId;
         if (string.IsNullOrEmpty(broadcasterId))
             return;
 
-        using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-        var channel = await db.Channels.FindAsync([broadcasterId], cancellationToken);
+        Channel? channel = await db.Channels.FindAsync([broadcasterId], cancellationToken);
         if (channel is null)
         {
             _logger.LogWarning(
@@ -60,12 +62,12 @@ public sealed class ChannelOnlineHandler : IEventHandler<ChannelOnlineEvent>
         }
 
         // stream.online EventSub payload has no title/game — fetch from Helix if empty
-        var title = @event.StreamTitle;
-        var gameName = @event.GameName;
+        string title = @event.StreamTitle;
+        string gameName = @event.GameName;
         if (string.IsNullOrEmpty(title))
         {
-            var twitchApi = scope.ServiceProvider.GetRequiredService<ITwitchApiService>();
-            var streamInfo = await twitchApi.GetStreamInfoAsync(broadcasterId, cancellationToken);
+            ITwitchApiService twitchApi = scope.ServiceProvider.GetRequiredService<ITwitchApiService>();
+            TwitchStreamInfo? streamInfo = await twitchApi.GetStreamInfoAsync(broadcasterId, cancellationToken);
             if (streamInfo is not null)
             {
                 title = streamInfo.Title ?? string.Empty;
@@ -79,8 +81,8 @@ public sealed class ChannelOnlineHandler : IEventHandler<ChannelOnlineEvent>
         if (!string.IsNullOrEmpty(gameName))
             channel.GameName = gameName;
 
-        var streamId = Ulid.NewUlid().ToString();
-        var stream = new NoMercyBot.Domain.Entities.Stream
+        string? streamId = Ulid.NewUlid().ToString();
+        Stream stream = new()
         {
             Id = streamId,
             ChannelId = broadcasterId,
@@ -93,7 +95,7 @@ public sealed class ChannelOnlineHandler : IEventHandler<ChannelOnlineEvent>
         await db.SaveChangesAsync(cancellationToken);
 
         // Reset per-session in-memory state and populate live tracking
-        var channelCtx = _registry.Get(broadcasterId);
+        ChannelContext? channelCtx = _registry.Get(broadcasterId);
         if (channelCtx is not null)
         {
             channelCtx.IsLive = true;
@@ -117,7 +119,7 @@ public sealed class ChannelOnlineHandler : IEventHandler<ChannelOnlineEvent>
             db,
             broadcasterId,
             "stream_online",
-            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            new(StringComparer.OrdinalIgnoreCase)
             {
                 ["broadcaster"] = @event.BroadcasterDisplayName,
                 ["title"] = @event.StreamTitle,
@@ -135,7 +137,7 @@ public sealed class ChannelOnlineHandler : IEventHandler<ChannelOnlineEvent>
         CancellationToken ct
     )
     {
-        var config = await db.Records.FirstOrDefaultAsync(
+        Record? config = await db.Records.FirstOrDefaultAsync(
             r => r.BroadcasterId == broadcasterId && r.RecordType == $"event_response:{eventType}",
             ct
         );
@@ -146,7 +148,7 @@ public sealed class ChannelOnlineHandler : IEventHandler<ChannelOnlineEvent>
         try
         {
             await _pipeline.ExecuteAsync(
-                new PipelineRequest
+                new()
                 {
                     BroadcasterId = broadcasterId,
                     PipelineJson = config.Data,

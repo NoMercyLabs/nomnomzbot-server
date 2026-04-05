@@ -21,7 +21,7 @@ public sealed class MemoryCacheService : ICacheService
 
     public Task<T?> GetAsync<T>(string key, CancellationToken cancellationToken = default)
     {
-        var value = _cache.TryGetValue(key, out T? result) ? result : default;
+        T? value = _cache.TryGetValue(key, out T? result) ? result : default;
         return Task.FromResult(value);
     }
 
@@ -32,7 +32,7 @@ public sealed class MemoryCacheService : ICacheService
         CancellationToken cancellationToken = default
     )
     {
-        var options = new MemoryCacheEntryOptions();
+        MemoryCacheEntryOptions options = new();
 
         if (expiration.HasValue)
         {

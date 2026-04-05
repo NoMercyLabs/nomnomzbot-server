@@ -25,10 +25,10 @@ public class TimerManagementService : ITimerManagementService
         CancellationToken cancellationToken = default
     )
     {
-        var query = _db.Timers.Where(t => t.BroadcasterId == broadcasterId);
-        var total = await query.CountAsync(cancellationToken);
+        IQueryable<DomainTimer> query = _db.Timers.Where(t => t.BroadcasterId == broadcasterId);
+        int total = await query.CountAsync(cancellationToken);
 
-        var items = await query
+        List<TimerListItem> items = await query
             .OrderBy(t => t.Name)
             .Skip((pagination.Page - 1) * pagination.PageSize)
             .Take(pagination.PageSize)
@@ -54,7 +54,7 @@ public class TimerManagementService : ITimerManagementService
         CancellationToken cancellationToken = default
     )
     {
-        var timer = await _db.Timers.FirstOrDefaultAsync(
+        DomainTimer? timer = await _db.Timers.FirstOrDefaultAsync(
             t => t.BroadcasterId == broadcasterId && t.Id == id,
             cancellationToken
         );
@@ -71,7 +71,7 @@ public class TimerManagementService : ITimerManagementService
         CancellationToken cancellationToken = default
     )
     {
-        var exists = await _db.Timers.AnyAsync(
+        bool exists = await _db.Timers.AnyAsync(
             t => t.BroadcasterId == broadcasterId && t.Name == request.Name,
             cancellationToken
         );
@@ -79,7 +79,7 @@ public class TimerManagementService : ITimerManagementService
         if (exists)
             return Errors.AlreadyExists("timer", request.Name).ToTyped<TimerDto>();
 
-        var timer = new DomainTimer
+        DomainTimer timer = new()
         {
             BroadcasterId = broadcasterId,
             Name = request.Name,
@@ -102,7 +102,7 @@ public class TimerManagementService : ITimerManagementService
         CancellationToken cancellationToken = default
     )
     {
-        var timer = await _db.Timers.FirstOrDefaultAsync(
+        DomainTimer? timer = await _db.Timers.FirstOrDefaultAsync(
             t => t.BroadcasterId == broadcasterId && t.Id == id,
             cancellationToken
         );
@@ -132,7 +132,7 @@ public class TimerManagementService : ITimerManagementService
         CancellationToken cancellationToken = default
     )
     {
-        var timer = await _db.Timers.FirstOrDefaultAsync(
+        DomainTimer? timer = await _db.Timers.FirstOrDefaultAsync(
             t => t.BroadcasterId == broadcasterId && t.Id == id,
             cancellationToken
         );
@@ -152,7 +152,7 @@ public class TimerManagementService : ITimerManagementService
         CancellationToken cancellationToken = default
     )
     {
-        var timer = await _db.Timers.FirstOrDefaultAsync(
+        DomainTimer? timer = await _db.Timers.FirstOrDefaultAsync(
             t => t.BroadcasterId == broadcasterId && t.Id == id,
             cancellationToken
         );

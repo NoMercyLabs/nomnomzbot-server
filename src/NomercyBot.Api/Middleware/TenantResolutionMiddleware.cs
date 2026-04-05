@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) NoMercy Entertainment. All rights reserved.
 
+using Microsoft.Extensions.Primitives;
 using NoMercyBot.Application.Common.Interfaces;
 
 namespace NoMercyBot.Api.Middleware;
@@ -18,7 +19,7 @@ public class TenantResolutionMiddleware
     {
         // 1. Route value: /channels/{channelId}/...
         if (
-            context.Request.RouteValues.TryGetValue("channelId", out var channelId)
+            context.Request.RouteValues.TryGetValue("channelId", out object? channelId)
             && channelId is string channelIdStr
             && !string.IsNullOrEmpty(channelIdStr)
         )
@@ -27,7 +28,7 @@ public class TenantResolutionMiddleware
         }
         // 2. Custom header
         else if (
-            context.Request.Headers.TryGetValue("X-Channel-Id", out var headerVal)
+            context.Request.Headers.TryGetValue("X-Channel-Id", out StringValues headerVal)
             && !string.IsNullOrEmpty(headerVal)
         )
         {
@@ -35,7 +36,7 @@ public class TenantResolutionMiddleware
         }
         // 3. Query string
         else if (
-            context.Request.Query.TryGetValue("channelId", out var queryVal)
+            context.Request.Query.TryGetValue("channelId", out StringValues queryVal)
             && !string.IsNullOrEmpty(queryVal)
         )
         {

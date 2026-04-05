@@ -11,7 +11,7 @@ public class UserRoleConditionTests
 {
     private static PipelineExecutionContext BuildCtx(string role)
     {
-        var ctx = new PipelineExecutionContext
+        PipelineExecutionContext ctx = new()
         {
             BroadcasterId = "chan",
             TriggeredByUserId = "user",
@@ -34,11 +34,11 @@ public class UserRoleConditionTests
     [InlineData("broadcaster", "viewer", true)]
     public void Evaluate_BroadcasterMeetsAllRoles(string userRole, string minRole, bool expected)
     {
-        var condition = new UserRoleCondition();
-        var ctx = BuildCtx(userRole);
-        var def = MakeCond($$$"""{"type":"user_role","min_role":"{{{minRole}}}"}""");
+        UserRoleCondition condition = new();
+        PipelineExecutionContext ctx = BuildCtx(userRole);
+        ConditionDefinition def = MakeCond($$$"""{"type":"user_role","min_role":"{{{minRole}}}"}""");
 
-        var result = condition.Evaluate(ctx, def);
+        bool result = condition.Evaluate(ctx, def);
         result.Should().Be(expected);
     }
 
@@ -54,11 +54,11 @@ public class UserRoleConditionTests
         bool expected
     )
     {
-        var condition = new UserRoleCondition();
-        var ctx = BuildCtx(userRole);
-        var def = MakeCond($$$"""{"type":"user_role","min_role":"{{{minRole}}}"}""");
+        UserRoleCondition condition = new();
+        PipelineExecutionContext ctx = BuildCtx(userRole);
+        ConditionDefinition def = MakeCond($$$"""{"type":"user_role","min_role":"{{{minRole}}}"}""");
 
-        var result = condition.Evaluate(ctx, def);
+        bool result = condition.Evaluate(ctx, def);
         result.Should().Be(expected);
     }
 
@@ -70,41 +70,41 @@ public class UserRoleConditionTests
     [InlineData("viewer", "viewer", true)]
     public void Evaluate_ViewerOnlyMeetsViewer(string userRole, string minRole, bool expected)
     {
-        var condition = new UserRoleCondition();
-        var ctx = BuildCtx(userRole);
-        var def = MakeCond($$$"""{"type":"user_role","min_role":"{{{minRole}}}"}""");
+        UserRoleCondition condition = new();
+        PipelineExecutionContext ctx = BuildCtx(userRole);
+        ConditionDefinition def = MakeCond($$$"""{"type":"user_role","min_role":"{{{minRole}}}"}""");
 
-        var result = condition.Evaluate(ctx, def);
+        bool result = condition.Evaluate(ctx, def);
         result.Should().Be(expected);
     }
 
     [Fact]
     public void Evaluate_ModAlias_Accepted()
     {
-        var condition = new UserRoleCondition();
-        var ctx = BuildCtx("moderator");
-        var def = MakeCond("""{"type":"user_role","min_role":"mod"}""");
+        UserRoleCondition condition = new();
+        PipelineExecutionContext ctx = BuildCtx("moderator");
+        ConditionDefinition def = MakeCond("""{"type":"user_role","min_role":"mod"}""");
 
-        var result = condition.Evaluate(ctx, def);
+        bool result = condition.Evaluate(ctx, def);
         result.Should().BeTrue();
     }
 
     [Fact]
     public void Evaluate_SubAlias_Accepted()
     {
-        var condition = new UserRoleCondition();
-        var ctx = BuildCtx("subscriber");
-        var def = MakeCond("""{"type":"user_role","min_role":"sub"}""");
+        UserRoleCondition condition = new();
+        PipelineExecutionContext ctx = BuildCtx("subscriber");
+        ConditionDefinition def = MakeCond("""{"type":"user_role","min_role":"sub"}""");
 
-        var result = condition.Evaluate(ctx, def);
+        bool result = condition.Evaluate(ctx, def);
         result.Should().BeTrue();
     }
 
     [Fact]
     public void Evaluate_NoRoleVariable_DefaultsToViewer()
     {
-        var condition = new UserRoleCondition();
-        var ctx = new PipelineExecutionContext
+        UserRoleCondition condition = new();
+        PipelineExecutionContext ctx = new()
         {
             BroadcasterId = "chan",
             TriggeredByUserId = "user",
@@ -113,28 +113,28 @@ public class UserRoleConditionTests
             RawMessage = "",
         };
         // No user.role variable — defaults to "viewer"
-        var def = MakeCond("""{"type":"user_role","min_role":"moderator"}""");
+        ConditionDefinition def = MakeCond("""{"type":"user_role","min_role":"moderator"}""");
 
-        var result = condition.Evaluate(ctx, def);
+        bool result = condition.Evaluate(ctx, def);
         result.Should().BeFalse();
     }
 
     [Fact]
     public void Evaluate_NoParameters_DefaultsToViewer()
     {
-        var condition = new UserRoleCondition();
-        var ctx = BuildCtx("broadcaster");
-        var def = MakeCond("""{"type":"user_role"}"""); // no min_role param
+        UserRoleCondition condition = new();
+        PipelineExecutionContext ctx = BuildCtx("broadcaster");
+        ConditionDefinition def = MakeCond("""{"type":"user_role"}"""); // no min_role param
 
         // Should default min_role to "viewer", any user meets that
-        var result = condition.Evaluate(ctx, def);
+        bool result = condition.Evaluate(ctx, def);
         result.Should().BeTrue();
     }
 
     [Fact]
     public void ConditionType_IsUserRole()
     {
-        var condition = new UserRoleCondition();
+        UserRoleCondition condition = new();
         condition.ConditionType.Should().Be("user_role");
     }
 }

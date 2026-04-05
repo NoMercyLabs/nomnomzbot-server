@@ -28,7 +28,7 @@ public static class Errors
 
     public static Result ValidationFailed(IDictionary<string, string[]> errors)
     {
-        var message = string.Join(
+        string message = string.Join(
             "; ",
             errors.SelectMany(e => e.Value.Select(v => $"{e.Key}: {v}"))
         );

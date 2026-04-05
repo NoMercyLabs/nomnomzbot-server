@@ -53,23 +53,23 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             return;
 
         // Increment channel message counter (used by TimerService for activity gating; approximate is fine)
-        var channelCtx = _registry.Get(@event.BroadcasterId);
+        ChannelContext? channelCtx = _registry.Get(@event.BroadcasterId);
         if (channelCtx is not null)
             channelCtx.MessageCount++;
 
-        var text = @event.Message?.Trim();
+        string? text = @event.Message?.Trim();
         if (string.IsNullOrEmpty(text) || text[0] != '!')
             return;
 
         // Parse: !commandname arg1 arg2 ...
-        var spaceIdx = text.IndexOf(' ');
-        var commandName = (spaceIdx > 0 ? text[1..spaceIdx] : text[1..]).ToLowerInvariant();
-        var args = spaceIdx > 0 ? text[(spaceIdx + 1)..].Trim() : string.Empty;
+        int spaceIdx = text.IndexOf(' ');
+        string commandName = (spaceIdx > 0 ? text[1..spaceIdx] : text[1..]).ToLowerInvariant();
+        string args = spaceIdx > 0 ? text[(spaceIdx + 1)..].Trim() : string.Empty;
 
         if (string.IsNullOrEmpty(commandName))
             return;
 
-        var ctx = _registry.Get(@event.BroadcasterId);
+        ChannelContext? ctx = _registry.Get(@event.BroadcasterId);
         if (ctx is null)
             return; // channel not registered
 
@@ -77,7 +77,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         ctx.SessionChatters.TryAdd(@event.UserId, @event.UserDisplayName);
 
         // Look up command in in-memory cache (O(1), no DB hit)
-        if (!ctx.Commands.TryGetValue(commandName, out var command))
+        if (!ctx.Commands.TryGetValue(commandName, out CachedCommand? command))
             return;
 
         // Permission check
@@ -147,7 +147,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         {
             if (command.Type == "pipeline" && !string.IsNullOrEmpty(command.PipelineJson))
             {
-                var request = new PipelineRequest
+                PipelineRequest request = new()
                 {
                     BroadcasterId = @event.BroadcasterId,
                     PipelineJson = command.PipelineJson,
@@ -163,13 +163,13 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             else
             {
                 // Simple response command — pick a response (round-robin or random)
-                var response = PickResponse(command.Responses);
+                string response = PickResponse(command.Responses);
                 if (string.IsNullOrEmpty(response))
                     return;
 
                 // Build template context
-                var variables = BuildInitialVariables(@event, args);
-                var resolved = await _templateResolver.ResolveAsync(
+                Dictionary<string, string> variables = BuildInitialVariables(@event, args);
+                string resolved = await _templateResolver.ResolveAsync(
                     response,
                     variables,
                     @event.BroadcasterId!,
@@ -221,10 +221,10 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         string args
     )
     {
-        var argParts = args.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        var target = argParts.Length > 0 ? argParts[0].TrimStart('@') : string.Empty;
+        string[] argParts = args.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        string target = argParts.Length > 0 ? argParts[0].TrimStart('@') : string.Empty;
 
-        var vars = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        Dictionary<string, string> vars = new(StringComparer.OrdinalIgnoreCase)
         {
             ["user"] = @event.UserDisplayName,
             ["user.id"] = @event.UserId,
@@ -235,7 +235,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             ["args.count"] = argParts.Length.ToString(),
         };
 
-        for (var i = 0; i < argParts.Length; i++)
+        for (int i = 0; i < argParts.Length; i++)
             vars[$"args.{i}"] = argParts[i];
 
         return vars;

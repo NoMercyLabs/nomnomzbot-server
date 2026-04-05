@@ -8,6 +8,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NoMercyBot.Application.Common.Interfaces;
 using NoMercyBot.Application.Contracts.Twitch;
+using NoMercyBot.Domain.Entities;
 
 namespace NoMercyBot.Infrastructure.BackgroundServices;
 
@@ -50,7 +51,7 @@ public sealed class TimerSchedulerService : BackgroundService
         _logger.LogInformation("TimerSchedulerService starting.");
 
         // Check timers every 60 seconds
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(60));
+        using PeriodicTimer timer = new(TimeSpan.FromSeconds(60));
 
         while (await timer.WaitForNextTickAsync(stoppingToken))
         {
@@ -67,27 +68,27 @@ public sealed class TimerSchedulerService : BackgroundService
 
     private async Task TickAsync(CancellationToken ct)
     {
-        using var scope = _serviceProvider.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
-        var chatService = scope.ServiceProvider.GetRequiredService<ITwitchChatService>();
+        using IServiceScope scope = _serviceProvider.CreateScope();
+        IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        ITwitchChatService chatService = scope.ServiceProvider.GetRequiredService<ITwitchChatService>();
 
-        var now = DateTimeOffset.UtcNow;
+        DateTimeOffset now = DateTimeOffset.UtcNow;
 
         // Load all timer commands
-        var timerRecords = await db
+        List<Record> timerRecords = await db
             .Records.Where(r => r.RecordType == TimerRecordType)
             .ToListAsync(ct);
 
-        foreach (var record in timerRecords)
+        foreach (Record record in timerRecords)
         {
             try
             {
-                var timer = JsonSerializer.Deserialize<TimerCommandData>(record.Data);
+                TimerCommandData? timer = JsonSerializer.Deserialize<TimerCommandData>(record.Data);
                 if (timer is null || !timer.IsEnabled)
                     continue;
 
                 // Check if interval has elapsed since last fire
-                var elapsed = now - timer.LastFiredAt;
+                TimeSpan elapsed = now - timer.LastFiredAt;
                 if (elapsed.TotalSeconds < timer.IntervalSeconds)
                     continue;
 
@@ -95,7 +96,7 @@ public sealed class TimerSchedulerService : BackgroundService
                 DateTimeOffset lastActivity;
                 lock (_activityLock)
                 {
-                    _lastChatActivity.TryGetValue(record.BroadcasterId, out var act);
+                    _lastChatActivity.TryGetValue(record.BroadcasterId, out DateTimeOffset act);
                     lastActivity = act;
                 }
 

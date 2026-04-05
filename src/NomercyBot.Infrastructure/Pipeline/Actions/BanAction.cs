@@ -16,7 +16,7 @@ public sealed class BanAction : ICommandAction
         ActionDefinition action
     )
     {
-        var userId =
+        string userId =
             action.GetString("user_id")
             ?? ctx.Variables.GetValueOrDefault("target.id")
             ?? ctx.Variables.GetValueOrDefault("user.id")
@@ -25,7 +25,7 @@ public sealed class BanAction : ICommandAction
         if (string.IsNullOrEmpty(userId))
             return ActionResult.Failure("ban: user_id not resolved");
 
-        var reason = action.GetString("reason");
+        string? reason = action.GetString("reason");
         await _chat.BanUserAsync(ctx.BroadcasterId, userId, reason, ctx.CancellationToken);
         return ActionResult.Success($"Banned {userId}");
     }

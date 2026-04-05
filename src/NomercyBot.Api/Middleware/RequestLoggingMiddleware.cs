@@ -18,10 +18,10 @@ public class RequestLoggingMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
-        var requestId = Guid.NewGuid().ToString("N")[..8];
+        string requestId = Guid.NewGuid().ToString("N")[..8];
         context.Response.Headers["X-Request-Id"] = requestId;
 
-        var sw = Stopwatch.StartNew();
+        Stopwatch sw = Stopwatch.StartNew();
 
         try
         {

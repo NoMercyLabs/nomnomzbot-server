@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) NoMercy Entertainment. All rights reserved.
 
+using System.Diagnostics;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -61,16 +62,16 @@ public class EventBusTests
         bool addFailingHandler = false
     )
     {
-        var tracker = new TrackingHandler();
-        var services = new ServiceCollection();
+        TrackingHandler tracker = new();
+        ServiceCollection services = new();
         services.AddScoped<IEventHandler<TestEvent>>(_ => tracker);
 
         if (addFailingHandler)
             services.AddScoped<IEventHandler<TestEvent>>(_ => new FailingHandler());
 
-        var sp = services.BuildServiceProvider();
-        var eventLogger = new EventLogger(NullLogger<EventLogger>.Instance);
-        var bus = new InfraEventBus(sp, NullLogger<InfraEventBus>.Instance, eventLogger);
+        ServiceProvider sp = services.BuildServiceProvider();
+        EventLogger eventLogger = new(NullLogger<EventLogger>.Instance);
+        InfraEventBus bus = new(sp, NullLogger<InfraEventBus>.Instance, eventLogger);
 
         return (bus, tracker);
     }
@@ -78,7 +79,7 @@ public class EventBusTests
     [Fact]
     public async Task PublishAsync_SingleHandler_IsInvoked()
     {
-        var (bus, tracker) = BuildBus();
+        (InfraEventBus bus, TrackingHandler tracker) = BuildBus();
 
         await bus.PublishAsync(new TestEvent { Payload = "hello" });
 
@@ -88,12 +89,12 @@ public class EventBusTests
     [Fact]
     public async Task PublishAsync_NoHandlers_DoesNotThrow()
     {
-        var services = new ServiceCollection();
-        var sp = services.BuildServiceProvider();
-        var eventLogger = new EventLogger(NullLogger<EventLogger>.Instance);
-        var bus = new InfraEventBus(sp, NullLogger<InfraEventBus>.Instance, eventLogger);
+        ServiceCollection services = new();
+        ServiceProvider sp = services.BuildServiceProvider();
+        EventLogger eventLogger = new(NullLogger<EventLogger>.Instance);
+        InfraEventBus bus = new(sp, NullLogger<InfraEventBus>.Instance, eventLogger);
 
-        var act = async () => await bus.PublishAsync(new TestEvent { Payload = "nobody home" });
+        Func<Task> act = async () => await bus.PublishAsync(new TestEvent { Payload = "nobody home" });
 
         await act.Should().NotThrowAsync();
     }
@@ -102,15 +103,15 @@ public class EventBusTests
     public async Task PublishAsync_FailingHandler_DoesNotPropagateException()
     {
         // Failing handler + tracking handler — tracking handler must still receive the event
-        var tracker = new TrackingHandler();
-        var services = new ServiceCollection();
+        TrackingHandler tracker = new();
+        ServiceCollection services = new();
         services.AddScoped<IEventHandler<TestEvent>>(_ => new FailingHandler());
         services.AddScoped<IEventHandler<TestEvent>>(_ => tracker);
-        var sp = services.BuildServiceProvider();
-        var eventLogger = new EventLogger(NullLogger<EventLogger>.Instance);
-        var bus = new InfraEventBus(sp, NullLogger<InfraEventBus>.Instance, eventLogger);
+        ServiceProvider sp = services.BuildServiceProvider();
+        EventLogger eventLogger = new(NullLogger<EventLogger>.Instance);
+        InfraEventBus bus = new(sp, NullLogger<InfraEventBus>.Instance, eventLogger);
 
-        var act = async () => await bus.PublishAsync(new TestEvent { Payload = "resilient" });
+        Func<Task> act = async () => await bus.PublishAsync(new TestEvent { Payload = "resilient" });
 
         await act.Should().NotThrowAsync();
         tracker.Received.Should().ContainSingle().Which.Should().Be("resilient");
@@ -119,14 +120,14 @@ public class EventBusTests
     [Fact]
     public async Task PublishAsync_MultipleHandlers_AllInvoked()
     {
-        var tracker1 = new TrackingHandler();
-        var tracker2 = new TrackingHandler();
-        var services = new ServiceCollection();
+        TrackingHandler tracker1 = new();
+        TrackingHandler tracker2 = new();
+        ServiceCollection services = new();
         services.AddScoped<IEventHandler<TestEvent>>(_ => tracker1);
         services.AddScoped<IEventHandler<TestEvent>>(_ => tracker2);
-        var sp = services.BuildServiceProvider();
-        var eventLogger = new EventLogger(NullLogger<EventLogger>.Instance);
-        var bus = new InfraEventBus(sp, NullLogger<InfraEventBus>.Instance, eventLogger);
+        ServiceProvider sp = services.BuildServiceProvider();
+        EventLogger eventLogger = new(NullLogger<EventLogger>.Instance);
+        InfraEventBus bus = new(sp, NullLogger<InfraEventBus>.Instance, eventLogger);
 
         await bus.PublishAsync(new TestEvent { Payload = "broadcast" });
 
@@ -137,10 +138,10 @@ public class EventBusTests
     [Fact]
     public void PublishFireAndForget_DoesNotBlock()
     {
-        var (bus, _) = BuildBus();
+        (InfraEventBus bus, _) = BuildBus();
 
         // Should return essentially instantly — fire-and-forget
-        var sw = System.Diagnostics.Stopwatch.StartNew();
+        Stopwatch sw = System.Diagnostics.Stopwatch.StartNew();
         bus.PublishFireAndForget(new TestEvent { Payload = "async" });
         sw.Stop();
 
@@ -151,18 +152,18 @@ public class EventBusTests
     public async Task PublishAsync_Cancelled_DoesNotPropagateHandlerCancellation()
     {
         // Handler that respects cancellation
-        var slowHandler = new SlowCancellableHandler();
+        SlowCancellableHandler slowHandler = new();
 
-        var services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddScoped<IEventHandler<TestEvent>>(_ => slowHandler);
-        var sp = services.BuildServiceProvider();
-        var eventLogger = new EventLogger(NullLogger<EventLogger>.Instance);
-        var bus = new InfraEventBus(sp, NullLogger<InfraEventBus>.Instance, eventLogger);
+        ServiceProvider sp = services.BuildServiceProvider();
+        EventLogger eventLogger = new(NullLogger<EventLogger>.Instance);
+        InfraEventBus bus = new(sp, NullLogger<InfraEventBus>.Instance, eventLogger);
 
-        using var cts = new CancellationTokenSource();
+        using CancellationTokenSource cts = new();
         cts.Cancel();
 
-        var act = async () =>
+        Func<Task> act = async () =>
             await bus.PublishAsync(new TestEvent { Payload = "cancelled" }, cts.Token);
 
         // The bus swallows OperationCanceledException from handlers

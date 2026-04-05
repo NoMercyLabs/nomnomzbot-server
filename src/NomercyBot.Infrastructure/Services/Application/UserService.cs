@@ -26,14 +26,14 @@ public class UserService : IUserService
         CancellationToken cancellationToken = default
     )
     {
-        var user = await _db.Users.FirstOrDefaultAsync(
+        User? user = await _db.Users.FirstOrDefaultAsync(
             u => u.Id == platformUserId,
             cancellationToken
         );
 
         if (user is null)
         {
-            user = new User
+            user = new()
             {
                 Id = platformUserId,
                 Username = username,
@@ -61,7 +61,7 @@ public class UserService : IUserService
         CancellationToken cancellationToken = default
     )
     {
-        var user = await _db
+        User? user = await _db
             .Users.Include(u => u.Pronoun)
             .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 
@@ -82,13 +82,13 @@ public class UserService : IUserService
         CancellationToken cancellationToken = default
     )
     {
-        var dbQuery = _db.Users.Where(u =>
+        IQueryable<User> dbQuery = _db.Users.Where(u =>
             u.Username.Contains(query) || u.DisplayName.Contains(query)
         );
 
-        var total = await dbQuery.CountAsync(cancellationToken);
+        int total = await dbQuery.CountAsync(cancellationToken);
 
-        var items = await dbQuery
+        List<UserSearchResult> items = await dbQuery
             .OrderBy(u => u.Username)
             .Skip((pagination.Page - 1) * pagination.PageSize)
             .Take(pagination.PageSize)
@@ -105,7 +105,7 @@ public class UserService : IUserService
         CancellationToken cancellationToken = default
     )
     {
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+        User? user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 
         if (user is null)
             return Errors.NotFound<UserDto>("User", userId);
@@ -118,7 +118,7 @@ public class UserService : IUserService
         CancellationToken cancellationToken = default
     )
     {
-        var user = await _db
+        User? user = await _db
             .Users.Include(u => u.Pronoun)
             .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 

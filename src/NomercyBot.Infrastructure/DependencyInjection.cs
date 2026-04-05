@@ -48,7 +48,7 @@ public static class DependencyInjection
         services.AddScoped<TenantStampInterceptor>();
 
         // DbContext with Npgsql and interceptors
-        var connectionString =
+        string? connectionString =
             configuration.GetConnectionString("DefaultConnection")
             ?? configuration.GetSection("Database:ConnectionString").Value;
 
@@ -88,7 +88,7 @@ public static class DependencyInjection
         services.AddSingleton<IJwtTokenService, JwtTokenService>();
 
         // Caching — use Redis if configured, otherwise fall back to in-memory
-        var redisConnectionString =
+        string? redisConnectionString =
             configuration.GetConnectionString("Redis") ?? configuration["Redis:ConnectionString"];
         if (!string.IsNullOrWhiteSpace(redisConnectionString))
         {
@@ -269,11 +269,11 @@ public static class DependencyInjection
         params Assembly[] assemblies
     )
     {
-        var handlerInterfaceType = typeof(IEventHandler<>);
+        Type handlerInterfaceType = typeof(IEventHandler<>);
 
-        foreach (var assembly in assemblies)
+        foreach (Assembly assembly in assemblies)
         {
-            var handlerTypes = assembly
+            IEnumerable<Type> handlerTypes = assembly
                 .GetTypes()
                 .Where(t => t is { IsAbstract: false, IsInterface: false })
                 .Where(t =>
@@ -283,15 +283,15 @@ public static class DependencyInjection
                         )
                 );
 
-            foreach (var handlerType in handlerTypes)
+            foreach (Type handlerType in handlerTypes)
             {
-                var handlerInterfaces = handlerType
+                IEnumerable<Type> handlerInterfaces = handlerType
                     .GetInterfaces()
                     .Where(i =>
                         i.IsGenericType && i.GetGenericTypeDefinition() == handlerInterfaceType
                     );
 
-                foreach (var @interface in handlerInterfaces)
+                foreach (Type @interface in handlerInterfaces)
                 {
                     services.AddTransient(@interface, handlerType);
                 }

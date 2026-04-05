@@ -44,16 +44,16 @@ public abstract class TwitchAlertHandlerBase<TEvent>
 
     protected async Task HandleCoreAsync(TEvent @event, CancellationToken ct)
     {
-        var broadcasterId = @event.BroadcasterId;
+        string? broadcasterId = @event.BroadcasterId;
         if (string.IsNullOrEmpty(broadcasterId))
             return;
 
-        using var scope = ScopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        using IServiceScope scope = ScopeFactory.CreateScope();
+        IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
         await LogChannelEventAsync(db, @event, broadcasterId, ct);
 
-        var config = await db.Records.FirstOrDefaultAsync(
+        Record? config = await db.Records.FirstOrDefaultAsync(
             r =>
                 r.BroadcasterId == broadcasterId
                 && r.RecordType == $"event_response:{EventTypeKey}",
@@ -63,7 +63,7 @@ public abstract class TwitchAlertHandlerBase<TEvent>
         if (config is null || string.IsNullOrWhiteSpace(config.Data))
             return;
 
-        var variables = BuildVariables(@event);
+        Dictionary<string, string> variables = BuildVariables(@event);
 
         Logger.LogDebug(
             "Executing event_response:{EventType} pipeline for channel {Channel}",
@@ -74,7 +74,7 @@ public abstract class TwitchAlertHandlerBase<TEvent>
         try
         {
             await Pipeline.ExecuteAsync(
-                new PipelineRequest
+                new()
                 {
                     BroadcasterId = broadcasterId,
                     PipelineJson = config.Data,
@@ -106,9 +106,9 @@ public abstract class TwitchAlertHandlerBase<TEvent>
     {
         try
         {
-            var variables = BuildVariables(@event);
+            Dictionary<string, string> variables = BuildVariables(@event);
             db.ChannelEvents.Add(
-                new ChannelEvent
+                new()
                 {
                     Id = Ulid.NewUlid().ToString(),
                     ChannelId = broadcasterId,

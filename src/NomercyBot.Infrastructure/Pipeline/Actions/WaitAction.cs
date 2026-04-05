@@ -10,9 +10,9 @@ public sealed class WaitAction : ICommandAction
         ActionDefinition action
     )
     {
-        var ms = action.GetInt("milliseconds", 0);
-        var seconds = action.GetInt("seconds", 0);
-        var totalMs = ms + seconds * 1000;
+        int ms = action.GetInt("milliseconds", 0);
+        int seconds = action.GetInt("seconds", 0);
+        int totalMs = ms + seconds * 1000;
 
         if (totalMs <= 0)
             return ActionResult.Success();

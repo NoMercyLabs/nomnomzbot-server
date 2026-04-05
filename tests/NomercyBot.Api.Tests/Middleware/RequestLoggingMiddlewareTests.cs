@@ -14,11 +14,11 @@ public class RequestLoggingMiddlewareTests
     {
         RequestDelegate next = _ => Task.CompletedTask;
 
-        var middleware = new RequestLoggingMiddleware(
+        RequestLoggingMiddleware middleware = new(
             next,
             NullLogger<RequestLoggingMiddleware>.Instance
         );
-        var context = new DefaultHttpContext();
+        DefaultHttpContext context = new();
 
         await middleware.InvokeAsync(context);
 
@@ -29,18 +29,18 @@ public class RequestLoggingMiddlewareTests
     [Fact]
     public async Task InvokeAsync_CallsNextMiddleware()
     {
-        var nextCalled = false;
+        bool nextCalled = false;
         RequestDelegate next = ctx =>
         {
             nextCalled = true;
             return Task.CompletedTask;
         };
 
-        var middleware = new RequestLoggingMiddleware(
+        RequestLoggingMiddleware middleware = new(
             next,
             NullLogger<RequestLoggingMiddleware>.Instance
         );
-        var context = new DefaultHttpContext();
+        DefaultHttpContext context = new();
 
         await middleware.InvokeAsync(context);
 
@@ -51,15 +51,15 @@ public class RequestLoggingMiddlewareTests
     public async Task InvokeAsync_XRequestId_IsShortGuid()
     {
         RequestDelegate next = _ => Task.CompletedTask;
-        var middleware = new RequestLoggingMiddleware(
+        RequestLoggingMiddleware middleware = new(
             next,
             NullLogger<RequestLoggingMiddleware>.Instance
         );
-        var context = new DefaultHttpContext();
+        DefaultHttpContext context = new();
 
         await middleware.InvokeAsync(context);
 
-        var requestId = context.Response.Headers["X-Request-Id"].ToString();
+        string requestId = context.Response.Headers["X-Request-Id"].ToString();
         requestId.Should().HaveLength(8);
     }
 
@@ -67,19 +67,19 @@ public class RequestLoggingMiddlewareTests
     public async Task InvokeAsync_EachRequest_HasUniqueRequestId()
     {
         RequestDelegate next = _ => Task.CompletedTask;
-        var middleware = new RequestLoggingMiddleware(
+        RequestLoggingMiddleware middleware = new(
             next,
             NullLogger<RequestLoggingMiddleware>.Instance
         );
 
-        var ctx1 = new DefaultHttpContext();
-        var ctx2 = new DefaultHttpContext();
+        DefaultHttpContext ctx1 = new();
+        DefaultHttpContext ctx2 = new();
 
         await middleware.InvokeAsync(ctx1);
         await middleware.InvokeAsync(ctx2);
 
-        var id1 = ctx1.Response.Headers["X-Request-Id"].ToString();
-        var id2 = ctx2.Response.Headers["X-Request-Id"].ToString();
+        string id1 = ctx1.Response.Headers["X-Request-Id"].ToString();
+        string id2 = ctx2.Response.Headers["X-Request-Id"].ToString();
 
         id1.Should().NotBe(id2);
     }
@@ -88,13 +88,13 @@ public class RequestLoggingMiddlewareTests
     public async Task InvokeAsync_WhenNextThrows_PropagatesException()
     {
         RequestDelegate next = _ => throw new InvalidOperationException("test error");
-        var middleware = new RequestLoggingMiddleware(
+        RequestLoggingMiddleware middleware = new(
             next,
             NullLogger<RequestLoggingMiddleware>.Instance
         );
-        var context = new DefaultHttpContext();
+        DefaultHttpContext context = new();
 
-        var act = () => middleware.InvokeAsync(context);
+        Func<Task> act = () => middleware.InvokeAsync(context);
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("test error");
     }
 }

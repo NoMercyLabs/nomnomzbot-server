@@ -21,7 +21,7 @@ public class GetChannelQueryHandler
         CancellationToken ct = default
     )
     {
-        var channel = await _db
+        ChannelDto? channel = await _db
             .Channels.Include(c => c.User)
             .Where(c => c.Id == query.ChannelId)
             .Select(c => new ChannelDto(

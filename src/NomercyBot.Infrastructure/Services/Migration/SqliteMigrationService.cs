@@ -51,23 +51,23 @@ public sealed class SqliteMigrationService
     )
     {
         if (!File.Exists(sqliteFilePath))
-            return new MigrationResult(false, $"SQLite file not found: {sqliteFilePath}");
+            return new(false, $"SQLite file not found: {sqliteFilePath}");
 
         // Ensure the target channel exists
-        var channelExists = await _db.Channels.AnyAsync(
+        bool channelExists = await _db.Channels.AnyAsync(
             c => c.Id == broadcasterId,
             cancellationToken
         );
         if (!channelExists)
-            return new MigrationResult(
+            return new(
                 false,
                 $"Channel {broadcasterId} not found. Complete onboarding first."
             );
 
-        var counts = new MigrationCounts();
+        MigrationCounts counts = new();
 
-        var connectionString = $"Data Source={sqliteFilePath};Mode=ReadOnly;";
-        await using var conn = new SqliteConnection(connectionString);
+        string connectionString = $"Data Source={sqliteFilePath};Mode=ReadOnly;";
+        await using SqliteConnection conn = new(connectionString);
         await conn.OpenAsync(cancellationToken);
 
         // Migration steps are independent — failures are logged but don't abort others
@@ -90,7 +90,7 @@ public sealed class SqliteMigrationService
             counts.Records
         );
 
-        return new MigrationResult(true, "Migration completed successfully.", counts);
+        return new(true, "Migration completed successfully.", counts);
     }
 
     // ─── Users ────────────────────────────────────────────────────────────────
@@ -99,22 +99,22 @@ public sealed class SqliteMigrationService
     {
         int count = 0;
 
-        await using var cmd = conn.CreateCommand();
+        await using SqliteCommand cmd = conn.CreateCommand();
         cmd.CommandText = "SELECT Id, Username, DisplayName, ProfileImageUrl FROM Users";
 
-        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        await using SqliteDataReader reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
         {
-            var id = reader.GetString(0);
-            var username = reader.GetString(1);
-            var displayName = reader.GetString(2);
-            var profileUrl = reader.IsDBNull(3) ? null : reader.GetString(3);
+            string id = reader.GetString(0);
+            string username = reader.GetString(1);
+            string displayName = reader.GetString(2);
+            string? profileUrl = reader.IsDBNull(3) ? null : reader.GetString(3);
 
-            var existing = await _db.Users.FirstOrDefaultAsync(u => u.Id == id, ct);
+            User? existing = await _db.Users.FirstOrDefaultAsync(u => u.Id == id, ct);
             if (existing is null)
             {
                 _db.Users.Add(
-                    new User
+                    new()
                     {
                         Id = id,
                         Username = username,
@@ -143,25 +143,25 @@ public sealed class SqliteMigrationService
     {
         int count = 0;
 
-        await using var cmd = conn.CreateCommand();
+        await using SqliteCommand cmd = conn.CreateCommand();
         cmd.CommandText =
             "SELECT Name, Response, CooldownSeconds, IsEnabled FROM Commands WHERE IsEnabled = 1";
 
-        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        await using SqliteDataReader reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
         {
-            var name = reader.GetString(0).ToLowerInvariant();
-            var response = reader.IsDBNull(1) ? null : reader.GetString(1);
-            var cooldown = reader.IsDBNull(2) ? 0 : reader.GetInt32(2);
+            string name = reader.GetString(0).ToLowerInvariant();
+            string? response = reader.IsDBNull(1) ? null : reader.GetString(1);
+            int cooldown = reader.IsDBNull(2) ? 0 : reader.GetInt32(2);
 
-            var existing = await _db.Commands.AnyAsync(
+            bool existing = await _db.Commands.AnyAsync(
                 c => c.BroadcasterId == broadcasterId && c.Name == name,
                 ct
             );
             if (!existing)
             {
                 _db.Commands.Add(
-                    new Command
+                    new()
                     {
                         BroadcasterId = broadcasterId,
                         Name = name,
@@ -195,14 +195,14 @@ public sealed class SqliteMigrationService
         int count = 0;
 
         // Check if ChatMessages table exists in the old DB
-        await using var checkCmd = conn.CreateCommand();
+        await using SqliteCommand checkCmd = conn.CreateCommand();
         checkCmd.CommandText =
             "SELECT name FROM sqlite_master WHERE type='table' AND name='ChatMessages'";
-        var tableExists = await checkCmd.ExecuteScalarAsync(ct) is not null;
+        bool tableExists = await checkCmd.ExecuteScalarAsync(ct) is not null;
         if (!tableExists)
             return 0;
 
-        await using var cmd = conn.CreateCommand();
+        await using SqliteCommand cmd = conn.CreateCommand();
         cmd.CommandText =
             @"
             SELECT Id, UserId, Username, DisplayName, Message, CreatedAt
@@ -210,25 +210,25 @@ public sealed class SqliteMigrationService
             ORDER BY CreatedAt ASC
             LIMIT 10000";
 
-        await using var reader = await cmd.ExecuteReaderAsync(ct);
-        var batch = new List<ChatMessage>();
+        await using SqliteDataReader reader = await cmd.ExecuteReaderAsync(ct);
+        List<ChatMessage> batch = new();
 
         while (await reader.ReadAsync(ct))
         {
-            var msgId = reader.GetString(0);
-            var userId = reader.GetString(1);
-            var username = reader.GetString(2);
-            var displayName = reader.GetString(3);
-            var message = reader.GetString(4);
-            var createdAt = reader.GetDateTime(5);
+            string msgId = reader.GetString(0);
+            string userId = reader.GetString(1);
+            string username = reader.GetString(2);
+            string displayName = reader.GetString(3);
+            string message = reader.GetString(4);
+            DateTime createdAt = reader.GetDateTime(5);
 
             // Skip if already migrated
-            var exists = await _db.ChatMessages.AnyAsync(m => m.Id == msgId, ct);
+            bool exists = await _db.ChatMessages.AnyAsync(m => m.Id == msgId, ct);
             if (exists)
                 continue;
 
             batch.Add(
-                new ChatMessage
+                new()
                 {
                     Id = msgId,
                     BroadcasterId = broadcasterId,
@@ -273,25 +273,25 @@ public sealed class SqliteMigrationService
     {
         int count = 0;
 
-        await using var checkCmd = conn.CreateCommand();
+        await using SqliteCommand checkCmd = conn.CreateCommand();
         checkCmd.CommandText =
             "SELECT name FROM sqlite_master WHERE type='table' AND name='Records'";
-        var tableExists = await checkCmd.ExecuteScalarAsync(ct) is not null;
+        bool tableExists = await checkCmd.ExecuteScalarAsync(ct) is not null;
         if (!tableExists)
             return 0;
 
-        await using var cmd = conn.CreateCommand();
+        await using SqliteCommand cmd = conn.CreateCommand();
         cmd.CommandText = "SELECT RecordType, Data, UserId FROM Records";
 
-        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        await using SqliteDataReader reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
         {
-            var recordType = reader.GetString(0);
-            var data = reader.GetString(1);
-            var userId = reader.IsDBNull(2) ? broadcasterId : reader.GetString(2);
+            string recordType = reader.GetString(0);
+            string data = reader.GetString(1);
+            string userId = reader.IsDBNull(2) ? broadcasterId : reader.GetString(2);
 
             _db.Records.Add(
-                new Record
+                new()
                 {
                     BroadcasterId = broadcasterId,
                     RecordType = recordType,

@@ -23,7 +23,7 @@ public class GetCurrentUserQueryHandler
         if (!_currentUser.IsAuthenticated || _currentUser.UserId is null)
             return Errors.NotAuthenticated().ToTyped<CurrentUserDto>();
 
-        var user = await _db
+        CurrentUserDto? user = await _db
             .Users.Where(u => u.Id == _currentUser.UserId)
             .Select(u => new CurrentUserDto(
                 u.Id,

@@ -13,14 +13,14 @@ public class TrustScoreCalculatorTests
     [Fact]
     public void Calculate_ZeroInputs_ScoreIsZero()
     {
-        var ctx = new TrustContext();
+        TrustContext ctx = new();
         TrustScoreCalculator.Calculate(ctx).Should().Be(0.0);
     }
 
     [Fact]
     public void Calculate_ScoreAlwaysInRange_Positive()
     {
-        var ctx = new TrustContext
+        TrustContext ctx = new()
         {
             SuccessfulRequestCount = 1000,
             AccountAgeMonths = 120,
@@ -38,7 +38,7 @@ public class TrustScoreCalculatorTests
     [Fact]
     public void Calculate_ScoreAlwaysInRange_WithViolations()
     {
-        var ctx = new TrustContext
+        TrustContext ctx = new()
         {
             BanCount = 100,
             TimeoutCount = 100,
@@ -52,7 +52,7 @@ public class TrustScoreCalculatorTests
     [Fact]
     public void Calculate_NotFollowing_AppliesFollowPenalty()
     {
-        var withFollower = new TrustContext
+        TrustContext withFollower = new()
         {
             SuccessfulRequestCount = 5,
             AccountAgeMonths = 12,
@@ -62,7 +62,7 @@ public class TrustScoreCalculatorTests
             FollowAgeDays = 30,
         };
 
-        var withoutFollower = new TrustContext
+        TrustContext withoutFollower = new()
         {
             SuccessfulRequestCount = 5,
             AccountAgeMonths = 12,
@@ -84,7 +84,7 @@ public class TrustScoreCalculatorTests
     [Fact]
     public void Calculate_FollowingLessThan24Hours_AppliesFollowPenalty()
     {
-        var newFollower = new TrustContext
+        TrustContext newFollower = new()
         {
             SuccessfulRequestCount = 5,
             AccountAgeMonths = 12,
@@ -94,7 +94,7 @@ public class TrustScoreCalculatorTests
             FollowAgeDays = 0.5,
         };
 
-        var establishedFollower = new TrustContext
+        TrustContext establishedFollower = new()
         {
             SuccessfulRequestCount = 5,
             AccountAgeMonths = 12,
@@ -118,7 +118,7 @@ public class TrustScoreCalculatorTests
     [Fact]
     public void Calculate_Moderator_BoostsScore()
     {
-        var baseCtx = new TrustContext
+        TrustContext baseCtx = new()
         {
             SuccessfulRequestCount = 2,
             AccountAgeMonths = 6,
@@ -128,7 +128,7 @@ public class TrustScoreCalculatorTests
             FollowAgeDays = 30,
         };
 
-        var modCtx = new TrustContext
+        TrustContext modCtx = new()
         {
             SuccessfulRequestCount = 2,
             AccountAgeMonths = 6,
@@ -151,7 +151,7 @@ public class TrustScoreCalculatorTests
     [Fact]
     public void Calculate_TenOrMoreRequests_BoostsScore()
     {
-        var regular = new TrustContext
+        TrustContext regular = new()
         {
             SuccessfulRequestCount = 9,
             AccountAgeMonths = 6,
@@ -161,7 +161,7 @@ public class TrustScoreCalculatorTests
             FollowAgeDays = 30,
         };
 
-        var veteran = new TrustContext
+        TrustContext veteran = new()
         {
             SuccessfulRequestCount = 10,
             AccountAgeMonths = 6,
@@ -185,7 +185,7 @@ public class TrustScoreCalculatorTests
     [Fact]
     public void Calculate_WithTimeouts_ReducesScore()
     {
-        var good = new TrustContext
+        TrustContext good = new()
         {
             SuccessfulRequestCount = 5,
             AccountAgeMonths = 12,
@@ -196,7 +196,7 @@ public class TrustScoreCalculatorTests
             IsSubscriber = true,
         };
 
-        var withViolations = new TrustContext
+        TrustContext withViolations = new()
         {
             SuccessfulRequestCount = 5,
             AccountAgeMonths = 12,
@@ -219,7 +219,7 @@ public class TrustScoreCalculatorTests
     [Fact]
     public void Calculate_YoutubeNewChannel_AppliesPenalty()
     {
-        var legitimateYt = new TrustContext
+        TrustContext legitimateYt = new()
         {
             SuccessfulRequestCount = 5,
             AccountAgeMonths = 12,
@@ -234,7 +234,7 @@ public class TrustScoreCalculatorTests
             ContentChannelAgeMonths = 24,
         };
 
-        var spamYt = new TrustContext
+        TrustContext spamYt = new()
         {
             SuccessfulRequestCount = 5,
             AccountAgeMonths = 12,

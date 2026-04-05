@@ -2,6 +2,7 @@
 // Copyright (C) NoMercy Entertainment. All rights reserved.
 
 using System.Net.Http.Json;
+using System.Security.Claims;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -67,10 +68,10 @@ public sealed class AuthService : IAuthService
 
     public string GetTwitchOAuthUrl(string? state = null)
     {
-        var scopes = Uri.EscapeDataString(string.Join(" ", RequiredScopes));
-        var redirectUri = Uri.EscapeDataString(_options.RedirectUri);
-        var clientId = Uri.EscapeDataString(_options.ClientId);
-        var stateParam = state is not null ? $"&state={Uri.EscapeDataString(state)}" : string.Empty;
+        string scopes = Uri.EscapeDataString(string.Join(" ", RequiredScopes));
+        string redirectUri = Uri.EscapeDataString(_options.RedirectUri);
+        string clientId = Uri.EscapeDataString(_options.ClientId);
+        string stateParam = state is not null ? $"&state={Uri.EscapeDataString(state)}" : string.Empty;
 
         return $"https://id.twitch.tv/oauth2/authorize"
             + $"?client_id={clientId}"
@@ -87,7 +88,7 @@ public sealed class AuthService : IAuthService
     )
     {
         // Exchange code for tokens
-        var tokens = await _twitchAuth.ExchangeCodeAsync(
+        TokenResult? tokens = await _twitchAuth.ExchangeCodeAsync(
             callback.Code,
             _options.RedirectUri,
             cancellationToken
@@ -99,7 +100,7 @@ public sealed class AuthService : IAuthService
             );
 
         // Fetch Twitch user info using the fresh access token (returns authenticated user, no id query)
-        var twitchUser = await GetUserFromTokenAsync(tokens.AccessToken, cancellationToken);
+        TwitchUserInfo? twitchUser = await GetUserFromTokenAsync(tokens.AccessToken, cancellationToken);
         if (twitchUser is null)
             return Result.Failure<AuthResultDto>(
                 "Failed to fetch Twitch user info.",
@@ -107,14 +108,14 @@ public sealed class AuthService : IAuthService
             );
 
         // Upsert user
-        var user = await _db.Users.FirstOrDefaultAsync(
+        User? user = await _db.Users.FirstOrDefaultAsync(
             u => u.Id == twitchUser.Id,
             cancellationToken
         );
 
         if (user is null)
         {
-            user = new User
+            user = new()
             {
                 Id = twitchUser.Id,
                 Username = twitchUser.Login,
@@ -133,14 +134,14 @@ public sealed class AuthService : IAuthService
         }
 
         // Store Twitch tokens in Service table
-        var service = await _db.Services.FirstOrDefaultAsync(
+        Service? service = await _db.Services.FirstOrDefaultAsync(
             s => s.BroadcasterId == twitchUser.Id && s.Name == "twitch",
             cancellationToken
         );
 
         if (service is null)
         {
-            service = new Domain.Entities.Service
+            service = new()
             {
                 Name = "twitch",
                 BroadcasterId = twitchUser.Id,
@@ -158,10 +159,10 @@ public sealed class AuthService : IAuthService
         await _db.SaveChangesAsync(cancellationToken);
 
         // Issue platform JWT
-        var platformJwt = _jwt.GenerateToken(twitchUser.Id, twitchUser.Login, ["user"]);
-        var refreshJwt = _jwt.GenerateToken(twitchUser.Id, twitchUser.Login, ["refresh"]);
+        string platformJwt = _jwt.GenerateToken(twitchUser.Id, twitchUser.Login, ["user"]);
+        string refreshJwt = _jwt.GenerateToken(twitchUser.Id, twitchUser.Login, ["refresh"]);
 
-        var userDto = new UserDto(
+        UserDto userDto = new(
             twitchUser.Id,
             twitchUser.Login,
             twitchUser.DisplayName,
@@ -183,26 +184,26 @@ public sealed class AuthService : IAuthService
         CancellationToken cancellationToken = default
     )
     {
-        var principal = _jwt.ValidateToken(refreshToken);
+        ClaimsPrincipal? principal = _jwt.ValidateToken(refreshToken);
         if (principal is null)
             return Result.Failure<AuthResultDto>(
                 "Invalid or expired refresh token.",
                 "INVALID_TOKEN"
             );
 
-        var userId = principal.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        string? userId = principal.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         if (userId is null)
             return Result.Failure<AuthResultDto>("Token missing user ID.", "INVALID_TOKEN");
 
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+        User? user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 
         if (user is null)
             return Result.Failure<AuthResultDto>("User not found.", "NOT_FOUND");
 
-        var newJwt = _jwt.GenerateToken(user.Id, user.Username, ["user"]);
-        var newRefresh = _jwt.GenerateToken(user.Id, user.Username, ["refresh"]);
+        string newJwt = _jwt.GenerateToken(user.Id, user.Username, ["user"]);
+        string newRefresh = _jwt.GenerateToken(user.Id, user.Username, ["refresh"]);
 
-        var userDto = new UserDto(
+        UserDto userDto = new(
             user.Id,
             user.Username,
             user.DisplayName,
@@ -246,24 +247,24 @@ public sealed class AuthService : IAuthService
         CancellationToken ct
     )
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "https://api.twitch.tv/helix/users");
+        HttpRequestMessage request = new(HttpMethod.Get, "https://api.twitch.tv/helix/users");
         request.Headers.Add("Authorization", $"Bearer {accessToken}");
         request.Headers.Add("Client-Id", _options.ClientId);
 
         try
         {
-            var response = await _http.SendAsync(request, ct);
+            HttpResponseMessage response = await _http.SendAsync(request, ct);
             if (!response.IsSuccessStatusCode)
                 return null;
 
-            var data = await response.Content.ReadFromJsonAsync<HelixDataResponse<HelixUser>>(
+            HelixDataResponse<HelixUser>? data = await response.Content.ReadFromJsonAsync<HelixDataResponse<HelixUser>>(
                 cancellationToken: ct
             );
-            var user = data?.Data?.FirstOrDefault();
+            HelixUser? user = data?.Data?.FirstOrDefault();
             if (user is null)
                 return null;
 
-            return new TwitchUserInfo(
+            return new(
                 user.Id,
                 user.Login,
                 user.DisplayName,

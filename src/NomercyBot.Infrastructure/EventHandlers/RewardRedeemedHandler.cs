@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NoMercyBot.Application.Common.Interfaces;
+using NoMercyBot.Domain.Entities;
 using NoMercyBot.Domain.Events;
 using NoMercyBot.Domain.Interfaces;
 
@@ -39,14 +40,14 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
         CancellationToken cancellationToken = default
     )
     {
-        var broadcasterId = @event.BroadcasterId;
+        string? broadcasterId = @event.BroadcasterId;
         if (string.IsNullOrEmpty(broadcasterId))
             return;
 
-        using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-        var variables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        Dictionary<string, string> variables = new(StringComparer.OrdinalIgnoreCase)
         {
             ["user"] = @event.UserDisplayName,
             ["user.id"] = @event.UserId,
@@ -58,12 +59,12 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
         };
 
         // Look up Reward entity matched by TwitchRewardId
-        var reward = await db.Rewards.FirstOrDefaultAsync(
+        Reward? reward = await db.Rewards.FirstOrDefaultAsync(
             r => r.BroadcasterId == broadcasterId && r.TwitchRewardId == @event.RewardId,
             cancellationToken
         );
 
-        var pipelineJson = reward?.PipelineJson;
+        string? pipelineJson = reward?.PipelineJson;
 
         // Fall back to simple Response text as a send_message pipeline
         if (pipelineJson is null && reward?.Response is not null)
@@ -74,7 +75,7 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
         // Fall back to generic event_response:reward_redeemed record
         if (pipelineJson is null)
         {
-            var genericConfig = await db.Records.FirstOrDefaultAsync(
+            Record? genericConfig = await db.Records.FirstOrDefaultAsync(
                 r =>
                     r.BroadcasterId == broadcasterId
                     && r.RecordType == "event_response:reward_redeemed",
@@ -106,7 +107,7 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
 
     private static string BuildResponsePipeline(string message)
     {
-        var escaped = message.Replace("\\", "\\\\").Replace("\"", "\\\"");
+        string escaped = message.Replace("\\", "\\\\").Replace("\"", "\\\"");
         return "{\"steps\":[{\"action\":{\"type\":\"send_message\",\"message\":\""
             + escaped
             + "\",\"target\":\"channel\"}}]}";
@@ -126,7 +127,7 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
         try
         {
             await _pipeline.ExecuteAsync(
-                new PipelineRequest
+                new()
                 {
                     BroadcasterId = broadcasterId,
                     PipelineJson = pipelineJson,

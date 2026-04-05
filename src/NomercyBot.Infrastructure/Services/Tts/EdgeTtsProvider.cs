@@ -37,11 +37,11 @@ public sealed class EdgeTtsProvider : ITtsProvider
         CancellationToken cancellationToken = default
     )
     {
-        var connectionId = Guid.NewGuid().ToString("N");
-        var url =
+        string connectionId = Guid.NewGuid().ToString("N");
+        string url =
             $"wss://speech.platform.bing.com/consumer/speech/synthesize/realtimetts/edge/v1?TrustedClientToken={TrustedToken}&ConnectionId={connectionId}";
 
-        using var ws = new ClientWebSocket();
+        using ClientWebSocket ws = new();
         ws.Options.SetRequestHeader(
             "Origin",
             "chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold"
@@ -53,7 +53,7 @@ public sealed class EdgeTtsProvider : ITtsProvider
 
         try
         {
-            await ws.ConnectAsync(new Uri(url), cancellationToken);
+            await ws.ConnectAsync(new(url), cancellationToken);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -62,24 +62,24 @@ public sealed class EdgeTtsProvider : ITtsProvider
         }
 
         // Send configuration
-        var configMsg = BuildConfigMessage(connectionId);
+        string configMsg = BuildConfigMessage(connectionId);
         await SendTextAsync(ws, configMsg, cancellationToken);
 
         // Send synthesis request
-        var requestId = Guid.NewGuid().ToString("N");
-        var ssml = BuildSsml(text, voiceId);
-        var synthesisMsg = BuildSynthesisMessage(requestId, ssml);
+        string requestId = Guid.NewGuid().ToString("N");
+        string ssml = BuildSsml(text, voiceId);
+        string synthesisMsg = BuildSynthesisMessage(requestId, ssml);
         await SendTextAsync(ws, synthesisMsg, cancellationToken);
 
         // Collect audio chunks
-        using var audioStream = new MemoryStream();
-        var buffer = new byte[32768];
+        using MemoryStream audioStream = new();
+        byte[] buffer = new byte[32768];
 
         try
         {
             while (ws.State == WebSocketState.Open)
             {
-                using var msgStream = new MemoryStream();
+                using MemoryStream msgStream = new();
                 WebSocketReceiveResult result;
 
                 do
@@ -91,22 +91,22 @@ public sealed class EdgeTtsProvider : ITtsProvider
                 if (result.MessageType == WebSocketMessageType.Close)
                     break;
 
-                var msgBytes = msgStream.ToArray();
+                byte[] msgBytes = msgStream.ToArray();
 
                 if (result.MessageType == WebSocketMessageType.Binary)
                 {
                     // Binary message: header\r\n\r\n<audio bytes>
-                    var headerEnd = FindHeaderEnd(msgBytes);
+                    int headerEnd = FindHeaderEnd(msgBytes);
                     if (headerEnd >= 0)
                     {
-                        var audioStart = headerEnd + 4;
+                        int audioStart = headerEnd + 4;
                         if (audioStart < msgBytes.Length)
                             audioStream.Write(msgBytes, audioStart, msgBytes.Length - audioStart);
                     }
                 }
                 else if (result.MessageType == WebSocketMessageType.Text)
                 {
-                    var text2 = Encoding.UTF8.GetString(msgBytes);
+                    string text2 = Encoding.UTF8.GetString(msgBytes);
                     if (text2.Contains("turn.end"))
                         break;
                 }
@@ -138,7 +138,7 @@ public sealed class EdgeTtsProvider : ITtsProvider
             }
         }
 
-        var audioData = audioStream.ToArray();
+        byte[] audioData = audioStream.ToArray();
         if (audioData.Length == 0)
         {
             _logger.LogWarning("Edge TTS: No audio received for voice {VoiceId}", voiceId);
@@ -147,11 +147,11 @@ public sealed class EdgeTtsProvider : ITtsProvider
 
         // Estimate duration: MP3 ~128kbps = 16 KB/s
         int durationMs = (int)(audioData.Length / 16.0 * 1000.0 / 1024.0);
-        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text + voiceId)))[
+        string hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text + voiceId)))[
             ..16
         ];
 
-        return new TtsSynthesisResult
+        return new()
         {
             AudioData = audioData,
             DurationMs = durationMs,
@@ -168,7 +168,7 @@ public sealed class EdgeTtsProvider : ITtsProvider
         // Curated subset of popular Edge TTS voices
         IReadOnlyList<TtsVoiceInfo> voices =
         [
-            new TtsVoiceInfo
+            new()
             {
                 Id = "en-US-AriaNeural",
                 Name = "Aria",
@@ -177,7 +177,7 @@ public sealed class EdgeTtsProvider : ITtsProvider
                 Gender = "Female",
                 Provider = ProviderName,
             },
-            new TtsVoiceInfo
+            new()
             {
                 Id = "en-US-GuyNeural",
                 Name = "Guy",
@@ -186,7 +186,7 @@ public sealed class EdgeTtsProvider : ITtsProvider
                 Gender = "Male",
                 Provider = ProviderName,
             },
-            new TtsVoiceInfo
+            new()
             {
                 Id = "en-US-JennyNeural",
                 Name = "Jenny",
@@ -195,7 +195,7 @@ public sealed class EdgeTtsProvider : ITtsProvider
                 Gender = "Female",
                 Provider = ProviderName,
             },
-            new TtsVoiceInfo
+            new()
             {
                 Id = "en-US-DavisNeural",
                 Name = "Davis",
@@ -204,7 +204,7 @@ public sealed class EdgeTtsProvider : ITtsProvider
                 Gender = "Male",
                 Provider = ProviderName,
             },
-            new TtsVoiceInfo
+            new()
             {
                 Id = "en-GB-SoniaNeural",
                 Name = "Sonia",
@@ -213,7 +213,7 @@ public sealed class EdgeTtsProvider : ITtsProvider
                 Gender = "Female",
                 Provider = ProviderName,
             },
-            new TtsVoiceInfo
+            new()
             {
                 Id = "en-GB-RyanNeural",
                 Name = "Ryan",
@@ -222,7 +222,7 @@ public sealed class EdgeTtsProvider : ITtsProvider
                 Gender = "Male",
                 Provider = ProviderName,
             },
-            new TtsVoiceInfo
+            new()
             {
                 Id = "en-AU-NatashaNeural",
                 Name = "Natasha",
@@ -231,7 +231,7 @@ public sealed class EdgeTtsProvider : ITtsProvider
                 Gender = "Female",
                 Provider = ProviderName,
             },
-            new TtsVoiceInfo
+            new()
             {
                 Id = "en-CA-ClaraNeural",
                 Name = "Clara",
@@ -240,7 +240,7 @@ public sealed class EdgeTtsProvider : ITtsProvider
                 Gender = "Female",
                 Provider = ProviderName,
             },
-            new TtsVoiceInfo
+            new()
             {
                 Id = "de-DE-KatjaNeural",
                 Name = "Katja",
@@ -249,7 +249,7 @@ public sealed class EdgeTtsProvider : ITtsProvider
                 Gender = "Female",
                 Provider = ProviderName,
             },
-            new TtsVoiceInfo
+            new()
             {
                 Id = "de-DE-ConradNeural",
                 Name = "Conrad",
@@ -258,7 +258,7 @@ public sealed class EdgeTtsProvider : ITtsProvider
                 Gender = "Male",
                 Provider = ProviderName,
             },
-            new TtsVoiceInfo
+            new()
             {
                 Id = "fr-FR-DeniseNeural",
                 Name = "Denise",
@@ -267,7 +267,7 @@ public sealed class EdgeTtsProvider : ITtsProvider
                 Gender = "Female",
                 Provider = ProviderName,
             },
-            new TtsVoiceInfo
+            new()
             {
                 Id = "es-ES-ElviraNeural",
                 Name = "Elvira",
@@ -276,7 +276,7 @@ public sealed class EdgeTtsProvider : ITtsProvider
                 Gender = "Female",
                 Provider = ProviderName,
             },
-            new TtsVoiceInfo
+            new()
             {
                 Id = "ja-JP-NanamiNeural",
                 Name = "Nanami",
@@ -285,7 +285,7 @@ public sealed class EdgeTtsProvider : ITtsProvider
                 Gender = "Female",
                 Provider = ProviderName,
             },
-            new TtsVoiceInfo
+            new()
             {
                 Id = "ko-KR-SunHiNeural",
                 Name = "SunHi",
@@ -294,7 +294,7 @@ public sealed class EdgeTtsProvider : ITtsProvider
                 Gender = "Female",
                 Provider = ProviderName,
             },
-            new TtsVoiceInfo
+            new()
             {
                 Id = "pt-BR-FranciscaNeural",
                 Name = "Francisca",
@@ -312,7 +312,7 @@ public sealed class EdgeTtsProvider : ITtsProvider
 
     private static string BuildConfigMessage(string connectionId)
     {
-        var timestamp = DateTime.UtcNow.ToString(
+        string timestamp = DateTime.UtcNow.ToString(
             "ddd MMM dd yyyy HH:mm:ss 'GMT+0000 (Coordinated Universal Time)'"
         );
         return $"X-Timestamp:{timestamp}\r\nContent-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n"
@@ -340,7 +340,7 @@ public sealed class EdgeTtsProvider : ITtsProvider
 
     private static string BuildSynthesisMessage(string requestId, string ssml)
     {
-        var timestamp = DateTime.UtcNow.ToString(
+        string timestamp = DateTime.UtcNow.ToString(
             "ddd MMM dd yyyy HH:mm:ss 'GMT+0000 (Coordinated Universal Time)'"
         );
         return $"X-RequestId:{requestId}\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:{timestamp}\r\nPath:ssml\r\n\r\n{ssml}";
@@ -348,7 +348,7 @@ public sealed class EdgeTtsProvider : ITtsProvider
 
     private static string BuildSsml(string text, string voiceId)
     {
-        var escaped = System.Security.SecurityElement.Escape(text) ?? text;
+        string escaped = System.Security.SecurityElement.Escape(text) ?? text;
         return $"""
             <speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'>
               <voice name='{voiceId}'>
@@ -364,7 +364,7 @@ public sealed class EdgeTtsProvider : ITtsProvider
         CancellationToken ct
     )
     {
-        var bytes = Encoding.UTF8.GetBytes(message);
+        byte[] bytes = Encoding.UTF8.GetBytes(message);
         await ws.SendAsync(bytes, WebSocketMessageType.Text, true, ct);
     }
 

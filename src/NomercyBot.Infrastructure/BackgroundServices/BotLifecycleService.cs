@@ -7,6 +7,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NoMercyBot.Application.Common.Interfaces;
 using NoMercyBot.Application.Contracts.Twitch;
+using NoMercyBot.Domain.Entities;
 
 namespace NoMercyBot.Infrastructure.BackgroundServices;
 
@@ -57,7 +58,7 @@ public sealed class BotLifecycleService : BackgroundService
         await SyncChannelsAsync(stoppingToken);
 
         // Periodic sync every 5 minutes to detect dynamic channel changes
-        using var timer = new PeriodicTimer(TimeSpan.FromMinutes(5));
+        using PeriodicTimer timer = new(TimeSpan.FromMinutes(5));
         while (await timer.WaitForNextTickAsync(stoppingToken))
         {
             try
@@ -73,10 +74,10 @@ public sealed class BotLifecycleService : BackgroundService
 
     private async Task SyncChannelsAsync(CancellationToken ct)
     {
-        using var scope = _serviceProvider.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
-        var chatService = scope.ServiceProvider.GetRequiredService<ITwitchChatService>();
-        var eventSub = scope.ServiceProvider.GetRequiredService<ITwitchEventSubService>();
+        using IServiceScope scope = _serviceProvider.CreateScope();
+        IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        ITwitchChatService chatService = scope.ServiceProvider.GetRequiredService<ITwitchChatService>();
+        ITwitchEventSubService eventSub = scope.ServiceProvider.GetRequiredService<ITwitchEventSubService>();
 
         // Get all currently enabled channels
         var activeChannels = await db
@@ -84,7 +85,7 @@ public sealed class BotLifecycleService : BackgroundService
             .Select(c => new { c.Id, c.Name })
             .ToListAsync(ct);
 
-        var activeIds = activeChannels.Select(c => c.Id).ToHashSet();
+        HashSet<string> activeIds = activeChannels.Select(c => c.Id).ToHashSet();
 
         HashSet<string> toJoin;
         HashSet<string> toLeave;
@@ -103,7 +104,7 @@ public sealed class BotLifecycleService : BackgroundService
                 await chatService.JoinChannelAsync(channel.Name, ct);
 
                 // Subscribe to EventSub events for this channel
-                foreach (var eventType in ChannelEventTypes)
+                foreach (string eventType in ChannelEventTypes)
                 {
                     await eventSub.SubscribeAsync(channel.Id, eventType, ct);
                 }
@@ -127,11 +128,11 @@ public sealed class BotLifecycleService : BackgroundService
         }
 
         // Leave channels that are no longer active
-        foreach (var channelId in toLeave)
+        foreach (string channelId in toLeave)
         {
             try
             {
-                var channel = await db.Channels.FindAsync([channelId], ct);
+                Channel? channel = await db.Channels.FindAsync([channelId], ct);
                 if (channel is not null)
                     await chatService.LeaveChannelAsync(channel.Name, ct);
 

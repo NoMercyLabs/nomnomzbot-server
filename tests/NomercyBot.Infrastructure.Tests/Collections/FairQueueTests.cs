@@ -13,7 +13,7 @@ public class FairQueueTests
     [Fact]
     public void Dequeue_SingleItem_ReturnsItem()
     {
-        var q = new FairQueue<string>();
+        FairQueue<string> q = new();
         q.Enqueue("alice", "track-a");
 
         q.Dequeue().Should().Be("track-a");
@@ -23,14 +23,14 @@ public class FairQueueTests
     [Fact]
     public void Dequeue_Empty_ReturnsDefault()
     {
-        var q = new FairQueue<string>();
+        FairQueue<string> q = new();
         q.Dequeue().Should().BeNull();
     }
 
     [Fact]
     public void Count_ReflectsQueuedItems()
     {
-        var q = new FairQueue<string>();
+        FairQueue<string> q = new();
         q.Enqueue("alice", "a");
         q.Enqueue("alice", "b");
         q.Enqueue("bob", "c");
@@ -43,7 +43,7 @@ public class FairQueueTests
     [Fact]
     public void Enqueue_TwoOwners_InterleavesBeforeRepeat()
     {
-        var q = new FairQueue<string>();
+        FairQueue<string> q = new();
         // alice adds 2, bob adds 1
         q.Enqueue("alice", "a1");
         q.Enqueue("alice", "a2");
@@ -58,7 +58,7 @@ public class FairQueueTests
     [Fact]
     public void Enqueue_ThreeOwners_RoundRobinOrdering()
     {
-        var q = new FairQueue<string>();
+        FairQueue<string> q = new();
         // Each user enqueues 2 songs
         q.Enqueue("alice", "a1");
         q.Enqueue("alice", "a2");
@@ -68,7 +68,7 @@ public class FairQueueTests
         q.Enqueue("carol", "c2");
 
         // Round 1: all rank-1 items (a1, b1, c1) come before round 2 (a2, b2, c2)
-        var dequeued = Enumerable.Range(0, 6).Select(_ => q.Dequeue()).ToList();
+        List<string?> dequeued = Enumerable.Range(0, 6).Select(_ => q.Dequeue()).ToList();
 
         dequeued.Should().BeEquivalentTo(["a1", "a2", "b1", "b2", "c1", "c2"]);
 
@@ -87,7 +87,7 @@ public class FairQueueTests
     [Fact]
     public void Enqueue_SingleOwner_FifoOrder()
     {
-        var q = new FairQueue<string>();
+        FairQueue<string> q = new();
         q.Enqueue("alice", "1");
         q.Enqueue("alice", "2");
         q.Enqueue("alice", "3");
@@ -102,7 +102,7 @@ public class FairQueueTests
     [Fact]
     public void Dequeue_AfterDequeuingFirstItem_RanksRecalculated()
     {
-        var q = new FairQueue<string>();
+        FairQueue<string> q = new();
         q.Enqueue("alice", "a1");
         q.Enqueue("alice", "a2");
         q.Enqueue("alice", "a3");
@@ -122,7 +122,7 @@ public class FairQueueTests
     [Fact]
     public void Peek_DoesNotRemoveItem()
     {
-        var q = new FairQueue<string>();
+        FairQueue<string> q = new();
         q.Enqueue("alice", "a1");
 
         q.Peek().Should().Be("a1");
@@ -134,7 +134,7 @@ public class FairQueueTests
     [Fact]
     public void Clear_EmptiesQueue()
     {
-        var q = new FairQueue<string>();
+        FairQueue<string> q = new();
         q.Enqueue("alice", "a1");
         q.Enqueue("bob", "b1");
 
@@ -149,7 +149,7 @@ public class FairQueueTests
     [Fact]
     public void RemoveByOwner_RemovesAllItemsForOwner()
     {
-        var q = new FairQueue<string>();
+        FairQueue<string> q = new();
         q.Enqueue("alice", "a1");
         q.Enqueue("alice", "a2");
         q.Enqueue("bob", "b1");
@@ -163,7 +163,7 @@ public class FairQueueTests
     [Fact]
     public void RemoveByOwner_OwnerNotPresent_ReturnsZero()
     {
-        var q = new FairQueue<string>();
+        FairQueue<string> q = new();
         q.Enqueue("alice", "a1");
 
         q.RemoveByOwner("nobody").Should().Be(0);
@@ -175,11 +175,11 @@ public class FairQueueTests
     [Fact]
     public void GetSnapshot_ReturnsCurrentState()
     {
-        var q = new FairQueue<string>();
+        FairQueue<string> q = new();
         q.Enqueue("alice", "a1");
         q.Enqueue("bob", "b1");
 
-        var snapshot = q.GetSnapshot();
+        IReadOnlyList<(string Item, int Rank, string OwnerKey)> snapshot = q.GetSnapshot();
 
         snapshot.Should().HaveCount(2);
         snapshot.Should().Contain(s => s.Item == "a1" && s.OwnerKey == "alice");
@@ -191,10 +191,10 @@ public class FairQueueTests
     [Fact]
     public async Task Enqueue_ConcurrentAccess_DoesNotCorruptState()
     {
-        var q = new FairQueue<int>();
+        FairQueue<int> q = new();
         const int iterations = 100;
 
-        var tasks = Enumerable
+        IEnumerable<Task> tasks = Enumerable
             .Range(0, 10)
             .Select(ownerId =>
                 Task.Run(() =>

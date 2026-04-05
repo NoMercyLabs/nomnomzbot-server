@@ -32,13 +32,13 @@ public class TimersController : BaseController
         CancellationToken ct
     )
     {
-        var pagination = new PaginationParams(
+        PaginationParams pagination = new(
             request.Page,
             request.Take,
             request.Sort,
             request.Order
         );
-        var result = await _timerService.ListAsync(channelId, pagination, ct);
+        Result<PagedList<TimerListItem>> result = await _timerService.ListAsync(channelId, pagination, ct);
         if (result.IsFailure)
             return ResultResponse(result);
         return GetPaginatedResponse(result.Value, request);
@@ -48,7 +48,7 @@ public class TimersController : BaseController
     [ProducesResponseType<StatusResponseDto<TimerDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetTimer(string channelId, int id, CancellationToken ct)
     {
-        var result = await _timerService.GetAsync(channelId, id, ct);
+        Result<TimerDto> result = await _timerService.GetAsync(channelId, id, ct);
         return ResultResponse(result);
     }
 
@@ -60,7 +60,7 @@ public class TimersController : BaseController
         CancellationToken ct
     )
     {
-        var result = await _timerService.CreateAsync(channelId, request, ct);
+        Result<TimerDto> result = await _timerService.CreateAsync(channelId, request, ct);
         if (result.IsFailure)
             return ResultResponse(result);
 
@@ -84,7 +84,7 @@ public class TimersController : BaseController
         CancellationToken ct
     )
     {
-        var result = await _timerService.UpdateAsync(channelId, id, request, ct);
+        Result<TimerDto> result = await _timerService.UpdateAsync(channelId, id, request, ct);
         if (result.IsFailure)
             return ResultResponse(result);
         return Ok(new StatusResponseDto<TimerDto> { Data = result.Value });
@@ -94,7 +94,7 @@ public class TimersController : BaseController
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteTimer(string channelId, int id, CancellationToken ct)
     {
-        var result = await _timerService.DeleteAsync(channelId, id, ct);
+        Result result = await _timerService.DeleteAsync(channelId, id, ct);
         if (result.IsFailure)
             return ResultResponse(result);
         return NoContent();
@@ -104,7 +104,7 @@ public class TimersController : BaseController
     [ProducesResponseType<StatusResponseDto<TimerDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ToggleTimer(string channelId, int id, CancellationToken ct)
     {
-        var result = await _timerService.ToggleAsync(channelId, id, ct);
+        Result<TimerDto> result = await _timerService.ToggleAsync(channelId, id, ct);
         if (result.IsFailure)
             return ResultResponse(result);
         return Ok(new StatusResponseDto<TimerDto> { Data = result.Value });

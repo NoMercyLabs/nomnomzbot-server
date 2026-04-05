@@ -27,11 +27,11 @@ public class SendMessageActionTests
     [Fact]
     public async Task ExecuteAsync_WithMessage_SendsToChat()
     {
-        var chat = Substitute.For<IChatProvider>();
-        var action = new SendMessageAction(chat);
+        IChatProvider? chat = Substitute.For<IChatProvider>();
+        SendMessageAction action = new(chat);
 
-        var ctx = BuildCtx(new Dictionary<string, object?> { { "message", "Hello world" } });
-        var result = await action.ExecuteAsync(ctx);
+        ActionContext ctx = BuildCtx(new() { { "message", "Hello world" } });
+        ActionResult result = await action.ExecuteAsync(ctx);
 
         result.Success.Should().BeTrue();
         await chat.Received(1)
@@ -41,11 +41,11 @@ public class SendMessageActionTests
     [Fact]
     public async Task ExecuteAsync_MissingMessage_ReturnsFail()
     {
-        var chat = Substitute.For<IChatProvider>();
-        var action = new SendMessageAction(chat);
+        IChatProvider? chat = Substitute.For<IChatProvider>();
+        SendMessageAction action = new(chat);
 
-        var ctx = BuildCtx(); // no message param
-        var result = await action.ExecuteAsync(ctx);
+        ActionContext ctx = BuildCtx(); // no message param
+        ActionResult result = await action.ExecuteAsync(ctx);
 
         result.Success.Should().BeFalse();
         result.ErrorMessage.Should().Contain("message");
@@ -56,11 +56,11 @@ public class SendMessageActionTests
     [Fact]
     public async Task ExecuteAsync_BlankMessage_ReturnsFail()
     {
-        var chat = Substitute.For<IChatProvider>();
-        var action = new SendMessageAction(chat);
+        IChatProvider? chat = Substitute.For<IChatProvider>();
+        SendMessageAction action = new(chat);
 
-        var ctx = BuildCtx(new Dictionary<string, object?> { { "message", "   " } });
-        var result = await action.ExecuteAsync(ctx);
+        ActionContext ctx = BuildCtx(new() { { "message", "   " } });
+        ActionResult result = await action.ExecuteAsync(ctx);
 
         result.Success.Should().BeFalse();
     }
@@ -69,7 +69,7 @@ public class SendMessageActionTests
     public async Task ExecuteAsync_MessageWithVariable_ResolvesBeforeSend()
     {
         string? sentMessage = null;
-        var chat = Substitute.For<IChatProvider>();
+        IChatProvider? chat = Substitute.For<IChatProvider>();
         chat.SendMessageAsync(
                 Arg.Any<string>(),
                 Arg.Do<string>(m => sentMessage = m),
@@ -77,10 +77,10 @@ public class SendMessageActionTests
             )
             .Returns(Task.CompletedTask);
 
-        var action = new SendMessageAction(chat);
-        var ctx = BuildCtx(
-            new Dictionary<string, object?> { { "message", "Hi {{user}}!" } },
-            new Dictionary<string, string> { { "user", "Alice" } }
+        SendMessageAction action = new(chat);
+        ActionContext ctx = BuildCtx(
+            new() { { "message", "Hi {{user}}!" } },
+            new() { { "user", "Alice" } }
         );
 
         await action.ExecuteAsync(ctx);
@@ -91,8 +91,8 @@ public class SendMessageActionTests
     [Fact]
     public void Type_IsCorrect()
     {
-        var chat = Substitute.For<IChatProvider>();
-        var action = new SendMessageAction(chat);
+        IChatProvider? chat = Substitute.For<IChatProvider>();
+        SendMessageAction action = new(chat);
 
         action.Type.Should().Be("send_message");
     }
@@ -100,8 +100,8 @@ public class SendMessageActionTests
     [Fact]
     public void Category_IsChat()
     {
-        var chat = Substitute.For<IChatProvider>();
-        var action = new SendMessageAction(chat);
+        IChatProvider? chat = Substitute.For<IChatProvider>();
+        SendMessageAction action = new(chat);
 
         action.Category.Should().Be("chat");
     }

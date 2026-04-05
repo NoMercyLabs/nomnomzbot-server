@@ -27,7 +27,7 @@ public class MusicConfigService : IMusicConfigService
         CancellationToken cancellationToken = default
     )
     {
-        var config = await LoadConfigAsync(broadcasterId, cancellationToken);
+        MusicConfigDto config = await LoadConfigAsync(broadcasterId, cancellationToken);
         return Result.Success(config);
     }
 
@@ -37,15 +37,15 @@ public class MusicConfigService : IMusicConfigService
         CancellationToken cancellationToken = default
     )
     {
-        var existing = await _db.Configurations.FirstOrDefaultAsync(
+        ChannelConfiguration? existing = await _db.Configurations.FirstOrDefaultAsync(
             c => c.BroadcasterId == broadcasterId && c.Key == ConfigKey,
             cancellationToken
         );
 
-        var current = existing is not null
+        MusicConfigData current = existing is not null
             ? JsonSerializer.Deserialize<MusicConfigData>(existing.Value ?? "{}")
                 ?? new MusicConfigData()
-            : new MusicConfigData();
+            : new();
 
         if (request.IsEnabled.HasValue)
             current.IsEnabled = request.IsEnabled.Value;
@@ -62,7 +62,7 @@ public class MusicConfigService : IMusicConfigService
         if (request.MinTrustLevel is not null)
             current.MinTrustLevel = request.MinTrustLevel;
 
-        var json = JsonSerializer.Serialize(current);
+        string json = JsonSerializer.Serialize(current);
 
         if (existing is not null)
         {
@@ -71,7 +71,7 @@ public class MusicConfigService : IMusicConfigService
         else
         {
             _db.Configurations.Add(
-                new ChannelConfiguration
+                new()
                 {
                     BroadcasterId = broadcasterId,
                     Key = ConfigKey,
@@ -90,15 +90,15 @@ public class MusicConfigService : IMusicConfigService
         CancellationToken cancellationToken
     )
     {
-        var entry = await _db.Configurations.FirstOrDefaultAsync(
+        ChannelConfiguration? entry = await _db.Configurations.FirstOrDefaultAsync(
             c => c.BroadcasterId == broadcasterId && c.Key == ConfigKey,
             cancellationToken
         );
 
         if (entry?.Value is null)
-            return ToDto(new MusicConfigData());
+            return ToDto(new());
 
-        var data =
+        MusicConfigData data =
             JsonSerializer.Deserialize<MusicConfigData>(entry.Value) ?? new MusicConfigData();
         return ToDto(data);
     }

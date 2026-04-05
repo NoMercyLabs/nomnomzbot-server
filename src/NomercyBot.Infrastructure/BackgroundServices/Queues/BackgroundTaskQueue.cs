@@ -11,7 +11,7 @@ public class BackgroundTaskQueue : IBackgroundTaskQueue
 
     public BackgroundTaskQueue(int capacity = 100)
     {
-        var options = new BoundedChannelOptions(capacity)
+        BoundedChannelOptions options = new(capacity)
         {
             FullMode = BoundedChannelFullMode.Wait,
         };

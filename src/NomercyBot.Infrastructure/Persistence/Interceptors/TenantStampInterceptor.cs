@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using NoMercyBot.Application.Common.Interfaces;
 using NoMercyBot.Domain.Common;
@@ -47,14 +48,14 @@ public sealed class TenantStampInterceptor : SaveChangesInterceptor
 
     private void StampTenant(DbContext context)
     {
-        var broadcasterId = _currentTenantService.BroadcasterId;
+        string? broadcasterId = _currentTenantService.BroadcasterId;
 
         if (string.IsNullOrEmpty(broadcasterId))
         {
             return;
         }
 
-        foreach (var entry in context.ChangeTracker.Entries<ITenantScoped>())
+        foreach (EntityEntry<ITenantScoped> entry in context.ChangeTracker.Entries<ITenantScoped>())
         {
             if (
                 entry.State == EntityState.Added

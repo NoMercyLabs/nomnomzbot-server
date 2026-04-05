@@ -206,7 +206,7 @@ public sealed class DataSeeder
 
     private async Task SeedGlobalConfigurationAsync(CancellationToken ct)
     {
-        var globalConfigKeys = new Dictionary<string, string>
+        Dictionary<string, string> globalConfigKeys = new()
         {
             ["system:version"] = "1.0.0",
             ["system:tts:providers"] = "edge,azure,elevenlabs",
@@ -214,7 +214,7 @@ public sealed class DataSeeder
             ["system:moderation:defaultSpamThreshold"] = "5",
         };
 
-        foreach (var (key, value) in globalConfigKeys)
+        foreach ((string key, string value) in globalConfigKeys)
         {
             if (
                 !await _context.Configurations.AnyAsync(
@@ -224,7 +224,7 @@ public sealed class DataSeeder
             )
             {
                 _context.Configurations.Add(
-                    new Domain.Entities.Configuration
+                    new()
                     {
                         BroadcasterId = null,
                         Key = key,

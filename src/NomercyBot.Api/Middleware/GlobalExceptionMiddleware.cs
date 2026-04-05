@@ -45,7 +45,7 @@ public class GlobalExceptionMiddleware
             context.Response.StatusCode = 500;
             context.Response.ContentType = "application/json";
 
-            var response = new StatusResponseDto<object>
+            StatusResponseDto<object> response = new()
             {
                 Status = "error",
                 Message = _environment.IsDevelopment()

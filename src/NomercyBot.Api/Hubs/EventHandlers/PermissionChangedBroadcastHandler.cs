@@ -21,7 +21,7 @@ public sealed class PermissionChangedBroadcastHandler : IEventHandler<Permission
 
         return _notifier.SendPermissionChangedAsync(
             @event.BroadcasterId,
-            new PermissionChangedDto(
+            new(
                 @event.SubjectType,
                 @event.SubjectId,
                 @event.ResourceType,

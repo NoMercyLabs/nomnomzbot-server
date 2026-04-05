@@ -12,9 +12,9 @@ public class AutoModerationEngineTests
 {
     private static AutoModerationEngine Create()
     {
-        var cooldowns = new CooldownManager();
-        var logger = NullLogger<AutoModerationEngine>.Instance;
-        return new AutoModerationEngine(cooldowns, logger);
+        CooldownManager cooldowns = new();
+        NullLogger<AutoModerationEngine> logger = NullLogger<AutoModerationEngine>.Instance;
+        return new(cooldowns, logger);
     }
 
     private static AutoModResult Evaluate(
@@ -31,10 +31,10 @@ public class AutoModerationEngineTests
     [Fact]
     public void Evaluate_CleanMessage_ReturnsNoAction()
     {
-        var engine = Create();
-        var settings = new AutoModSettings();
+        AutoModerationEngine engine = Create();
+        AutoModSettings settings = new();
 
-        var result = Evaluate(engine, "hello everyone", settings);
+        AutoModResult result = Evaluate(engine, "hello everyone", settings);
 
         result.ShouldAct.Should().BeFalse();
         result.Action.Should().Be(AutoModAction.None);
@@ -45,10 +45,10 @@ public class AutoModerationEngineTests
     [Fact]
     public void Evaluate_ExemptRole_BypassesAllChecks()
     {
-        var engine = Create();
-        var settings = new AutoModSettings { FilterLinks = true, ExemptRoles = ["moderator"] };
+        AutoModerationEngine engine = Create();
+        AutoModSettings settings = new() { FilterLinks = true, ExemptRoles = ["moderator"] };
 
-        var result = engine.Evaluate(
+        AutoModResult result = engine.Evaluate(
             "chan",
             "mod1",
             "https://badlink.com",
@@ -62,10 +62,10 @@ public class AutoModerationEngineTests
     [Fact]
     public void Evaluate_NonExemptRole_NotBypassed()
     {
-        var engine = Create();
-        var settings = new AutoModSettings { FilterLinks = true, ExemptRoles = ["moderator"] };
+        AutoModerationEngine engine = Create();
+        AutoModSettings settings = new() { FilterLinks = true, ExemptRoles = ["moderator"] };
 
-        var result = engine.Evaluate(
+        AutoModResult result = engine.Evaluate(
             "chan",
             "viewer1",
             "https://badlink.com",
@@ -81,11 +81,11 @@ public class AutoModerationEngineTests
     [Fact]
     public void Evaluate_SlowMode_FirstMessage_NotViolation()
     {
-        var engine = Create();
-        var settings = new AutoModSettings { SlowModeSeconds = 5 };
+        AutoModerationEngine engine = Create();
+        AutoModSettings settings = new() { SlowModeSeconds = 5 };
 
         // First message: no cooldown, so it's allowed (cooldown is SET after)
-        var result = engine.Evaluate("chan", "user1", "hello", [], settings);
+        AutoModResult result = engine.Evaluate("chan", "user1", "hello", [], settings);
 
         result.ShouldAct.Should().BeFalse();
     }
@@ -93,15 +93,15 @@ public class AutoModerationEngineTests
     [Fact]
     public void Evaluate_SlowMode_SecondMessageImmediately_IsViolation()
     {
-        var engine = Create();
-        var settings = new AutoModSettings
+        AutoModerationEngine engine = Create();
+        AutoModSettings settings = new()
         {
             SlowModeSeconds = 60,
             SlowModeAction = AutoModAction.Delete,
         };
 
         engine.Evaluate("chan", "user1", "first", [], settings); // sets cooldown
-        var result = engine.Evaluate("chan", "user1", "second", [], settings); // hits cooldown
+        AutoModResult result = engine.Evaluate("chan", "user1", "second", [], settings); // hits cooldown
 
         result.ShouldAct.Should().BeTrue();
         result.Action.Should().Be(AutoModAction.Delete);
@@ -113,24 +113,24 @@ public class AutoModerationEngineTests
     [Fact]
     public void Evaluate_LinkFilter_PlainText_NoAction()
     {
-        var engine = Create();
-        var settings = new AutoModSettings { FilterLinks = true };
+        AutoModerationEngine engine = Create();
+        AutoModSettings settings = new() { FilterLinks = true };
 
-        var result = Evaluate(engine, "this has no link", settings);
+        AutoModResult result = Evaluate(engine, "this has no link", settings);
         result.ShouldAct.Should().BeFalse();
     }
 
     [Fact]
     public void Evaluate_LinkFilter_HttpsLink_TriggersAction()
     {
-        var engine = Create();
-        var settings = new AutoModSettings
+        AutoModerationEngine engine = Create();
+        AutoModSettings settings = new()
         {
             FilterLinks = true,
             LinkAction = AutoModAction.Delete,
         };
 
-        var result = Evaluate(engine, "check out https://evil.com/hack", settings);
+        AutoModResult result = Evaluate(engine, "check out https://evil.com/hack", settings);
 
         result.ShouldAct.Should().BeTrue();
         result.Action.Should().Be(AutoModAction.Delete);
@@ -140,14 +140,14 @@ public class AutoModerationEngineTests
     [Fact]
     public void Evaluate_LinkFilter_WwwLink_TriggersAction()
     {
-        var engine = Create();
-        var settings = new AutoModSettings
+        AutoModerationEngine engine = Create();
+        AutoModSettings settings = new()
         {
             FilterLinks = true,
             LinkAction = AutoModAction.Delete,
         };
 
-        var result = Evaluate(engine, "visit www.example.com today", settings);
+        AutoModResult result = Evaluate(engine, "visit www.example.com today", settings);
 
         result.ShouldAct.Should().BeTrue();
     }
@@ -155,15 +155,15 @@ public class AutoModerationEngineTests
     [Fact]
     public void Evaluate_LinkFilter_AllowedDomain_NoAction()
     {
-        var engine = Create();
-        var settings = new AutoModSettings
+        AutoModerationEngine engine = Create();
+        AutoModSettings settings = new()
         {
             FilterLinks = true,
             AllowedDomains = ["twitch.tv"],
             LinkAction = AutoModAction.Delete,
         };
 
-        var result = Evaluate(engine, "watch at https://twitch.tv/streamer", settings);
+        AutoModResult result = Evaluate(engine, "watch at https://twitch.tv/streamer", settings);
 
         result.ShouldAct.Should().BeFalse();
     }
@@ -171,10 +171,10 @@ public class AutoModerationEngineTests
     [Fact]
     public void Evaluate_LinkFilter_Disabled_AllowsLinks()
     {
-        var engine = Create();
-        var settings = new AutoModSettings { FilterLinks = false };
+        AutoModerationEngine engine = Create();
+        AutoModSettings settings = new() { FilterLinks = false };
 
-        var result = Evaluate(engine, "https://any-site.com", settings);
+        AutoModResult result = Evaluate(engine, "https://any-site.com", settings);
         result.ShouldAct.Should().BeFalse();
     }
 
@@ -183,8 +183,8 @@ public class AutoModerationEngineTests
     [Fact]
     public void Evaluate_CapsFilter_BelowThreshold_NoAction()
     {
-        var engine = Create();
-        var settings = new AutoModSettings
+        AutoModerationEngine engine = Create();
+        AutoModSettings settings = new()
         {
             FilterCaps = true,
             CapsThresholdPercent = 70,
@@ -192,15 +192,15 @@ public class AutoModerationEngineTests
         };
 
         // "Hello" → 1/5 = 20% uppercase, below threshold
-        var result = Evaluate(engine, "Hello there", settings);
+        AutoModResult result = Evaluate(engine, "Hello there", settings);
         result.ShouldAct.Should().BeFalse();
     }
 
     [Fact]
     public void Evaluate_CapsFilter_AboveThreshold_TriggersAction()
     {
-        var engine = Create();
-        var settings = new AutoModSettings
+        AutoModerationEngine engine = Create();
+        AutoModSettings settings = new()
         {
             FilterCaps = true,
             CapsThresholdPercent = 70,
@@ -209,7 +209,7 @@ public class AutoModerationEngineTests
             CapsDurationSeconds = 30,
         };
 
-        var result = Evaluate(engine, "STOP SPAMMING RIGHT NOW", settings);
+        AutoModResult result = Evaluate(engine, "STOP SPAMMING RIGHT NOW", settings);
 
         result.ShouldAct.Should().BeTrue();
         result.Action.Should().Be(AutoModAction.Timeout);
@@ -220,21 +220,21 @@ public class AutoModerationEngineTests
     [Fact]
     public void Evaluate_CapsFilter_ShortMessage_NotChecked()
     {
-        var engine = Create();
-        var settings = new AutoModSettings { FilterCaps = true, CapsMinLength = 8 };
+        AutoModerationEngine engine = Create();
+        AutoModSettings settings = new() { FilterCaps = true, CapsMinLength = 8 };
 
         // "LOL" is 3 chars, below CapsMinLength=8
-        var result = Evaluate(engine, "LOL", settings);
+        AutoModResult result = Evaluate(engine, "LOL", settings);
         result.ShouldAct.Should().BeFalse();
     }
 
     [Fact]
     public void Evaluate_CapsFilter_Disabled_NoCapsCheck()
     {
-        var engine = Create();
-        var settings = new AutoModSettings { FilterCaps = false };
+        AutoModerationEngine engine = Create();
+        AutoModSettings settings = new() { FilterCaps = false };
 
-        var result = Evaluate(engine, "YELLING IN ALL CAPS", settings);
+        AutoModResult result = Evaluate(engine, "YELLING IN ALL CAPS", settings);
         result.ShouldAct.Should().BeFalse();
     }
 
@@ -243,15 +243,15 @@ public class AutoModerationEngineTests
     [Fact]
     public void Evaluate_BannedPhrase_ExactMatch_TriggersAction()
     {
-        var engine = Create();
-        var settings = new AutoModSettings
+        AutoModerationEngine engine = Create();
+        AutoModSettings settings = new()
         {
             BannedPhrases = ["bad word"],
             BannedPhrasesAction = AutoModAction.Timeout,
             BannedPhrasesDurationSeconds = 60,
         };
 
-        var result = Evaluate(engine, "this has a bad word in it", settings);
+        AutoModResult result = Evaluate(engine, "this has a bad word in it", settings);
 
         result.ShouldAct.Should().BeTrue();
         result.Action.Should().Be(AutoModAction.Timeout);
@@ -262,74 +262,74 @@ public class AutoModerationEngineTests
     [Fact]
     public void Evaluate_BannedPhrase_CaseInsensitive_TriggersAction()
     {
-        var engine = Create();
-        var settings = new AutoModSettings { BannedPhrases = ["spam"] };
+        AutoModerationEngine engine = Create();
+        AutoModSettings settings = new() { BannedPhrases = ["spam"] };
 
-        var result = Evaluate(engine, "This is SPAM here", settings);
+        AutoModResult result = Evaluate(engine, "This is SPAM here", settings);
         result.ShouldAct.Should().BeTrue();
     }
 
     [Fact]
     public void Evaluate_BannedPhrase_NotInMessage_NoAction()
     {
-        var engine = Create();
-        var settings = new AutoModSettings { BannedPhrases = ["forbidden"] };
+        AutoModerationEngine engine = Create();
+        AutoModSettings settings = new() { BannedPhrases = ["forbidden"] };
 
-        var result = Evaluate(engine, "This is fine", settings);
+        AutoModResult result = Evaluate(engine, "This is fine", settings);
         result.ShouldAct.Should().BeFalse();
     }
 
     [Fact]
     public void Evaluate_BannedPhrase_RegexMode_MatchesPattern()
     {
-        var engine = Create();
-        var settings = new AutoModSettings
+        AutoModerationEngine engine = Create();
+        AutoModSettings settings = new()
         {
             BannedPhrases = [@"\b(buy|cheap|discount)\b"],
             BannedPhrasesUseRegex = true,
         };
 
-        var result = Evaluate(engine, "Get cheap pills here", settings);
+        AutoModResult result = Evaluate(engine, "Get cheap pills here", settings);
         result.ShouldAct.Should().BeTrue();
     }
 
     [Fact]
     public void Evaluate_BannedPhrase_InvalidRegex_FallsBackToLiteralMatch()
     {
-        var engine = Create();
-        var settings = new AutoModSettings
+        AutoModerationEngine engine = Create();
+        AutoModSettings settings = new()
         {
             BannedPhrases = ["[invalid regex"],
             BannedPhrasesUseRegex = true,
         };
 
         // Doesn't contain literal "[invalid regex" so no action
-        var result = Evaluate(engine, "hello world", settings);
+        AutoModResult result = Evaluate(engine, "hello world", settings);
         result.ShouldAct.Should().BeFalse();
     }
 
     [Fact]
     public void Evaluate_BannedPhrase_InvalidRegex_LiteralMatchHits()
     {
-        var engine = Create();
-        var settings = new AutoModSettings
+        AutoModerationEngine engine = Create();
+        AutoModSettings settings = new()
         {
             BannedPhrases = ["[invalid regex"],
             BannedPhrasesUseRegex = true,
         };
 
         // Contains the literal text "[invalid regex"
-        var result = Evaluate(engine, "here is [invalid regex in message", settings);
+        AutoModResult result = Evaluate(engine, "here is [invalid regex in message", settings);
         result.ShouldAct.Should().BeTrue();
     }
 
     [Fact]
     public void Evaluate_NoBannedPhrases_NoAction()
     {
-        var engine = Create();
-        var settings = new AutoModSettings { BannedPhrases = [] };
+        AutoModerationEngine engine = Create();
+        AutoModSettings settings = new() { BannedPhrases = [] };
 
-        var result = Evaluate(engine, "anything goes", settings);
+        AutoModResult result = Evaluate(engine, "anything goes", settings);
         result.ShouldAct.Should().BeFalse();
     }
 
@@ -339,8 +339,8 @@ public class AutoModerationEngineTests
     public void Evaluate_SlowModeViolation_TakesPriorityOverLinks()
     {
         // Slow mode is checked first, so a slow-mode violation is returned
-        var engine = Create();
-        var settings = new AutoModSettings
+        AutoModerationEngine engine = Create();
+        AutoModSettings settings = new()
         {
             SlowModeSeconds = 60,
             SlowModeAction = AutoModAction.Delete,
@@ -349,7 +349,7 @@ public class AutoModerationEngineTests
         };
 
         engine.Evaluate("chan", "user1", "first", [], settings); // set cooldown
-        var result = engine.Evaluate("chan", "user1", "https://evil.com", [], settings);
+        AutoModResult result = engine.Evaluate("chan", "user1", "https://evil.com", [], settings);
 
         result.Action.Should().Be(AutoModAction.Delete); // slow mode action, not ban
         result.Reason.Should().Contain("Slow mode");

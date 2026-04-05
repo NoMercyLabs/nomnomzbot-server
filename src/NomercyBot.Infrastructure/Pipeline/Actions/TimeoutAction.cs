@@ -16,7 +16,7 @@ public sealed class TimeoutAction : ICommandAction
         ActionDefinition action
     )
     {
-        var userId =
+        string userId =
             action.GetString("user_id")
             ?? ctx.Variables.GetValueOrDefault("target.id")
             ?? ctx.Variables.GetValueOrDefault("user.id")
@@ -25,8 +25,8 @@ public sealed class TimeoutAction : ICommandAction
         if (string.IsNullOrEmpty(userId))
             return ActionResult.Failure("timeout: user_id not resolved");
 
-        var duration = action.GetInt("duration", 60);
-        var reason = action.GetString("reason");
+        int duration = action.GetInt("duration", 60);
+        string? reason = action.GetString("reason");
 
         await _chat.TimeoutUserAsync(
             ctx.BroadcasterId,

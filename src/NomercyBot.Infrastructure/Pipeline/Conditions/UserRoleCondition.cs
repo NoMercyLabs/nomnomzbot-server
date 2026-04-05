@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+
+using System.Text.Json;
+
 namespace NoMercyBot.Infrastructure.Pipeline.Conditions;
 
 /// <summary>
@@ -13,11 +16,11 @@ public sealed class UserRoleCondition : ICommandCondition
 
     public bool Evaluate(PipelineExecutionContext ctx, ConditionDefinition condition)
     {
-        var requiredRole = condition.Parameters is not null
+        string requiredRole = condition.Parameters is not null
             ? (GetParam(condition, "min_role") ?? GetParam(condition, "role") ?? "viewer")
             : "viewer";
 
-        var userRole = ctx.Variables.GetValueOrDefault("user.role", "viewer");
+        string userRole = ctx.Variables.GetValueOrDefault("user.role", "viewer");
         return RoleLevel(userRole) >= RoleLevel(requiredRole);
     }
 
@@ -25,7 +28,7 @@ public sealed class UserRoleCondition : ICommandCondition
     {
         if (c.Parameters is null)
             return null;
-        if (!c.Parameters.TryGetValue(key, out var elem))
+        if (!c.Parameters.TryGetValue(key, out JsonElement elem))
             return null;
         return elem.ValueKind == System.Text.Json.JsonValueKind.String ? elem.GetString() : null;
     }
