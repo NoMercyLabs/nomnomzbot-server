@@ -39,9 +39,27 @@ public class TwitchApiServiceStub : ITwitchApiService
         return Task.FromResult(true);
     }
 
+    public Task<bool> UnbanUserAsync(string broadcasterId, string userId, CancellationToken ct = default)
+    {
+        _logger.LogDebug("[STUB] UnbanUser {UserId} in {ChannelId}", userId, broadcasterId);
+        return Task.FromResult(true);
+    }
+
     public Task<bool> ShoutoutAsync(string broadcasterId, string toUserId, string moderatorId, CancellationToken ct = default)
     {
         _logger.LogDebug("[STUB] Shoutout to {ToUserId} in {ChannelId}", toUserId, broadcasterId);
+        return Task.FromResult(true);
+    }
+
+    public Task<bool> SendChatMessageAsync(string broadcasterId, string senderUserId, string message, string? replyParentMessageId = null, CancellationToken ct = default)
+    {
+        _logger.LogDebug("[STUB] SendChatMessage to {ChannelId}: {Message}", broadcasterId, message);
+        return Task.FromResult(true);
+    }
+
+    public Task<bool> DeleteChatMessageAsync(string broadcasterId, string messageId, CancellationToken ct = default)
+    {
+        _logger.LogDebug("[STUB] DeleteChatMessage {MessageId} in {ChannelId}", messageId, broadcasterId);
         return Task.FromResult(true);
     }
 }

@@ -117,10 +117,14 @@ public static class DependencyInjection
         // Twitch API service (scoped — uses IApplicationDbContext for tokens)
         services.AddScoped<ITwitchApiService, TwitchApiService>();
 
-        // Twitch IRC chat service (singleton + hosted service — persistent WebSocket connection)
+        // Twitch IRC chat service (singleton + hosted service — fallback only, used for watch streaks)
         services.AddSingleton<TwitchIrcService>();
         services.AddSingleton<ITwitchChatService>(sp => sp.GetRequiredService<TwitchIrcService>());
         services.AddHostedService(sp => sp.GetRequiredService<TwitchIrcService>());
+
+        // HelixChatProvider: primary IChatProvider using Helix POST /chat/messages (EventSub-first)
+        services.AddScoped<HelixChatProvider>();
+        services.AddScoped<NoMercyBot.Domain.Interfaces.IChatProvider>(sp => sp.GetRequiredService<HelixChatProvider>());
 
         // Twitch EventSub service (singleton + hosted service — persistent WebSocket connection)
         services.AddSingleton<TwitchEventSubService>();

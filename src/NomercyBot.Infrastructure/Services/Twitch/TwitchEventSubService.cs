@@ -50,6 +50,9 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
 
     private string? _sessionId;
 
+    // Bot account's Twitch user ID — resolved once from DB and cached
+    private string? _botUserId;
+
     // Pending subscriptions: broadcasterId → list of eventType
     // Stored before the WebSocket connects, then subscribed once session_id is available
     private readonly ConcurrentDictionary<string, ConcurrentBag<string>> _pendingSubscriptions = new();
@@ -393,13 +396,96 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
                     StreamDuration = TimeSpan.Zero, // Duration requires tracking stream start externally
                 }, ct);
                 break;
+
+            case "channel.chat.message":
+                await HandleChatMessageAsync(envelope, broadcasterId, ct);
+                break;
+
+            case "channel.chat.message_delete":
+                await _eventBus.PublishAsync(new ChatMessageDeletedEvent
+                {
+                    BroadcasterId = broadcasterId,
+                    MessageId = eventData?.GetProp("message_id") ?? string.Empty,
+                    DeletedByUserId = eventData?.GetProp("moderator_user_id") ?? string.Empty,
+                    TargetUserId = eventData?.GetProp("target_user_id") ?? string.Empty,
+                }, ct);
+                break;
         }
+    }
+
+    private async Task HandleChatMessageAsync(EventSubEnvelope envelope, string broadcasterId, CancellationToken ct)
+    {
+        var eventData = envelope.Payload?.Event;
+        if (eventData is null) return;
+
+        var userId = eventData.Value.GetProp("chatter_user_id") ?? string.Empty;
+        var userLogin = eventData.Value.GetProp("chatter_user_login") ?? string.Empty;
+        var userDisplayName = eventData.Value.GetProp("chatter_user_name") ?? string.Empty;
+        var messageId = eventData.Value.GetProp("message_id") ?? string.Empty;
+
+        // Extract message text from the nested message object
+        string messageText;
+        if (eventData.Value.TryGetProperty("message", out var messageProp)
+            && messageProp.TryGetProperty("text", out var textProp))
+        {
+            messageText = textProp.GetString() ?? string.Empty;
+        }
+        else
+        {
+            messageText = eventData.Value.GetProp("message") ?? string.Empty;
+        }
+
+        // Parse badges
+        var badges = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (eventData.Value.TryGetProperty("badges", out var badgesArray))
+        {
+            foreach (var badge in badgesArray.EnumerateArray())
+            {
+                var setId = badge.GetProp("set_id");
+                var version = badge.GetProp("id");
+                if (setId is not null && version is not null)
+                    badges[setId] = version;
+            }
+        }
+
+        var isBroadcaster = badges.ContainsKey("broadcaster");
+        var isModerator = badges.ContainsKey("moderator");
+        var isVip = badges.ContainsKey("vip");
+        var isSubscriber = badges.ContainsKey("subscriber");
+
+        // Bits from cheer
+        int.TryParse(eventData.Value.GetProp("bits"), out var bits);
+
+        // Reply parent
+        string? replyParentId = null;
+        if (eventData.Value.TryGetProperty("reply", out var replyProp))
+            replyParentId = replyProp.GetProp("parent_message_id");
+
+        await _eventBus.PublishAsync(new ChatMessageReceivedEvent
+        {
+            BroadcasterId = broadcasterId,
+            MessageId = messageId,
+            UserId = userId,
+            UserDisplayName = userDisplayName,
+            UserLogin = userLogin,
+            Message = messageText,
+            IsSubscriber = isSubscriber,
+            IsVip = isVip,
+            IsModerator = isModerator,
+            IsBroadcaster = isBroadcaster,
+            Badges = badges,
+            Bits = bits,
+            ReplyParentMessageId = replyParentId,
+        }, ct);
     }
 
     // ─── Subscription management ──────────────────────────────────────────────────
 
     private async Task SubscribePendingAsync(string sessionId, CancellationToken ct)
     {
+        // Resolve bot user ID once so conditions are correct for chat subscriptions
+        _botUserId ??= await GetBotUserIdAsync(ct);
+
         foreach (var (broadcasterId, eventTypes) in _pendingSubscriptions)
         {
             foreach (var eventType in eventTypes)
@@ -465,28 +551,31 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
         }
     }
 
-    private static Dictionary<string, string> BuildCondition(string broadcasterId, string eventType)
+    private Dictionary<string, string> BuildCondition(string broadcasterId, string eventType)
     {
+        // For chat subscriptions, user_id must be the bot account's user ID
+        var botOrBroadcaster = _botUserId ?? broadcasterId;
+
         return eventType switch
         {
             "channel.follow" => new()
             {
                 ["broadcaster_user_id"] = broadcasterId,
-                ["moderator_user_id"] = broadcasterId,
+                ["moderator_user_id"] = botOrBroadcaster,
             },
             "channel.raid" => new()
             {
                 ["to_broadcaster_user_id"] = broadcasterId,
             },
-            "channel.chat.message" or "channel.chat.notification" => new()
+            "channel.chat.message" or "channel.chat.notification" or "channel.chat.message_delete" => new()
             {
                 ["broadcaster_user_id"] = broadcasterId,
-                ["user_id"] = broadcasterId,
+                ["user_id"] = botOrBroadcaster,
             },
             "channel.shoutout.create" or "channel.shoutout.receive" => new()
             {
                 ["broadcaster_user_id"] = broadcasterId,
-                ["moderator_user_id"] = broadcasterId,
+                ["moderator_user_id"] = botOrBroadcaster,
             },
             _ => new() { ["broadcaster_user_id"] = broadcasterId },
         };
@@ -501,6 +590,18 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
         };
 
     // ─── Token access ─────────────────────────────────────────────────────────────
+
+    private async Task<string?> GetBotUserIdAsync(CancellationToken ct)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+
+        var service = await db.Services
+            .Where(s => s.Name == "twitch_bot" && s.Enabled && s.UserId != null)
+            .FirstOrDefaultAsync(ct);
+
+        return service?.UserId;
+    }
 
     private async Task<string?> GetBotTokenAsync(CancellationToken ct)
     {
