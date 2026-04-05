@@ -57,6 +57,9 @@ try
     builder.Services.AddScoped<IDashboardNotifier, DashboardNotifier>();
     builder.Services.AddScoped<IWidgetNotifier, WidgetNotifier>();
 
+    // Register event handlers from the API assembly (e.g., DashboardBroadcastHandler)
+    builder.Services.AddEventHandlersFromAssembly(typeof(Program).Assembly);
+
     // JWT Auth
     var jwtSecret = builder.Configuration["Jwt:Secret"] ?? "change-me-in-production-at-least-32-chars!";
     builder.Services
