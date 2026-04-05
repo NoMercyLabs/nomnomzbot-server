@@ -16,6 +16,7 @@ using NoMercyBot.Application.Common.Interfaces;
 using NoMercyBot.Application.Contracts.Twitch;
 using NoMercyBot.Domain.Events;
 using NoMercyBot.Domain.Interfaces;
+using NoMercyBot.Domain.ValueObjects;
 using NoMercyBot.Infrastructure.Configuration;
 
 namespace NoMercyBot.Infrastructure.Services.Twitch;
@@ -393,6 +394,176 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
                     StreamDuration = TimeSpan.Zero, // Duration requires tracking stream start externally
                 }, ct);
                 break;
+
+            case "channel.chat.message":
+                if (eventData.HasValue)
+                    await HandleChatMessageAsync(eventData.Value, broadcasterId, ct);
+                break;
+        }
+    }
+
+    // ─── channel.chat.message parsing ────────────────────────────────────────────
+
+    private async Task HandleChatMessageAsync(JsonElement eventData, string broadcasterId, CancellationToken ct)
+    {
+        var messageId = eventData.GetProp("message_id") ?? Guid.NewGuid().ToString();
+        var userId = eventData.GetProp("chatter_user_id") ?? string.Empty;
+        var userLogin = eventData.GetProp("chatter_user_login") ?? string.Empty;
+        var userDisplayName = eventData.GetProp("chatter_user_name") ?? userLogin;
+        var colorHex = eventData.GetProp("color");
+        var messageType = eventData.GetProp("message_type") ?? "text";
+
+        // Parse message object
+        string rawText = string.Empty;
+        List<ChatMessageFragment> fragments = [];
+
+        if (eventData.TryGetProperty("message", out var messageObj))
+        {
+            rawText = messageObj.GetProp("text") ?? string.Empty;
+
+            if (messageObj.TryGetProperty("fragments", out var fragmentsArr)
+                && fragmentsArr.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var frag in fragmentsArr.EnumerateArray())
+                {
+                    fragments.Add(ParseFragment(frag));
+                }
+            }
+        }
+
+        // Parse badges
+        List<ChatBadge> badges = [];
+        if (eventData.TryGetProperty("badges", out var badgesArr)
+            && badgesArr.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var badge in badgesArr.EnumerateArray())
+            {
+                var setId = badge.GetProp("set_id") ?? string.Empty;
+                var badgeId = badge.GetProp("id") ?? string.Empty;
+                var info = badge.GetProp("info");
+                badges.Add(new ChatBadge(setId, badgeId, info));
+            }
+        }
+
+        // Parse cheer bits
+        int bits = 0;
+        if (eventData.TryGetProperty("cheer", out var cheerObj)
+            && cheerObj.TryGetProperty("bits", out var bitsEl))
+        {
+            bits = bitsEl.GetInt32();
+        }
+
+        // Parse reply thread
+        string? replyParentId = null;
+        string? replyParentBody = null;
+        string? replyParentUserName = null;
+
+        if (eventData.TryGetProperty("reply", out var replyObj))
+        {
+            replyParentId = replyObj.GetProp("parent_message_id");
+            replyParentBody = replyObj.GetProp("parent_message_body");
+            replyParentUserName = replyObj.GetProp("parent_user_name");
+        }
+
+        // Derive roles from badges
+        bool isBroadcaster = badges.Any(b => b.SetId == "broadcaster");
+        bool isModerator = isBroadcaster || badges.Any(b => b.SetId == "moderator");
+        bool isVip = badges.Any(b => b.SetId == "vip");
+        bool isSubscriber = badges.Any(b => b.SetId is "subscriber" or "founder");
+
+        await _eventBus.PublishAsync(new ChatMessageReceivedEvent
+        {
+            MessageId = messageId,
+            BroadcasterId = broadcasterId,
+            UserId = userId,
+            UserLogin = userLogin,
+            UserDisplayName = userDisplayName,
+            Message = rawText,
+            Fragments = fragments,
+            ColorHex = colorHex,
+            MessageType = messageType,
+            Badges = badges,
+            Bits = bits,
+            IsSubscriber = isSubscriber,
+            IsVip = isVip,
+            IsModerator = isModerator,
+            IsBroadcaster = isBroadcaster,
+            ReplyParentMessageId = replyParentId,
+            ReplyParentMessageBody = replyParentBody,
+            ReplyParentUserName = replyParentUserName,
+        }, ct);
+    }
+
+    private static ChatMessageFragment ParseFragment(JsonElement frag)
+    {
+        var type = frag.GetProp("type") ?? "text";
+        var text = frag.GetProp("text") ?? string.Empty;
+
+        switch (type)
+        {
+            case "emote":
+            {
+                if (!frag.TryGetProperty("emote", out var emoteObj))
+                    return new ChatMessageFragment { Type = type, Text = text };
+
+                var formats = Array.Empty<string>();
+                if (emoteObj.TryGetProperty("format", out var fmtArr)
+                    && fmtArr.ValueKind == JsonValueKind.Array)
+                {
+                    formats = fmtArr.EnumerateArray()
+                        .Select(e => e.GetString() ?? string.Empty)
+                        .ToArray();
+                }
+
+                return new ChatMessageFragment
+                {
+                    Type = type,
+                    Text = text,
+                    EmoteId = emoteObj.GetProp("id"),
+                    EmoteSetId = emoteObj.GetProp("emote_set_id"),
+                    EmoteOwnerId = emoteObj.GetProp("owner_id"),
+                    EmoteFormats = formats,
+                };
+            }
+
+            case "cheermote":
+            {
+                if (!frag.TryGetProperty("cheermote", out var cheerObj))
+                    return new ChatMessageFragment { Type = type, Text = text };
+
+                int bits = 0;
+                if (cheerObj.TryGetProperty("bits", out var bitsEl)) bits = bitsEl.GetInt32();
+
+                int tier = 1;
+                if (cheerObj.TryGetProperty("tier", out var tierEl)) tier = tierEl.GetInt32();
+
+                return new ChatMessageFragment
+                {
+                    Type = type,
+                    Text = text,
+                    CheermotePrefix = cheerObj.GetProp("prefix"),
+                    CheermoteBits = bits,
+                    CheermoteTier = tier,
+                };
+            }
+
+            case "mention":
+            {
+                if (!frag.TryGetProperty("mention", out var mentionObj))
+                    return new ChatMessageFragment { Type = type, Text = text };
+
+                return new ChatMessageFragment
+                {
+                    Type = type,
+                    Text = text,
+                    MentionUserId = mentionObj.GetProp("user_id"),
+                    MentionUserLogin = mentionObj.GetProp("user_login"),
+                    MentionUserName = mentionObj.GetProp("user_name"),
+                };
+            }
+
+            default:
+                return new ChatMessageFragment { Type = type, Text = text };
         }
     }
 
