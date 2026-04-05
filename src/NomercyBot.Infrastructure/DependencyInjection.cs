@@ -18,6 +18,10 @@ using NoMercyBot.Infrastructure.Services.General;
 using NoMercyBot.Infrastructure.Services.Identity;
 using NoMercyBot.Infrastructure.Services.Registry;
 using NoMercyBot.Infrastructure.Services.Security;
+using NoMercyBot.Infrastructure.EventHandlers;
+using NoMercyBot.Infrastructure.Pipeline;
+using NoMercyBot.Infrastructure.Pipeline.Actions;
+using NoMercyBot.Infrastructure.Pipeline.Conditions;
 using NoMercyBot.Infrastructure.Services.Twitch;
 
 namespace NoMercyBot.Infrastructure;
@@ -72,6 +76,26 @@ public static class DependencyInjection
         services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
         services.AddSingleton<ICooldownManager, CooldownManager>();
         services.AddSingleton<ITemplateEngine, TemplateEngine>();
+
+        // TemplateResolver: full async resolver with 90+ variables (singleton — all state is scoped internally)
+        services.AddSingleton<ITemplateResolver, TemplateResolver>();
+
+        // Pipeline actions (transient — stateless)
+        services.AddTransient<ICommandAction, SendMessageAction>();
+        services.AddTransient<ICommandAction, SendReplyAction>();
+        services.AddTransient<ICommandAction, TimeoutAction>();
+        services.AddTransient<ICommandAction, BanAction>();
+        services.AddTransient<ICommandAction, WaitAction>();
+        services.AddTransient<ICommandAction, SetVariableAction>();
+        services.AddTransient<ICommandAction, StopAction>();
+        services.AddTransient<ICommandAction, DeleteMessageAction>();
+
+        // Pipeline conditions (transient — stateless)
+        services.AddTransient<ICommandCondition, UserRoleCondition>();
+        services.AddTransient<ICommandCondition, RandomCondition>();
+
+        // PipelineEngine (singleton — manages per-channel concurrency)
+        services.AddSingleton<IPipelineEngine, PipelineEngine>();
 
         // Identity / tenant
         services.AddHttpContextAccessor();
