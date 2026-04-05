@@ -4,8 +4,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using NoMercyBot.Application.Common.Interfaces;
 using NoMercyBot.Application.Contracts.Persistence;
+using NoMercyBot.Application.Contracts.Twitch;
 using NoMercyBot.Application.Services;
 using NoMercyBot.Domain.Interfaces;
+using NoMercyBot.Infrastructure.Configuration;
 using NoMercyBot.Infrastructure.EventBus;
 using NoMercyBot.Infrastructure.Persistence;
 using NoMercyBot.Infrastructure.Persistence.Interceptors;
@@ -16,6 +18,7 @@ using NoMercyBot.Infrastructure.Services.General;
 using NoMercyBot.Infrastructure.Services.Identity;
 using NoMercyBot.Infrastructure.Services.Registry;
 using NoMercyBot.Infrastructure.Services.Security;
+using NoMercyBot.Infrastructure.Services.Twitch;
 
 namespace NoMercyBot.Infrastructure;
 
@@ -99,6 +102,30 @@ public static class DependencyInjection
         // ChannelRegistry (singleton + hosted service)
         services.AddSingleton<NoMercyBot.Domain.Interfaces.IChannelRegistry, ChannelRegistry>();
         services.AddHostedService(sp => (ChannelRegistry)sp.GetRequiredService<NoMercyBot.Domain.Interfaces.IChannelRegistry>());
+
+        // Twitch options
+        services.Configure<TwitchOptions>(configuration.GetSection(TwitchOptions.SectionName));
+
+        // Twitch HTTP clients
+        services.AddHttpClient("twitch-auth");
+        services.AddHttpClient("twitch-helix");
+        services.AddHttpClient("twitch-eventsub");
+
+        // Twitch auth service (scoped — uses IApplicationDbContext)
+        services.AddScoped<ITwitchAuthService, TwitchAuthService>();
+
+        // Twitch API service (scoped — uses IApplicationDbContext for tokens)
+        services.AddScoped<ITwitchApiService, TwitchApiService>();
+
+        // Twitch IRC chat service (singleton + hosted service — persistent WebSocket connection)
+        services.AddSingleton<TwitchIrcService>();
+        services.AddSingleton<ITwitchChatService>(sp => sp.GetRequiredService<TwitchIrcService>());
+        services.AddHostedService(sp => sp.GetRequiredService<TwitchIrcService>());
+
+        // Twitch EventSub service (singleton + hosted service — persistent WebSocket connection)
+        services.AddSingleton<TwitchEventSubService>();
+        services.AddSingleton<ITwitchEventSubService>(sp => sp.GetRequiredService<TwitchEventSubService>());
+        services.AddHostedService(sp => sp.GetRequiredService<TwitchEventSubService>());
 
         return services;
     }
