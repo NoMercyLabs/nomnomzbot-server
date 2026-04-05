@@ -384,6 +384,28 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
                     ct
                 );
                 break;
+
+            case "viewermilestone":
+                tags.TryGetValue("msg-param-value", out var streakRaw);
+                tags.TryGetValue("msg-param-channel-points-earned", out var cpRaw);
+                int.TryParse(streakRaw, out var streakMonths);
+                int.TryParse(cpRaw, out var channelPoints);
+                var milestoneMessage = parameters.Count > 1 ? parameters[1] : null;
+
+                await _eventBus.PublishAsync(
+                    new WatchStreakReceivedEvent
+                    {
+                        BroadcasterId = channel,
+                        UserId = userId ?? string.Empty,
+                        UserLogin = login ?? string.Empty,
+                        UserDisplayName = displayName ?? login ?? string.Empty,
+                        StreakMonths = streakMonths,
+                        ChannelPointsEarned = channelPoints,
+                        CustomMessage = milestoneMessage,
+                    },
+                    ct
+                );
+                break;
         }
     }
 
