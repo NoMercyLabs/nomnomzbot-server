@@ -43,7 +43,19 @@ try
     }).AddMvc();
 
     // SignalR
-    builder.Services.AddSignalR();
+    builder.Services.AddSignalR(options =>
+    {
+        options.EnableDetailedErrors = builder.Environment.IsDevelopment();
+        options.MaximumReceiveMessageSize = 128 * 1024;
+        options.KeepAliveInterval = TimeSpan.FromSeconds(15);
+        options.ClientTimeoutInterval = TimeSpan.FromSeconds(60);
+        options.HandshakeTimeout = TimeSpan.FromSeconds(15);
+        options.StatefulReconnectBufferSize = 100_000;
+    }).AddMessagePackProtocol();
+
+    // Hub notifiers
+    builder.Services.AddScoped<IDashboardNotifier, DashboardNotifier>();
+    builder.Services.AddScoped<IWidgetNotifier, WidgetNotifier>();
 
     // JWT Auth
     var jwtSecret = builder.Configuration["Jwt:Secret"] ?? "change-me-in-production-at-least-32-chars!";
@@ -121,6 +133,7 @@ try
     // SignalR hubs
     app.MapHub<DashboardHub>("/hubs/dashboard");
     app.MapHub<OverlayHub>("/hubs/overlay");
+    app.MapHub<OBSRelayHub>("/hubs/obs");
     app.MapHub<AdminHub>("/hubs/admin");
 
     // Health checks

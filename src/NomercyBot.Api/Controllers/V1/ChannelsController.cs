@@ -4,7 +4,10 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using NoMercyBot.Application.Features.Channels.Queries.GetChannel;
+using NoMercyBot.Api.Models;
+using NoMercyBot.Application.Common.Models;
+using NoMercyBot.Application.DTOs.Channels;
+using NoMercyBot.Application.Services;
 
 namespace NoMercyBot.Api.Controllers.V1;
 
@@ -13,17 +16,81 @@ namespace NoMercyBot.Api.Controllers.V1;
 [Authorize]
 public class ChannelsController : BaseController
 {
-    private readonly GetChannelQueryHandler _getChannel;
+    private readonly IChannelService _channelService;
 
-    public ChannelsController(GetChannelQueryHandler getChannel)
+    public ChannelsController(IChannelService channelService)
     {
-        _getChannel = getChannel;
+        _channelService = channelService;
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> ListChannels(
+        [FromQuery] PageRequestDto request,
+        CancellationToken ct)
+    {
+        var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value;
+
+        if (string.IsNullOrEmpty(userId))
+            return UnauthenticatedResponse();
+
+        var pagination = new PaginationParams(request.Page, request.Take, request.Sort, request.Order);
+        var result = await _channelService.GetChannelsAsync(userId, pagination, ct);
+        if (result.IsFailure) return ResultResponse(result);
+        return GetPaginatedResponse(result.Value, request);
     }
 
     [HttpGet("{channelId}")]
     public async Task<IActionResult> GetChannel(string channelId, CancellationToken ct)
     {
-        var result = await _getChannel.HandleAsync(new GetChannelQuery(channelId), ct);
+        var result = await _channelService.GetAsync(channelId, ct);
         return ResultResponse(result);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> OnboardChannel(
+        [FromBody] CreateChannelRequest request,
+        CancellationToken ct)
+    {
+        var result = await _channelService.OnboardAsync(request.BroadcasterId, request, ct);
+        if (result.IsFailure) return ResultResponse(result);
+
+        return CreatedAtAction(nameof(GetChannel), new { channelId = result.Value.Id },
+            new StatusResponseDto<ChannelDto> { Data = result.Value, Message = "Channel onboarded successfully." });
+    }
+
+    [HttpPut("{channelId}")]
+    public async Task<IActionResult> UpdateChannelSettings(
+        string channelId,
+        [FromBody] UpdateChannelSettingsDto request,
+        CancellationToken ct)
+    {
+        var result = await _channelService.UpdateSettingsAsync(channelId, request, ct);
+        if (result.IsFailure) return ResultResponse(result);
+        return Ok(new StatusResponseDto<ChannelDto> { Data = result.Value });
+    }
+
+    [HttpPost("{channelId}/join")]
+    public async Task<IActionResult> JoinChannel(string channelId, CancellationToken ct)
+    {
+        var result = await _channelService.JoinAsync(channelId, ct);
+        if (result.IsFailure) return ResultResponse(result);
+        return Ok(new StatusResponseDto<object> { Message = "Bot joined channel." });
+    }
+
+    [HttpPost("{channelId}/leave")]
+    public async Task<IActionResult> LeaveChannel(string channelId, CancellationToken ct)
+    {
+        var result = await _channelService.LeaveAsync(channelId, ct);
+        if (result.IsFailure) return ResultResponse(result);
+        return Ok(new StatusResponseDto<object> { Message = "Bot left channel." });
+    }
+
+    [HttpDelete("{channelId}")]
+    public async Task<IActionResult> DeleteChannel(string channelId, CancellationToken ct)
+    {
+        var result = await _channelService.DeleteAsync(channelId, ct);
+        if (result.IsFailure) return ResultResponse(result);
+        return NoContent();
     }
 }

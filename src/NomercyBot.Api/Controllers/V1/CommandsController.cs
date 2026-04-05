@@ -5,9 +5,9 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NoMercyBot.Api.Models;
-using NoMercyBot.Application.Features.Commands.Commands.CreateCommand;
-using NoMercyBot.Application.Features.Commands.Commands.DeleteCommand;
-using NoMercyBot.Application.Features.Commands.Queries.GetCommands;
+using NoMercyBot.Application.Common.Models;
+using NoMercyBot.Application.DTOs.Commands;
+using NoMercyBot.Application.Services;
 
 namespace NoMercyBot.Api.Controllers.V1;
 
@@ -16,53 +16,62 @@ namespace NoMercyBot.Api.Controllers.V1;
 [Authorize]
 public class CommandsController : BaseController
 {
-    private readonly GetCommandsQueryHandler _getCommands;
-    private readonly CreateCommandHandler _createCommand;
-    private readonly DeleteCommandHandler _deleteCommand;
+    private readonly ICommandService _commandService;
 
-    public CommandsController(
-        GetCommandsQueryHandler getCommands,
-        CreateCommandHandler createCommand,
-        DeleteCommandHandler deleteCommand)
+    public CommandsController(ICommandService commandService)
     {
-        _getCommands = getCommands;
-        _createCommand = createCommand;
-        _deleteCommand = deleteCommand;
+        _commandService = commandService;
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetCommands(string channelId, CancellationToken ct)
+    public async Task<IActionResult> ListCommands(
+        string channelId,
+        [FromQuery] PageRequestDto request,
+        CancellationToken ct)
     {
-        var result = await _getCommands.HandleAsync(new GetCommandsQuery(channelId), ct);
+        var pagination = new PaginationParams(request.Page, request.Take, request.Sort, request.Order);
+        var result = await _commandService.ListAsync(channelId, pagination, ct);
+        if (result.IsFailure) return ResultResponse(result);
+        return GetPaginatedResponse(result.Value, request);
+    }
+
+    [HttpGet("{commandName}")]
+    public async Task<IActionResult> GetCommand(string channelId, string commandName, CancellationToken ct)
+    {
+        var result = await _commandService.GetAsync(channelId, commandName, ct);
         return ResultResponse(result);
     }
 
     [HttpPost]
     public async Task<IActionResult> CreateCommand(
         string channelId,
-        [FromBody] CreateCommandRequest request,
+        [FromBody] CreateCommandDto request,
         CancellationToken ct)
     {
-        var result = await _createCommand.HandleAsync(channelId, request, ct);
-        if (result.IsFailure)
-            return ResultResponse(result);
+        var result = await _commandService.CreateAsync(channelId, request, ct);
+        if (result.IsFailure) return ResultResponse(result);
 
-        return CreatedAtAction(nameof(GetCommands), new { channelId },
-            new StatusResponseDto<object> { Message = "Command created successfully." });
+        return CreatedAtAction(nameof(GetCommand), new { channelId, commandName = result.Value.Name },
+            new StatusResponseDto<CommandDto> { Data = result.Value, Message = "Command created successfully." });
+    }
+
+    [HttpPut("{commandName}")]
+    public async Task<IActionResult> UpdateCommand(
+        string channelId,
+        string commandName,
+        [FromBody] UpdateCommandDto request,
+        CancellationToken ct)
+    {
+        var result = await _commandService.UpdateAsync(channelId, commandName, request, ct);
+        if (result.IsFailure) return ResultResponse(result);
+        return Ok(new StatusResponseDto<CommandDto> { Data = result.Value });
     }
 
     [HttpDelete("{commandName}")]
     public async Task<IActionResult> DeleteCommand(string channelId, string commandName, CancellationToken ct)
     {
-        var result = await _deleteCommand.HandleAsync(channelId, commandName, ct);
-        if (result.IsFailure)
-            return result.ErrorCode switch
-            {
-                "NOT_FOUND" => NotFoundResponse(result.ErrorMessage),
-                "FORBIDDEN" => UnauthorizedResponse(result.ErrorMessage),
-                _ => InternalServerErrorResponse(result.ErrorMessage)
-            };
-
+        var result = await _commandService.DeleteAsync(channelId, commandName, ct);
+        if (result.IsFailure) return ResultResponse(result);
         return NoContent();
     }
 }

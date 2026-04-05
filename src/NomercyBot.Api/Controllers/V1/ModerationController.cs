@@ -4,6 +4,10 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NoMercyBot.Api.Models;
+using NoMercyBot.Application.Common.Models;
+using NoMercyBot.Application.DTOs.Moderation;
+using NoMercyBot.Application.Services;
 
 namespace NoMercyBot.Api.Controllers.V1;
 
@@ -12,21 +16,100 @@ namespace NoMercyBot.Api.Controllers.V1;
 [Authorize]
 public class ModerationController : BaseController
 {
-    [HttpGet("rules")]
-    public IActionResult GetRules(string channelId) => Ok(new { data = Array.Empty<object>() });
+    private readonly IModerationService _moderationService;
 
-    [HttpGet("rules/{ruleId}")]
-    public IActionResult GetRule(string channelId, int ruleId) => NotFoundResponse();
+    public ModerationController(IModerationService moderationService)
+    {
+        _moderationService = moderationService;
+    }
+
+    // ─── Rules ───────────────────────────────────────────────────────────────
+
+    [HttpGet("rules")]
+    public async Task<IActionResult> ListRules(
+        string channelId,
+        [FromQuery] PageRequestDto request,
+        CancellationToken ct)
+    {
+        var pagination = new PaginationParams(request.Page, request.Take, request.Sort, request.Order);
+        var result = await _moderationService.ListRulesAsync(channelId, pagination, ct);
+        if (result.IsFailure) return ResultResponse(result);
+        return GetPaginatedResponse(result.Value, request);
+    }
 
     [HttpPost("rules")]
-    public IActionResult CreateRule(string channelId, [FromBody] object request) => StatusCode(501);
+    public async Task<IActionResult> CreateRule(
+        string channelId,
+        [FromBody] CreateModerationRuleRequest request,
+        CancellationToken ct)
+    {
+        var result = await _moderationService.CreateRuleAsync(channelId, request, ct);
+        if (result.IsFailure) return ResultResponse(result);
 
-    [HttpPut("rules/{ruleId}")]
-    public IActionResult UpdateRule(string channelId, int ruleId, [FromBody] object request) => StatusCode(501);
+        return CreatedAtAction(nameof(ListRules), new { channelId },
+            new StatusResponseDto<ModerationRuleDetail> { Data = result.Value, Message = "Rule created successfully." });
+    }
 
-    [HttpDelete("rules/{ruleId}")]
-    public IActionResult DeleteRule(string channelId, int ruleId) => StatusCode(501);
+    [HttpPut("rules/{ruleId:int}")]
+    public async Task<IActionResult> UpdateRule(
+        string channelId,
+        int ruleId,
+        [FromBody] UpdateModerationRuleRequest request,
+        CancellationToken ct)
+    {
+        var result = await _moderationService.UpdateRuleAsync(channelId, ruleId, request, ct);
+        if (result.IsFailure) return ResultResponse(result);
+        return Ok(new StatusResponseDto<ModerationRuleDetail> { Data = result.Value });
+    }
+
+    [HttpDelete("rules/{ruleId:int}")]
+    public async Task<IActionResult> DeleteRule(string channelId, int ruleId, CancellationToken ct)
+    {
+        var result = await _moderationService.DeleteRuleAsync(channelId, ruleId, ct);
+        if (result.IsFailure) return ResultResponse(result);
+        return NoContent();
+    }
+
+    // ─── Actions ─────────────────────────────────────────────────────────────
+
+    [HttpGet("actions")]
+    public async Task<IActionResult> ListActions(
+        string channelId,
+        [FromQuery] PageRequestDto request,
+        CancellationToken ct)
+    {
+        var pagination = new PaginationParams(request.Page, request.Take, request.Sort, request.Order);
+        var result = await _moderationService.GetActionsAsync(channelId, pagination, ct);
+        if (result.IsFailure) return ResultResponse(result);
+        return GetPaginatedResponse(result.Value, request);
+    }
 
     [HttpPost("actions")]
-    public IActionResult PerformAction(string channelId, [FromBody] object request) => StatusCode(501);
+    public async Task<IActionResult> PerformAction(
+        string channelId,
+        [FromBody] PerformModerationActionRequest request,
+        CancellationToken ct)
+    {
+        Result<ModerationActionResult> result = request.Action switch
+        {
+            "timeout" => await _moderationService.TimeoutAsync(
+                channelId, request.TargetUserId,
+                request.DurationSeconds ?? 600,
+                request.Reason, ct),
+
+            "ban" => await _moderationService.BanAsync(
+                channelId, request.TargetUserId,
+                request.Reason, ct),
+
+            "unban" => await _moderationService.UnbanAsync(
+                channelId, request.TargetUserId, ct),
+
+            _ => Result.Failure<ModerationActionResult>(
+                $"Unknown action '{request.Action}'. Supported: timeout, ban, unban.",
+                "VALIDATION_FAILED"),
+        };
+
+        if (result.IsFailure) return ResultResponse(result);
+        return Ok(new StatusResponseDto<ModerationActionResult> { Data = result.Value });
+    }
 }

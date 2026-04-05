@@ -4,6 +4,10 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NoMercyBot.Api.Models;
+using NoMercyBot.Application.Common.Models;
+using NoMercyBot.Application.DTOs.Rewards;
+using NoMercyBot.Application.Services;
 
 namespace NoMercyBot.Api.Controllers.V1;
 
@@ -12,18 +16,70 @@ namespace NoMercyBot.Api.Controllers.V1;
 [Authorize]
 public class RewardsController : BaseController
 {
+    private readonly IRewardService _rewardService;
+
+    public RewardsController(IRewardService rewardService)
+    {
+        _rewardService = rewardService;
+    }
+
     [HttpGet]
-    public IActionResult GetRewards(string channelId) => Ok(new { data = Array.Empty<object>() });
+    public async Task<IActionResult> ListRewards(
+        string channelId,
+        [FromQuery] PageRequestDto request,
+        CancellationToken ct)
+    {
+        var pagination = new PaginationParams(request.Page, request.Take, request.Sort, request.Order);
+        var result = await _rewardService.ListAsync(channelId, pagination, ct);
+        if (result.IsFailure) return ResultResponse(result);
+        return GetPaginatedResponse(result.Value, request);
+    }
 
     [HttpGet("{rewardId}")]
-    public IActionResult GetReward(string channelId, string rewardId) => NotFoundResponse();
+    public async Task<IActionResult> GetReward(string channelId, string rewardId, CancellationToken ct)
+    {
+        var result = await _rewardService.GetAsync(channelId, rewardId, ct);
+        return ResultResponse(result);
+    }
 
     [HttpPost]
-    public IActionResult CreateReward(string channelId, [FromBody] object request) => StatusCode(501);
+    public async Task<IActionResult> CreateReward(
+        string channelId,
+        [FromBody] CreateRewardRequest request,
+        CancellationToken ct)
+    {
+        var result = await _rewardService.CreateAsync(channelId, request, ct);
+        if (result.IsFailure) return ResultResponse(result);
+
+        return CreatedAtAction(nameof(GetReward), new { channelId, rewardId = result.Value.Id },
+            new StatusResponseDto<RewardDetail> { Data = result.Value, Message = "Reward created successfully." });
+    }
 
     [HttpPut("{rewardId}")]
-    public IActionResult UpdateReward(string channelId, string rewardId, [FromBody] object request) => StatusCode(501);
+    public async Task<IActionResult> UpdateReward(
+        string channelId,
+        string rewardId,
+        [FromBody] UpdateRewardRequest request,
+        CancellationToken ct)
+    {
+        var result = await _rewardService.UpdateAsync(channelId, rewardId, request, ct);
+        if (result.IsFailure) return ResultResponse(result);
+        return Ok(new StatusResponseDto<RewardDetail> { Data = result.Value });
+    }
 
     [HttpDelete("{rewardId}")]
-    public IActionResult DeleteReward(string channelId, string rewardId) => StatusCode(501);
+    public async Task<IActionResult> DeleteReward(string channelId, string rewardId, CancellationToken ct)
+    {
+        var result = await _rewardService.DeleteAsync(channelId, rewardId, ct);
+        if (result.IsFailure) return ResultResponse(result);
+        return NoContent();
+    }
+
+    [HttpPost("sync")]
+    public async Task<IActionResult> SyncRewards(string channelId, CancellationToken ct)
+    {
+        var result = await _rewardService.SyncWithTwitchAsync(channelId, ct);
+        if (result.IsFailure) return ResultResponse(result);
+        return Ok(new StatusResponseDto<object> { Message = "Rewards synced with Twitch." });
+    }
 }

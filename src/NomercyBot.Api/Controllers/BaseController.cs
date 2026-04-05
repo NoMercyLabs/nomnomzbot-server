@@ -64,4 +64,34 @@ public abstract class BaseController : ControllerBase
             _ => InternalServerErrorResponse(result.ErrorMessage)
         };
     }
+
+    protected IActionResult ResultResponse(NoMercyBot.Application.Common.Models.Result result)
+    {
+        if (result.IsSuccess)
+            return Ok(new StatusResponseDto<object> { Status = "ok" });
+
+        return result.ErrorCode switch
+        {
+            "AUTH_REQUIRED" or "TOKEN_EXPIRED" => UnauthenticatedResponse(result.ErrorMessage),
+            "FORBIDDEN" or "FEATURE_DISABLED" or "SCOPE_MISSING" or "BILLING_LIMIT" => UnauthorizedResponse(result.ErrorMessage),
+            "NOT_FOUND" or "CHANNEL_NOT_FOUND" or "CHANNEL_NOT_ONBOARDED" => NotFoundResponse(result.ErrorMessage),
+            "VALIDATION_FAILED" => BadRequestResponse(result.ErrorMessage),
+            "ALREADY_EXISTS" => ConflictResponse(result.ErrorMessage),
+            "RATE_LIMITED" => TooManyRequestsResponse(result.ErrorMessage),
+            "SERVICE_UNAVAILABLE" => ServiceUnavailableResponse(result.ErrorMessage),
+            _ => InternalServerErrorResponse(result.ErrorMessage)
+        };
+    }
+
+    protected IActionResult GetPaginatedResponse<T>(
+        NoMercyBot.Application.Common.Models.PagedList<T> pagedList,
+        PageRequestDto request)
+    {
+        return Ok(new PaginatedResponse<T>
+        {
+            Data = pagedList.Items,
+            NextPage = pagedList.HasNextPage ? pagedList.Page + 1 : null,
+            HasMore = pagedList.HasNextPage,
+        });
+    }
 }
