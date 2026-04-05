@@ -1,0 +1,151 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) NoMercy Entertainment. All rights reserved.
+
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using NoMercyBot.Application.Common.Interfaces;
+using NoMercyBot.Application.Contracts.Twitch;
+using NoMercyBot.Domain.Events;
+using NoMercyBot.Domain.Interfaces;
+
+namespace NoMercyBot.Infrastructure.EventHandlers;
+
+/// <summary>
+/// Updates Channel.IsLive = true, refreshes title/game, and creates a Stream record
+/// when a stream comes online via EventSub stream.online.
+/// stream.online EventSub does not include title/game — these are fetched from Helix.
+/// </summary>
+public sealed class ChannelOnlineHandler : IEventHandler<ChannelOnlineEvent>
+{
+    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IPipelineEngine _pipeline;
+    private readonly ILogger<ChannelOnlineHandler> _logger;
+
+    public ChannelOnlineHandler(
+        IServiceScopeFactory scopeFactory,
+        IPipelineEngine pipeline,
+        ILogger<ChannelOnlineHandler> logger
+    )
+    {
+        _scopeFactory = scopeFactory;
+        _pipeline = pipeline;
+        _logger = logger;
+    }
+
+    public async Task HandleAsync(
+        ChannelOnlineEvent @event,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var broadcasterId = @event.BroadcasterId;
+        if (string.IsNullOrEmpty(broadcasterId))
+            return;
+
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+
+        var channel = await db.Channels.FindAsync([broadcasterId], cancellationToken);
+        if (channel is null)
+        {
+            _logger.LogWarning(
+                "ChannelOnlineEvent received for unknown channel {BroadcasterId}",
+                broadcasterId
+            );
+            return;
+        }
+
+        // stream.online EventSub payload has no title/game — fetch from Helix if empty
+        var title = @event.StreamTitle;
+        var gameName = @event.GameName;
+        if (string.IsNullOrEmpty(title))
+        {
+            var twitchApi = scope.ServiceProvider.GetRequiredService<ITwitchApiService>();
+            var streamInfo = await twitchApi.GetStreamInfoAsync(broadcasterId, cancellationToken);
+            if (streamInfo is not null)
+            {
+                title = streamInfo.Title ?? string.Empty;
+                gameName = streamInfo.GameName ?? string.Empty;
+            }
+        }
+
+        channel.IsLive = true;
+        if (!string.IsNullOrEmpty(title))
+            channel.Title = title;
+        if (!string.IsNullOrEmpty(gameName))
+            channel.GameName = gameName;
+
+        var stream = new NoMercyBot.Domain.Entities.Stream
+        {
+            Id = Ulid.NewUlid().ToString(),
+            ChannelId = broadcasterId,
+            Title = title,
+            GameName = gameName,
+        };
+        db.Streams.Add(stream);
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "Channel {BroadcasterId} is now LIVE: {Title} playing {Game}",
+            broadcasterId,
+            @event.StreamTitle,
+            @event.GameName
+        );
+
+        await ExecuteEventResponseAsync(
+            db,
+            broadcasterId,
+            "stream_online",
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["broadcaster"] = @event.BroadcasterDisplayName,
+                ["title"] = @event.StreamTitle,
+                ["game"] = @event.GameName,
+            },
+            cancellationToken
+        );
+    }
+
+    private async Task ExecuteEventResponseAsync(
+        IApplicationDbContext db,
+        string broadcasterId,
+        string eventType,
+        Dictionary<string, string> variables,
+        CancellationToken ct
+    )
+    {
+        var config = await db.Records.FirstOrDefaultAsync(
+            r => r.BroadcasterId == broadcasterId && r.RecordType == $"event_response:{eventType}",
+            ct
+        );
+
+        if (config is null || string.IsNullOrWhiteSpace(config.Data))
+            return;
+
+        try
+        {
+            await _pipeline.ExecuteAsync(
+                new PipelineRequest
+                {
+                    BroadcasterId = broadcasterId,
+                    PipelineJson = config.Data,
+                    TriggeredByUserId = broadcasterId,
+                    TriggeredByDisplayName = string.Empty,
+                    RawMessage = string.Empty,
+                    InitialVariables = variables,
+                },
+                ct
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to execute event_response pipeline for {EventType} in {Channel}",
+                eventType,
+                broadcasterId
+            );
+        }
+    }
+}
