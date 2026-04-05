@@ -138,6 +138,17 @@ public static class DependencyInjection
         services.AddHttpClient("twitch-helix");
         services.AddHttpClient("twitch-eventsub");
 
+        // Spotify HTTP clients
+        services.AddHttpClient("spotify");
+        services.AddHttpClient("spotify-auth");
+
+        // Music provider + service (singleton — manages per-channel fair queues)
+        services.AddSingleton<NoMercyBot.Domain.Interfaces.IMusicProvider, Services.Music.SpotifyMusicProvider>();
+        services.AddSingleton<NoMercyBot.Application.Contracts.Music.IMusicService, Services.Music.MusicService>();
+
+        // FairQueue (transient — instantiated per-consumer; MusicService creates its own internally)
+        services.AddTransient(typeof(NoMercyBot.Domain.Interfaces.IFairQueue<>), typeof(Services.General.FairQueue<>));
+
         // Twitch auth service (scoped — uses IApplicationDbContext)
         services.AddScoped<ITwitchAuthService, TwitchAuthService>();
 
