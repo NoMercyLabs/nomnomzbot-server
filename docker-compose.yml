@@ -21,8 +21,11 @@ services:
       - Azure__Tts__ApiKey=${AZURE_TTS_API_KEY:-}
       - Azure__Tts__Region=${AZURE_TTS_REGION:-westeurope}
       - ElevenLabs__ApiKey=${ELEVENLABS_API_KEY:-}
+      - ConnectionStrings__Redis=${REDIS_CONNECTION_STRING:-redis:6379}
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:5000/health/live || exit 1"]

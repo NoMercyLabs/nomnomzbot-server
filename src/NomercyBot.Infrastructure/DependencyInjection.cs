@@ -77,9 +77,24 @@ public static class DependencyInjection
         services.AddSingleton<IEncryptionService, EncryptionService>();
         services.AddSingleton<IJwtTokenService, JwtTokenService>();
 
-        // Caching
-        services.AddMemoryCache();
-        services.AddSingleton<ICacheService, MemoryCacheService>();
+        // Caching — use Redis if configured, otherwise fall back to in-memory
+        var redisConnectionString = configuration.GetConnectionString("Redis")
+            ?? configuration["Redis:ConnectionString"];
+        if (!string.IsNullOrWhiteSpace(redisConnectionString))
+        {
+            services.AddStackExchangeRedisCache(options =>
+            {
+                options.Configuration = redisConnectionString;
+                options.InstanceName = "nomercybot:";
+            });
+            services.AddSingleton<ICacheService, DistributedCacheService>();
+        }
+        else
+        {
+            services.AddMemoryCache();
+            services.AddDistributedMemoryCache();
+            services.AddSingleton<ICacheService, MemoryCacheService>();
+        }
 
         // General services
         services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
@@ -112,6 +127,7 @@ public static class DependencyInjection
 
         // Database migrator (development utility)
         services.AddScoped<IDatabaseMigrator, DatabaseMigrator>();
+        services.AddScoped<DataSeeder>();
 
         // Repositories
         services.AddScoped<ChannelRepository>();

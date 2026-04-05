@@ -13,6 +13,7 @@ using NoMercyBot.Api.Hubs;
 using NoMercyBot.Api.Middleware;
 using NoMercyBot.Application;
 using NoMercyBot.Infrastructure;
+using NoMercyBot.Infrastructure.Persistence;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration()
@@ -154,6 +155,34 @@ try
             tags: ["db", "ready"]);
 
     var app = builder.Build();
+
+    // Run database migrations on startup
+    try
+    {
+        Log.Information("Running database migrations...");
+        await using var migrationScope = app.Services.CreateAsyncScope();
+        var migrator = migrationScope.ServiceProvider.GetRequiredService<IDatabaseMigrator>();
+        await migrator.MigrateAsync(CancellationToken.None);
+    }
+    catch (Exception ex)
+    {
+        Log.Fatal(ex, "Database migration failed");
+        throw;
+    }
+
+    // Seed reference data
+    try
+    {
+        Log.Information("Seeding reference data...");
+        await using var seedScope = app.Services.CreateAsyncScope();
+        var seeder = seedScope.ServiceProvider.GetRequiredService<DataSeeder>();
+        await seeder.SeedAsync(CancellationToken.None);
+    }
+    catch (Exception ex)
+    {
+        Log.Fatal(ex, "Data seeding failed");
+        throw;
+    }
 
     // Middleware pipeline
     app.UseMiddleware<GlobalExceptionMiddleware>();
