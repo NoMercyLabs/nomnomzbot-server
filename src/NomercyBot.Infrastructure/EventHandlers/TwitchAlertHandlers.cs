@@ -30,7 +30,8 @@ public abstract class TwitchAlertHandlerBase<TEvent>
     protected TwitchAlertHandlerBase(
         IServiceScopeFactory scopeFactory,
         IPipelineEngine pipeline,
-        ILogger logger)
+        ILogger logger
+    )
     {
         ScopeFactory = scopeFactory;
         Pipeline = pipeline;
@@ -44,7 +45,8 @@ public abstract class TwitchAlertHandlerBase<TEvent>
     protected async Task HandleCoreAsync(TEvent @event, CancellationToken ct)
     {
         var broadcasterId = @event.BroadcasterId;
-        if (string.IsNullOrEmpty(broadcasterId)) return;
+        if (string.IsNullOrEmpty(broadcasterId))
+            return;
 
         using var scope = ScopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
@@ -53,34 +55,47 @@ public abstract class TwitchAlertHandlerBase<TEvent>
         await LogChannelEventAsync(db, @event, broadcasterId, ct);
 
         // Look up user-configured pipeline response
-        var config = await db.Records
-            .FirstOrDefaultAsync(r =>
+        var config = await db.Records.FirstOrDefaultAsync(
+            r =>
                 r.BroadcasterId == broadcasterId
-                && r.RecordType == $"event_response:{EventTypeKey}", ct);
+                && r.RecordType == $"event_response:{EventTypeKey}",
+            ct
+        );
 
-        if (config is null || string.IsNullOrWhiteSpace(config.Data)) return;
+        if (config is null || string.IsNullOrWhiteSpace(config.Data))
+            return;
 
         var variables = BuildVariables(@event);
 
-        Logger.LogDebug("Executing event_response:{EventType} pipeline for channel {Channel}",
-            EventTypeKey, broadcasterId);
+        Logger.LogDebug(
+            "Executing event_response:{EventType} pipeline for channel {Channel}",
+            EventTypeKey,
+            broadcasterId
+        );
 
         try
         {
-            await Pipeline.ExecuteAsync(new PipelineRequest
-            {
-                BroadcasterId = broadcasterId,
-                PipelineJson = config.Data,
-                TriggeredByUserId = GetUserId(@event) ?? broadcasterId,
-                TriggeredByDisplayName = GetUserDisplayName(@event) ?? string.Empty,
-                RawMessage = string.Empty,
-                InitialVariables = variables,
-            }, ct);
+            await Pipeline.ExecuteAsync(
+                new PipelineRequest
+                {
+                    BroadcasterId = broadcasterId,
+                    PipelineJson = config.Data,
+                    TriggeredByUserId = GetUserId(@event) ?? broadcasterId,
+                    TriggeredByDisplayName = GetUserDisplayName(@event) ?? string.Empty,
+                    RawMessage = string.Empty,
+                    InitialVariables = variables,
+                },
+                ct
+            );
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Failed to execute event_response:{EventType} pipeline in {Channel}",
-                EventTypeKey, broadcasterId);
+            Logger.LogError(
+                ex,
+                "Failed to execute event_response:{EventType} pipeline in {Channel}",
+                EventTypeKey,
+                broadcasterId
+            );
         }
     }
 
@@ -88,39 +103,53 @@ public abstract class TwitchAlertHandlerBase<TEvent>
         IApplicationDbContext db,
         TEvent @event,
         string broadcasterId,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         try
         {
             var variables = BuildVariables(@event);
-            db.ChannelEvents.Add(new ChannelEvent
-            {
-                Id = Ulid.NewUlid().ToString(),
-                ChannelId = broadcasterId,
-                UserId = GetUserId(@event),
-                Type = EventTypeKey,
-                Data = JsonSerializer.Serialize(variables),
-            });
+            db.ChannelEvents.Add(
+                new ChannelEvent
+                {
+                    Id = Ulid.NewUlid().ToString(),
+                    ChannelId = broadcasterId,
+                    UserId = GetUserId(@event),
+                    Type = EventTypeKey,
+                    Data = JsonSerializer.Serialize(variables),
+                }
+            );
             await db.SaveChangesAsync(ct);
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Failed to log ChannelEvent {EventType} for {Channel}",
-                EventTypeKey, broadcasterId);
+            Logger.LogError(
+                ex,
+                "Failed to log ChannelEvent {EventType} for {Channel}",
+                EventTypeKey,
+                broadcasterId
+            );
         }
     }
 }
 
 // ─── Follow ──────────────────────────────────────────────────────────────────
 
-public sealed class FollowEventHandler : TwitchAlertHandlerBase<FollowEvent>, IEventHandler<FollowEvent>
+public sealed class FollowEventHandler
+    : TwitchAlertHandlerBase<FollowEvent>,
+        IEventHandler<FollowEvent>
 {
     protected override string EventTypeKey => "follow";
 
-    public FollowEventHandler(IServiceScopeFactory s, IPipelineEngine p, ILogger<FollowEventHandler> l)
+    public FollowEventHandler(
+        IServiceScopeFactory s,
+        IPipelineEngine p,
+        ILogger<FollowEventHandler> l
+    )
         : base(s, p, l) { }
 
     protected override string? GetUserId(FollowEvent e) => e.UserId;
+
     protected override string? GetUserDisplayName(FollowEvent e) => e.UserDisplayName;
 
     protected override Dictionary<string, string> BuildVariables(FollowEvent e) =>
@@ -132,20 +161,27 @@ public sealed class FollowEventHandler : TwitchAlertHandlerBase<FollowEvent>, IE
             ["followed_at"] = e.FollowedAt.ToString("O"),
         };
 
-    public Task HandleAsync(FollowEvent @event, CancellationToken ct = default)
-        => HandleCoreAsync(@event, ct);
+    public Task HandleAsync(FollowEvent @event, CancellationToken ct = default) =>
+        HandleCoreAsync(@event, ct);
 }
 
 // ─── NewFollower (duplicate of Follow, from IRC path) ────────────────────────
 
-public sealed class NewFollowerEventHandler : TwitchAlertHandlerBase<NewFollowerEvent>, IEventHandler<NewFollowerEvent>
+public sealed class NewFollowerEventHandler
+    : TwitchAlertHandlerBase<NewFollowerEvent>,
+        IEventHandler<NewFollowerEvent>
 {
     protected override string EventTypeKey => "follow";
 
-    public NewFollowerEventHandler(IServiceScopeFactory s, IPipelineEngine p, ILogger<NewFollowerEventHandler> l)
+    public NewFollowerEventHandler(
+        IServiceScopeFactory s,
+        IPipelineEngine p,
+        ILogger<NewFollowerEventHandler> l
+    )
         : base(s, p, l) { }
 
     protected override string? GetUserId(NewFollowerEvent e) => e.UserId;
+
     protected override string? GetUserDisplayName(NewFollowerEvent e) => e.UserDisplayName;
 
     protected override Dictionary<string, string> BuildVariables(NewFollowerEvent e) =>
@@ -156,20 +192,27 @@ public sealed class NewFollowerEventHandler : TwitchAlertHandlerBase<NewFollower
             ["user.name"] = e.UserLogin,
         };
 
-    public Task HandleAsync(NewFollowerEvent @event, CancellationToken ct = default)
-        => HandleCoreAsync(@event, ct);
+    public Task HandleAsync(NewFollowerEvent @event, CancellationToken ct = default) =>
+        HandleCoreAsync(@event, ct);
 }
 
 // ─── Subscription ─────────────────────────────────────────────────────────────
 
-public sealed class NewSubscriptionEventHandler : TwitchAlertHandlerBase<NewSubscriptionEvent>, IEventHandler<NewSubscriptionEvent>
+public sealed class NewSubscriptionEventHandler
+    : TwitchAlertHandlerBase<NewSubscriptionEvent>,
+        IEventHandler<NewSubscriptionEvent>
 {
     protected override string EventTypeKey => "subscription";
 
-    public NewSubscriptionEventHandler(IServiceScopeFactory s, IPipelineEngine p, ILogger<NewSubscriptionEventHandler> l)
+    public NewSubscriptionEventHandler(
+        IServiceScopeFactory s,
+        IPipelineEngine p,
+        ILogger<NewSubscriptionEventHandler> l
+    )
         : base(s, p, l) { }
 
     protected override string? GetUserId(NewSubscriptionEvent e) => e.UserId;
+
     protected override string? GetUserDisplayName(NewSubscriptionEvent e) => e.UserDisplayName;
 
     protected override Dictionary<string, string> BuildVariables(NewSubscriptionEvent e) =>
@@ -180,18 +223,25 @@ public sealed class NewSubscriptionEventHandler : TwitchAlertHandlerBase<NewSubs
             ["tier"] = e.Tier,
         };
 
-    public Task HandleAsync(NewSubscriptionEvent @event, CancellationToken ct = default)
-        => HandleCoreAsync(@event, ct);
+    public Task HandleAsync(NewSubscriptionEvent @event, CancellationToken ct = default) =>
+        HandleCoreAsync(@event, ct);
 }
 
-public sealed class ResubscriptionEventHandler : TwitchAlertHandlerBase<ResubscriptionEvent>, IEventHandler<ResubscriptionEvent>
+public sealed class ResubscriptionEventHandler
+    : TwitchAlertHandlerBase<ResubscriptionEvent>,
+        IEventHandler<ResubscriptionEvent>
 {
     protected override string EventTypeKey => "resub";
 
-    public ResubscriptionEventHandler(IServiceScopeFactory s, IPipelineEngine p, ILogger<ResubscriptionEventHandler> l)
+    public ResubscriptionEventHandler(
+        IServiceScopeFactory s,
+        IPipelineEngine p,
+        ILogger<ResubscriptionEventHandler> l
+    )
         : base(s, p, l) { }
 
     protected override string? GetUserId(ResubscriptionEvent e) => e.UserId;
+
     protected override string? GetUserDisplayName(ResubscriptionEvent e) => e.UserDisplayName;
 
     protected override Dictionary<string, string> BuildVariables(ResubscriptionEvent e) =>
@@ -205,21 +255,30 @@ public sealed class ResubscriptionEventHandler : TwitchAlertHandlerBase<Resubscr
             ["message"] = e.Message ?? string.Empty,
         };
 
-    public Task HandleAsync(ResubscriptionEvent @event, CancellationToken ct = default)
-        => HandleCoreAsync(@event, ct);
+    public Task HandleAsync(ResubscriptionEvent @event, CancellationToken ct = default) =>
+        HandleCoreAsync(@event, ct);
 }
 
 // ─── Gift Subscription ────────────────────────────────────────────────────────
 
-public sealed class GiftSubscriptionEventHandler : TwitchAlertHandlerBase<GiftSubscriptionEvent>, IEventHandler<GiftSubscriptionEvent>
+public sealed class GiftSubscriptionEventHandler
+    : TwitchAlertHandlerBase<GiftSubscriptionEvent>,
+        IEventHandler<GiftSubscriptionEvent>
 {
     protected override string EventTypeKey => "gift_sub";
 
-    public GiftSubscriptionEventHandler(IServiceScopeFactory s, IPipelineEngine p, ILogger<GiftSubscriptionEventHandler> l)
+    public GiftSubscriptionEventHandler(
+        IServiceScopeFactory s,
+        IPipelineEngine p,
+        ILogger<GiftSubscriptionEventHandler> l
+    )
         : base(s, p, l) { }
 
-    protected override string? GetUserId(GiftSubscriptionEvent e) => e.IsAnonymous ? null : e.GifterUserId;
-    protected override string? GetUserDisplayName(GiftSubscriptionEvent e) => e.IsAnonymous ? "Anonymous" : e.GifterDisplayName;
+    protected override string? GetUserId(GiftSubscriptionEvent e) =>
+        e.IsAnonymous ? null : e.GifterUserId;
+
+    protected override string? GetUserDisplayName(GiftSubscriptionEvent e) =>
+        e.IsAnonymous ? "Anonymous" : e.GifterDisplayName;
 
     protected override Dictionary<string, string> BuildVariables(GiftSubscriptionEvent e) =>
         new(StringComparer.OrdinalIgnoreCase)
@@ -231,21 +290,29 @@ public sealed class GiftSubscriptionEventHandler : TwitchAlertHandlerBase<GiftSu
             ["anonymous"] = e.IsAnonymous ? "true" : "false",
         };
 
-    public Task HandleAsync(GiftSubscriptionEvent @event, CancellationToken ct = default)
-        => HandleCoreAsync(@event, ct);
+    public Task HandleAsync(GiftSubscriptionEvent @event, CancellationToken ct = default) =>
+        HandleCoreAsync(@event, ct);
 }
 
 // ─── Cheer ────────────────────────────────────────────────────────────────────
 
-public sealed class CheerEventHandler : TwitchAlertHandlerBase<CheerEvent>, IEventHandler<CheerEvent>
+public sealed class CheerEventHandler
+    : TwitchAlertHandlerBase<CheerEvent>,
+        IEventHandler<CheerEvent>
 {
     protected override string EventTypeKey => "cheer";
 
-    public CheerEventHandler(IServiceScopeFactory s, IPipelineEngine p, ILogger<CheerEventHandler> l)
+    public CheerEventHandler(
+        IServiceScopeFactory s,
+        IPipelineEngine p,
+        ILogger<CheerEventHandler> l
+    )
         : base(s, p, l) { }
 
     protected override string? GetUserId(CheerEvent e) => e.IsAnonymous ? null : e.UserId;
-    protected override string? GetUserDisplayName(CheerEvent e) => e.IsAnonymous ? "Anonymous" : e.UserDisplayName;
+
+    protected override string? GetUserDisplayName(CheerEvent e) =>
+        e.IsAnonymous ? "Anonymous" : e.UserDisplayName;
 
     protected override Dictionary<string, string> BuildVariables(CheerEvent e) =>
         new(StringComparer.OrdinalIgnoreCase)
@@ -257,8 +324,8 @@ public sealed class CheerEventHandler : TwitchAlertHandlerBase<CheerEvent>, IEve
             ["anonymous"] = e.IsAnonymous ? "true" : "false",
         };
 
-    public Task HandleAsync(CheerEvent @event, CancellationToken ct = default)
-        => HandleCoreAsync(@event, ct);
+    public Task HandleAsync(CheerEvent @event, CancellationToken ct = default) =>
+        HandleCoreAsync(@event, ct);
 }
 
 // ─── Raid ─────────────────────────────────────────────────────────────────────
@@ -271,6 +338,7 @@ public sealed class RaidEventHandler : TwitchAlertHandlerBase<RaidEvent>, IEvent
         : base(s, p, l) { }
 
     protected override string? GetUserId(RaidEvent e) => e.FromUserId;
+
     protected override string? GetUserDisplayName(RaidEvent e) => e.FromDisplayName;
 
     protected override Dictionary<string, string> BuildVariables(RaidEvent e) =>
@@ -282,6 +350,6 @@ public sealed class RaidEventHandler : TwitchAlertHandlerBase<RaidEvent>, IEvent
             ["viewers"] = e.ViewerCount.ToString(),
         };
 
-    public Task HandleAsync(RaidEvent @event, CancellationToken ct = default)
-        => HandleCoreAsync(@event, ct);
+    public Task HandleAsync(RaidEvent @event, CancellationToken ct = default) =>
+        HandleCoreAsync(@event, ct);
 }

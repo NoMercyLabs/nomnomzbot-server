@@ -37,29 +37,38 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
 
     public AutoModerationHandler(
         IServiceScopeFactory scopeFactory,
-        ILogger<AutoModerationHandler> logger)
+        ILogger<AutoModerationHandler> logger
+    )
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
     }
 
-    public async Task HandleAsync(ChatMessageReceivedEvent @event, CancellationToken cancellationToken)
+    public async Task HandleAsync(
+        ChatMessageReceivedEvent @event,
+        CancellationToken cancellationToken
+    )
     {
         // Exempt moderators and broadcaster from auto-mod
-        if (@event.IsModerator || @event.IsBroadcaster) return;
+        if (@event.IsModerator || @event.IsBroadcaster)
+            return;
 
         var broadcasterId = @event.BroadcasterId;
-        if (string.IsNullOrEmpty(broadcasterId) || string.IsNullOrEmpty(@event.Message)) return;
+        if (string.IsNullOrEmpty(broadcasterId) || string.IsNullOrEmpty(@event.Message))
+            return;
 
         var rules = await GetRulesAsync(broadcasterId, cancellationToken);
-        if (rules.Count == 0) return;
+        if (rules.Count == 0)
+            return;
 
         var message = @event.Message;
 
         foreach (var rule in rules)
         {
-            if (!rule.IsEnabled) continue;
-            if (!ShouldApply(rule, @event)) continue;
+            if (!rule.IsEnabled)
+                continue;
+            if (!ShouldApply(rule, @event))
+                continue;
 
             var triggered = rule.Type switch
             {
@@ -69,13 +78,25 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
                 _ => false,
             };
 
-            if (!triggered) continue;
+            if (!triggered)
+                continue;
 
             _logger.LogInformation(
                 "AutoMod rule '{Rule}' ({Type}) triggered for user {User} in channel {Channel}: \"{Message}\"",
-                rule.Name, rule.Type, @event.UserLogin, broadcasterId, message);
+                rule.Name,
+                rule.Type,
+                @event.UserLogin,
+                broadcasterId,
+                message
+            );
 
-            await ApplyActionAsync(rule, broadcasterId, @event.UserId, @event.MessageId, cancellationToken);
+            await ApplyActionAsync(
+                rule,
+                broadcasterId,
+                @event.UserId,
+                @event.MessageId,
+                cancellationToken
+            );
 
             // Stop after first matching rule
             return;
@@ -88,31 +109,39 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
     {
         // Only test alphabetic characters
         var letters = message.Count(char.IsLetter);
-        if (letters < 5) return false; // Too short to enforce
+        if (letters < 5)
+            return false; // Too short to enforce
 
         var upper = message.Count(char.IsUpper);
         var ratio = (double)upper / letters;
 
-        var threshold = rule.Settings.TryGetValue("threshold", out var t)
-            && t is JsonElement te && te.ValueKind == JsonValueKind.Number
-            ? te.GetDouble()
-            : 0.7; // Default: 70% caps
+        var threshold =
+            rule.Settings.TryGetValue("threshold", out var t)
+            && t is JsonElement te
+            && te.ValueKind == JsonValueKind.Number
+                ? te.GetDouble()
+                : 0.7; // Default: 70% caps
 
-        var minLength = rule.Settings.TryGetValue("min_length", out var ml)
-            && ml is JsonElement mle && mle.ValueKind == JsonValueKind.Number
-            ? mle.GetInt32()
-            : 10;
+        var minLength =
+            rule.Settings.TryGetValue("min_length", out var ml)
+            && ml is JsonElement mle
+            && mle.ValueKind == JsonValueKind.Number
+                ? mle.GetInt32()
+                : 10;
 
         return message.Length >= minLength && ratio >= threshold;
     }
 
-    private static bool CheckLinks(string message)
-        => UrlPattern().IsMatch(message);
+    private static bool CheckLinks(string message) => UrlPattern().IsMatch(message);
 
     private static bool CheckBannedPhrases(string message, AutoModRule rule)
     {
-        if (!rule.Settings.TryGetValue("phrases", out var phrasesObj)) return false;
-        if (phrasesObj is not JsonElement phrasesElem || phrasesElem.ValueKind != JsonValueKind.Array)
+        if (!rule.Settings.TryGetValue("phrases", out var phrasesObj))
+            return false;
+        if (
+            phrasesObj is not JsonElement phrasesElem
+            || phrasesElem.ValueKind != JsonValueKind.Array
+        )
             return false;
 
         var lower = message.ToLowerInvariant();
@@ -129,7 +158,8 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
     private static bool ShouldApply(AutoModRule rule, ChatMessageReceivedEvent @event)
     {
         // Check exempt roles
-        if (rule.ExemptRoles.Count == 0) return true;
+        if (rule.ExemptRoles.Count == 0)
+            return true;
 
         foreach (var role in rule.ExemptRoles)
         {
@@ -141,7 +171,8 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
                 "broadcaster" => @event.IsBroadcaster,
                 _ => false,
             };
-            if (exempt) return false;
+            if (exempt)
+                return false;
         }
 
         return true;
@@ -154,7 +185,8 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
         string broadcasterId,
         string userId,
         string messageId,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         try
         {
@@ -166,11 +198,21 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
                 case "timeout":
                     var duration = rule.DurationSeconds ?? 60;
                     await twitchApi.TimeoutUserAsync(
-                        broadcasterId, userId, duration, rule.Reason ?? rule.Name, ct);
+                        broadcasterId,
+                        userId,
+                        duration,
+                        rule.Reason ?? rule.Name,
+                        ct
+                    );
                     break;
 
                 case "ban":
-                    await twitchApi.BanUserAsync(broadcasterId, userId, rule.Reason ?? rule.Name, ct);
+                    await twitchApi.BanUserAsync(
+                        broadcasterId,
+                        userId,
+                        rule.Reason ?? rule.Name,
+                        ct
+                    );
                     break;
 
                 case "delete":
@@ -184,7 +226,12 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to apply auto-mod action '{Action}' for user {UserId}", rule.Action, userId);
+            _logger.LogError(
+                ex,
+                "Failed to apply auto-mod action '{Action}' for user {UserId}",
+                rule.Action,
+                userId
+            );
         }
     }
 
@@ -192,12 +239,15 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
 
     private async Task<IReadOnlyList<AutoModRule>> GetRulesAsync(
         string broadcasterId,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         var now = DateTimeOffset.UtcNow;
 
-        if (_ruleCache.TryGetValue(broadcasterId, out var cached)
-            && now - cached.CachedAt < RuleCacheExpiry)
+        if (
+            _ruleCache.TryGetValue(broadcasterId, out var cached)
+            && now - cached.CachedAt < RuleCacheExpiry
+        )
         {
             return cached.Rules;
         }
@@ -209,15 +259,18 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
 
     private async Task<IReadOnlyList<AutoModRule>> LoadRulesFromDbAsync(
         string broadcasterId,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         try
         {
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-            var records = await db.Records
-                .Where(r => r.BroadcasterId == broadcasterId && r.RecordType == "moderation_rule")
+            var records = await db
+                .Records.Where(r =>
+                    r.BroadcasterId == broadcasterId && r.RecordType == "moderation_rule"
+                )
                 .ToListAsync(ct);
 
             return records
@@ -238,7 +291,11 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
         }
         catch (Exception ex)
         {
-            _logger.LogDebug(ex, "Failed to load auto-mod rules for {BroadcasterId}", broadcasterId);
+            _logger.LogDebug(
+                ex,
+                "Failed to load auto-mod rules for {BroadcasterId}",
+                broadcasterId
+            );
             return [];
         }
     }
@@ -250,20 +307,34 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
 
         return new AutoModRule
         {
-            Name = root.TryGetProperty("Name", out var n) ? n.GetString() ?? string.Empty : string.Empty,
-            Type = root.TryGetProperty("Type", out var t) ? t.GetString() ?? string.Empty : string.Empty,
-            Action = root.TryGetProperty("Action", out var a) ? a.GetString() ?? "timeout" : "timeout",
+            Name = root.TryGetProperty("Name", out var n)
+                ? n.GetString() ?? string.Empty
+                : string.Empty,
+            Type = root.TryGetProperty("Type", out var t)
+                ? t.GetString() ?? string.Empty
+                : string.Empty,
+            Action = root.TryGetProperty("Action", out var a)
+                ? a.GetString() ?? "timeout"
+                : "timeout",
             IsEnabled = !root.TryGetProperty("IsEnabled", out var e) || e.GetBoolean(),
-            DurationSeconds = root.TryGetProperty("DurationSeconds", out var d) && d.ValueKind == JsonValueKind.Number
-                ? d.GetInt32()
-                : (int?)null,
+            DurationSeconds =
+                root.TryGetProperty("DurationSeconds", out var d)
+                && d.ValueKind == JsonValueKind.Number
+                    ? d.GetInt32()
+                    : (int?)null,
             Reason = root.TryGetProperty("Reason", out var r) ? r.GetString() : null,
-            Settings = root.TryGetProperty("Settings", out var s) && s.ValueKind == JsonValueKind.Object
-                ? s.EnumerateObject().ToDictionary(p => p.Name, p => (object)p.Value.Clone())
-                : new Dictionary<string, object>(),
-            ExemptRoles = root.TryGetProperty("ExemptRoles", out var er) && er.ValueKind == JsonValueKind.Array
-                ? er.EnumerateArray().Select(x => x.GetString() ?? string.Empty).Where(x => x.Length > 0).ToList()
-                : [],
+            Settings =
+                root.TryGetProperty("Settings", out var s) && s.ValueKind == JsonValueKind.Object
+                    ? s.EnumerateObject().ToDictionary(p => p.Name, p => (object)p.Value.Clone())
+                    : new Dictionary<string, object>(),
+            ExemptRoles =
+                root.TryGetProperty("ExemptRoles", out var er)
+                && er.ValueKind == JsonValueKind.Array
+                    ? er.EnumerateArray()
+                        .Select(x => x.GetString() ?? string.Empty)
+                        .Where(x => x.Length > 0)
+                        .ToList()
+                    : [],
         };
     }
 

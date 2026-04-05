@@ -11,11 +11,13 @@ namespace NoMercyBot.Api.Hubs.EventHandlers;
 public sealed class RewardRedeemedBroadcastHandler : IEventHandler<RewardRedeemedEvent>
 {
     private readonly IDashboardNotifier _notifier;
+
     public RewardRedeemedBroadcastHandler(IDashboardNotifier notifier) => _notifier = notifier;
 
     public Task HandleAsync(RewardRedeemedEvent @event, CancellationToken ct = default)
     {
-        if (string.IsNullOrEmpty(@event.BroadcasterId)) return Task.CompletedTask;
+        if (string.IsNullOrEmpty(@event.BroadcasterId))
+            return Task.CompletedTask;
 
         var dto = new RewardRedeemedDto(
             RewardId: @event.RewardId,
@@ -24,7 +26,8 @@ public sealed class RewardRedeemedBroadcastHandler : IEventHandler<RewardRedeeme
             UserId: @event.UserId,
             UserDisplayName: @event.UserDisplayName,
             Cost: @event.Cost,
-            UserInput: @event.UserInput);
+            UserInput: @event.UserInput
+        );
 
         return _notifier.SendRewardRedeemedAsync(@event.BroadcasterId, dto, ct);
     }

@@ -11,19 +11,24 @@ namespace NoMercyBot.Api.Hubs.EventHandlers;
 public sealed class CommandExecutedBroadcastHandler : IEventHandler<AfterCommandExecutedEvent>
 {
     private readonly IDashboardNotifier _notifier;
+
     public CommandExecutedBroadcastHandler(IDashboardNotifier notifier) => _notifier = notifier;
 
     public Task HandleAsync(AfterCommandExecutedEvent @event, CancellationToken ct = default)
     {
-        if (string.IsNullOrEmpty(@event.BroadcasterId)) return Task.CompletedTask;
+        if (string.IsNullOrEmpty(@event.BroadcasterId))
+            return Task.CompletedTask;
 
-        var dto = new CommandExecutedDto(
-            CommandName: @event.CommandName,
-            TriggeredByUserId: @event.TriggeredByUserId,
-            Succeeded: @event.Succeeded,
-            Timestamp: @event.Timestamp.ToString("O"));
-
-        return _notifier.SendCommandExecutedAsync(@event.BroadcasterId, dto, ct);
+        return _notifier.SendCommandExecutedAsync(
+            @event.BroadcasterId,
+            new CommandExecutedDto(
+                @event.CommandName,
+                @event.TriggeredByUserId,
+                @event.Succeeded,
+                @event.Timestamp.ToString("O")
+            ),
+            ct
+        );
     }
 }
 
@@ -31,20 +36,25 @@ public sealed class CommandExecutedBroadcastHandler : IEventHandler<AfterCommand
 public sealed class PermissionChangedBroadcastHandler : IEventHandler<PermissionChangedEvent>
 {
     private readonly IDashboardNotifier _notifier;
+
     public PermissionChangedBroadcastHandler(IDashboardNotifier notifier) => _notifier = notifier;
 
     public Task HandleAsync(PermissionChangedEvent @event, CancellationToken ct = default)
     {
-        if (string.IsNullOrEmpty(@event.BroadcasterId)) return Task.CompletedTask;
+        if (string.IsNullOrEmpty(@event.BroadcasterId))
+            return Task.CompletedTask;
 
-        var dto = new PermissionChangedDto(
-            SubjectType: @event.SubjectType,
-            SubjectId: @event.SubjectId,
-            ResourceType: @event.ResourceType,
-            ResourceId: @event.ResourceId,
-            Value: @event.NewPermissionValue);
-
-        return _notifier.SendPermissionChangedAsync(@event.BroadcasterId, dto, ct);
+        return _notifier.SendPermissionChangedAsync(
+            @event.BroadcasterId,
+            new PermissionChangedDto(
+                @event.SubjectType,
+                @event.SubjectId,
+                @event.ResourceType,
+                @event.ResourceId,
+                @event.NewPermissionValue
+            ),
+            ct
+        );
     }
 }
 
@@ -52,50 +62,70 @@ public sealed class PermissionChangedBroadcastHandler : IEventHandler<Permission
 public sealed class PlaybackStateBroadcastHandler : IEventHandler<PlaybackStateChangedEvent>
 {
     private readonly IDashboardNotifier _notifier;
+
     public PlaybackStateBroadcastHandler(IDashboardNotifier notifier) => _notifier = notifier;
 
     public Task HandleAsync(PlaybackStateChangedEvent @event, CancellationToken ct = default)
     {
-        if (string.IsNullOrEmpty(@event.BroadcasterId)) return Task.CompletedTask;
+        if (string.IsNullOrEmpty(@event.BroadcasterId))
+            return Task.CompletedTask;
 
-        var dto = new MusicStateDto(
-            IsPlaying: @event.IsPlaying,
-            CurrentTrack: @event.TrackName is not null
-                ? new MusicTrackDto(@event.TrackName, string.Empty, string.Empty, null, 0, "unknown")
-                : null);
+        MusicTrackDto? track = @event.TrackName is not null
+            ? new MusicTrackDto(@event.TrackName, string.Empty, string.Empty, null, 0, "unknown")
+            : null;
 
-        return _notifier.SendMusicStateAsync(@event.BroadcasterId, dto, ct);
+        return _notifier.SendMusicStateAsync(
+            @event.BroadcasterId,
+            new MusicStateDto(@event.IsPlaying, track),
+            ct
+        );
     }
 }
 
-/// <summary>Broadcasts integration connection events (Spotify, Discord, OBS) as dashboard alerts.</summary>
+/// <summary>Broadcasts integration connection events (Spotify, Discord, OBS) as channel events.</summary>
 public sealed class IntegrationConnectedBroadcastHandler : IEventHandler<IntegrationConnectedEvent>
 {
     private readonly IDashboardNotifier _notifier;
-    public IntegrationConnectedBroadcastHandler(IDashboardNotifier notifier) => _notifier = notifier;
+
+    public IntegrationConnectedBroadcastHandler(IDashboardNotifier notifier) =>
+        _notifier = notifier;
 
     public Task HandleAsync(IntegrationConnectedEvent @event, CancellationToken ct = default)
     {
-        if (string.IsNullOrEmpty(@event.BroadcasterId)) return Task.CompletedTask;
-        return _notifier.NotifyChannelAsync(@event.BroadcasterId, "integration_connected", new
-        {
-            integration = @event.IntegrationName,
-        }, ct);
+        if (string.IsNullOrEmpty(@event.BroadcasterId))
+            return Task.CompletedTask;
+
+        return _notifier.NotifyChannelAsync(
+            @event.BroadcasterId,
+            "integration_connected",
+            new IntegrationEventDto(@event.IntegrationName),
+            ct
+        );
     }
 }
 
 /// <summary>Broadcasts integration disconnection events as dashboard alerts.</summary>
-public sealed class IntegrationDisconnectedBroadcastHandler : IEventHandler<IntegrationDisconnectedEvent>
+public sealed class IntegrationDisconnectedBroadcastHandler
+    : IEventHandler<IntegrationDisconnectedEvent>
 {
     private readonly IDashboardNotifier _notifier;
-    public IntegrationDisconnectedBroadcastHandler(IDashboardNotifier notifier) => _notifier = notifier;
+
+    public IntegrationDisconnectedBroadcastHandler(IDashboardNotifier notifier) =>
+        _notifier = notifier;
 
     public Task HandleAsync(IntegrationDisconnectedEvent @event, CancellationToken ct = default)
     {
-        if (string.IsNullOrEmpty(@event.BroadcasterId)) return Task.CompletedTask;
-        return _notifier.SendAlertAsync(@event.BroadcasterId, new AlertDto(
-            Type: "integration_disconnected",
-            Message: $"{@event.IntegrationName} disconnected",
-            Data: new { integration = @event.IntegrationName }), ct);
+        if (string.IsNullOrEmpty(@event.BroadcasterId))
+            return Task.CompletedTask;
+
+        return _notifier.SendAlertAsync(
+            @event.BroadcasterId,
+            new AlertDto(
+                "integration_disconnected",
+                $"{@event.IntegrationName} disconnected",
+                new IntegrationEventDto(@event.IntegrationName)
+            ),
+            ct
+        );
     }
 }

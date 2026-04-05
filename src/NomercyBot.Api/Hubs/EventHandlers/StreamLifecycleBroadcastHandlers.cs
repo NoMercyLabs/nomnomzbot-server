@@ -18,14 +18,16 @@ public sealed class ChannelOnlineBroadcastHandler : IEventHandler<ChannelOnlineE
 
     public Task HandleAsync(ChannelOnlineEvent @event, CancellationToken ct = default)
     {
-        if (string.IsNullOrEmpty(@event.BroadcasterId)) return Task.CompletedTask;
+        if (string.IsNullOrEmpty(@event.BroadcasterId))
+            return Task.CompletedTask;
 
         var dto = new StreamStatusDto(
             IsLive: true,
             StreamId: null,
             Title: @event.StreamTitle,
             GameName: @event.GameName,
-            StartedAt: @event.StartedAt.ToString("O"));
+            StartedAt: @event.StartedAt.ToString("O")
+        );
 
         return _notifier.SendStreamStatusAsync(@event.BroadcasterId, dto, ct);
     }
@@ -42,14 +44,16 @@ public sealed class ChannelOfflineBroadcastHandler : IEventHandler<ChannelOfflin
 
     public Task HandleAsync(ChannelOfflineEvent @event, CancellationToken ct = default)
     {
-        if (string.IsNullOrEmpty(@event.BroadcasterId)) return Task.CompletedTask;
+        if (string.IsNullOrEmpty(@event.BroadcasterId))
+            return Task.CompletedTask;
 
         var dto = new StreamStatusDto(
             IsLive: false,
             StreamId: null,
             Title: null,
             GameName: null,
-            StartedAt: null);
+            StartedAt: null
+        );
 
         return _notifier.SendStreamStatusAsync(@event.BroadcasterId, dto, ct);
     }
