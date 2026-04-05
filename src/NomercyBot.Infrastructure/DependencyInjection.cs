@@ -141,7 +141,8 @@ public static class DependencyInjection
         services.AddScoped<ICurrentTenantService, CurrentTenantService>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
 
-        // Database migrator (development utility)
+        // Startup readiness checker and database migrator
+        services.AddTransient<StartupReadinessChecker>();
         services.AddScoped<IDatabaseMigrator, DatabaseMigrator>();
         services.AddScoped<DataSeeder>();
 

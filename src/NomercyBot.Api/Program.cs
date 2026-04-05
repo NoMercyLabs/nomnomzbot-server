@@ -14,6 +14,7 @@ using NoMercyBot.Api.Middleware;
 using NoMercyBot.Application;
 using NoMercyBot.Infrastructure;
 using NoMercyBot.Infrastructure.Persistence;
+using NoMercyBot.Infrastructure.Services.General;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration().WriteTo.Console().CreateBootstrapLogger();
@@ -179,6 +180,25 @@ try
         );
 
     var app = builder.Build();
+
+    // Wait for infrastructure dependencies before doing anything else
+    try
+    {
+        Log.Information("Waiting for PostgreSQL and Redis to be ready...");
+        await using var readinessScope = app.Services.CreateAsyncScope();
+        var checker = readinessScope.ServiceProvider.GetRequiredService<StartupReadinessChecker>();
+        await checker.WaitForPostgresAsync();
+        await checker.WaitForRedisAsync();
+    }
+    catch (Exception ex)
+    {
+        Log.Fatal(
+            ex,
+            "Infrastructure dependency not available. "
+                + "Run 'docker-compose up -d' or configure connection strings in your .env file."
+        );
+        throw;
+    }
 
     // Run database migrations on startup
     try
