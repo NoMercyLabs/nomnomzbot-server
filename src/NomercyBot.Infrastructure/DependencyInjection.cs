@@ -169,6 +169,7 @@ public static class DependencyInjection
         services.AddScoped<IMusicConfigService, MusicConfigService>();
         services.AddScoped<ITtsConfigService, TtsConfigService>();
         services.AddScoped<IEventResponseService, EventResponseService>();
+        services.AddScoped<IPipelineService, PipelineService>();
 
         // GDPR + migration (scoped — use DbContext)
         services.AddScoped<GdprService>();

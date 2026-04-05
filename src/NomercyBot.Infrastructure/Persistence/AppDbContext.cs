@@ -65,6 +65,9 @@ public class AppDbContext : DbContext, IApplicationDbContext
     // Watch streaks
     public DbSet<WatchStreak> WatchStreaks => Set<WatchStreak>();
 
+    // Pipelines
+    public DbSet<Domain.Entities.Pipeline> Pipelines => Set<Domain.Entities.Pipeline>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
