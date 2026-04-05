@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using NoMercyBot.Domain.Entities;
@@ -10,18 +12,22 @@ public class ChannelBotAuthorizationConfiguration : IEntityTypeConfiguration<Cha
     {
         builder.HasKey(e => e.Id);
 
-        builder.Property(e => e.BroadcasterId).IsRequired().HasMaxLength(50);
-        builder.Property(e => e.AuthorizedBy).HasMaxLength(50);
+        builder.Property(e => e.BroadcasterId)
+            .IsRequired()
+            .HasMaxLength(50);
 
-        // Relationships
-        builder.HasOne(e => e.Channel)
-            .WithMany()
-            .HasForeignKey(e => e.BroadcasterId)
-            .OnDelete(DeleteBehavior.Cascade);
+        builder.Property(e => e.AuthorizedBy)
+            .HasMaxLength(50);
 
-        // Indexes
+        builder.Property(e => e.IsActive)
+            .HasDefaultValue(true);
+
         builder.HasIndex(e => e.BroadcasterId)
-            .IsUnique()
-            .HasDatabaseName("IX_ChannelBotAuthorization_BroadcasterId");
+            .IsUnique();
+
+        builder.HasOne(e => e.Channel)
+            .WithOne()
+            .HasForeignKey<ChannelBotAuthorization>(e => e.BroadcasterId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

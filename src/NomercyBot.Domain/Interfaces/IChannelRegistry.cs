@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) NoMercy Entertainment. All rights reserved.
 
+using System.Collections.Concurrent;
+
 namespace NoMercyBot.Domain.Interfaces;
 
 /// <summary>
@@ -9,31 +11,63 @@ namespace NoMercyBot.Domain.Interfaces;
 /// </summary>
 public interface IChannelRegistry
 {
-    /// <summary>Gets all currently active channel IDs.</summary>
-    Task<IReadOnlyList<string>> GetActiveChannelsAsync(CancellationToken cancellationToken = default);
-
-    /// <summary>Gets channel context by broadcaster ID. Returns null if not registered.</summary>
-    Task<ChannelContext?> GetChannelContextAsync(string broadcasterId, CancellationToken cancellationToken = default);
-
-    /// <summary>Registers a channel as active.</summary>
-    Task RegisterChannelAsync(string broadcasterId, string channelName, CancellationToken cancellationToken = default);
-
-    /// <summary>Unregisters a channel (bot leaving or channel disabled).</summary>
-    Task UnregisterChannelAsync(string broadcasterId, CancellationToken cancellationToken = default);
-
-    /// <summary>Checks if a channel is currently registered and active.</summary>
-    Task<bool> IsChannelActiveAsync(string broadcasterId, CancellationToken cancellationToken = default);
+    Task<ChannelContext> GetOrCreateAsync(string broadcasterId, string channelName, CancellationToken ct = default);
+    ChannelContext? Get(string broadcasterId);
+    Task RemoveAsync(string broadcasterId, CancellationToken ct = default);
+    IReadOnlyCollection<ChannelContext> GetAll();
+    IReadOnlyCollection<ChannelContext> GetLiveChannels();
+    int Count { get; }
 }
 
 /// <summary>
-/// In-memory representation of a channel's current state.
+/// Full in-memory state object for a channel the bot is connected to.
 /// </summary>
 public class ChannelContext
 {
     public required string BroadcasterId { get; init; }
     public required string ChannelName { get; init; }
+    public string? DisplayName { get; set; }
     public bool IsLive { get; set; }
     public string? CurrentStreamId { get; set; }
-    public string? GameName { get; set; }
-    public string? Title { get; set; }
+    public string? CurrentTitle { get; set; }
+    public string? CurrentGame { get; set; }
+    public DateTimeOffset? WentLiveAt { get; set; }
+
+    // Per-channel in-memory command cache: key = command name (lowercase)
+    public ConcurrentDictionary<string, CachedCommand> Commands { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    // Per-channel active pipelines: key = executionId
+    public ConcurrentDictionary<string, CancellationTokenSource> ActivePipelines { get; } = new();
+
+    // Cooldown tracking: key = "commandName:userId" or "commandName:global"
+    public ConcurrentDictionary<string, DateTimeOffset> Cooldowns { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    // Track last shoutout sent to each user: key = userId, value = DateTimeOffset
+    public ConcurrentDictionary<string, DateTimeOffset> LastShoutoutPerUser { get; } = new();
+    public DateTimeOffset? LastGlobalShoutout { get; set; }
+
+    // Session chatters seen since bot joined: key = userId, value = displayName
+    public ConcurrentDictionary<string, string> SessionChatters { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public DateTimeOffset LoadedAt { get; init; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset LastActivityAt { get; set; } = DateTimeOffset.UtcNow;
+
+    // Lock for compound operations
+    private readonly object _lock = new();
+    public object Lock => _lock;
+}
+
+/// <summary>
+/// Cached representation of a command loaded from the database.
+/// </summary>
+public class CachedCommand
+{
+    public required string Name { get; init; }
+    public required string[] Responses { get; init; }
+    public required int GlobalCooldown { get; init; }
+    public required int UserCooldown { get; init; }
+    public required string Permission { get; init; }
+    public required string Type { get; init; }
+    public string? PipelineJson { get; init; }
+    public string[] Aliases { get; init; } = [];
 }
