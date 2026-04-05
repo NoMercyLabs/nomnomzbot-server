@@ -34,6 +34,7 @@ public interface IApplicationDbContext
     DbSet<Pronoun> Pronouns { get; }
     DbSet<DeletionAuditLog> DeletionAuditLogs { get; }
     DbSet<NoMercyBot.Domain.Entities.Timer> Timers { get; }
+    DbSet<EventResponse> EventResponses { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

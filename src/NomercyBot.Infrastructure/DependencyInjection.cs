@@ -12,9 +12,13 @@ using NoMercyBot.Domain.Interfaces;
 using NoMercyBot.Infrastructure.BackgroundServices;
 using NoMercyBot.Infrastructure.Configuration;
 using NoMercyBot.Infrastructure.EventBus;
+using NoMercyBot.Infrastructure.EventHandlers;
 using NoMercyBot.Infrastructure.Persistence;
 using NoMercyBot.Infrastructure.Persistence.Interceptors;
 using NoMercyBot.Infrastructure.Persistence.Repositories;
+using NoMercyBot.Infrastructure.Pipeline;
+using NoMercyBot.Infrastructure.Pipeline.Actions;
+using NoMercyBot.Infrastructure.Pipeline.Conditions;
 using NoMercyBot.Infrastructure.Resilience;
 using NoMercyBot.Infrastructure.Services.Application;
 using NoMercyBot.Infrastructure.Services.Caching;
@@ -28,10 +32,6 @@ using NoMercyBot.Infrastructure.Services.Security;
 using NoMercyBot.Infrastructure.Services.Trust;
 using NoMercyBot.Infrastructure.Services.Tts;
 using NoMercyBot.Infrastructure.Services.Twitch;
-using NoMercyBot.Infrastructure.EventHandlers;
-using NoMercyBot.Infrastructure.Pipeline;
-using NoMercyBot.Infrastructure.Pipeline.Actions;
-using NoMercyBot.Infrastructure.Pipeline.Conditions;
 
 namespace NoMercyBot.Infrastructure;
 
@@ -39,7 +39,8 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration
+    )
     {
         // Interceptors (scoped so they can resolve scoped services like ICurrentTenantService)
         services.AddScoped<AuditableEntityInterceptor>();
@@ -47,23 +48,32 @@ public static class DependencyInjection
         services.AddScoped<TenantStampInterceptor>();
 
         // DbContext with Npgsql and interceptors
-        var connectionString = configuration.GetConnectionString("DefaultConnection")
+        var connectionString =
+            configuration.GetConnectionString("DefaultConnection")
             ?? configuration.GetSection("Database:ConnectionString").Value;
 
-        services.AddDbContext<AppDbContext>((serviceProvider, options) =>
-        {
-            options.UseNpgsql(connectionString, npgsqlOptions =>
+        services.AddDbContext<AppDbContext>(
+            (serviceProvider, options) =>
             {
-                npgsqlOptions.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName);
-            });
+                options.UseNpgsql(
+                    connectionString,
+                    npgsqlOptions =>
+                    {
+                        npgsqlOptions.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName);
+                    }
+                );
 
-            options.AddInterceptors(
-                serviceProvider.GetRequiredService<AuditableEntityInterceptor>(),
-                serviceProvider.GetRequiredService<SoftDeleteInterceptor>(),
-                serviceProvider.GetRequiredService<TenantStampInterceptor>());
-        });
+                options.AddInterceptors(
+                    serviceProvider.GetRequiredService<AuditableEntityInterceptor>(),
+                    serviceProvider.GetRequiredService<SoftDeleteInterceptor>(),
+                    serviceProvider.GetRequiredService<TenantStampInterceptor>()
+                );
+            }
+        );
 
-        services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<AppDbContext>());
+        services.AddScoped<IApplicationDbContext>(provider =>
+            provider.GetRequiredService<AppDbContext>()
+        );
 
         // EventBus (singleton -- resolves scoped handlers internally via IServiceProvider)
         services.AddSingleton<EventLogger>();
@@ -78,8 +88,8 @@ public static class DependencyInjection
         services.AddSingleton<IJwtTokenService, JwtTokenService>();
 
         // Caching — use Redis if configured, otherwise fall back to in-memory
-        var redisConnectionString = configuration.GetConnectionString("Redis")
-            ?? configuration["Redis:ConnectionString"];
+        var redisConnectionString =
+            configuration.GetConnectionString("Redis") ?? configuration["Redis:ConnectionString"];
         if (!string.IsNullOrWhiteSpace(redisConnectionString))
         {
             services.AddStackExchangeRedisCache(options =>
@@ -148,6 +158,10 @@ public static class DependencyInjection
         services.AddScoped<IModerationService, ModerationService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IPermissionService, PermissionService>();
+        services.AddScoped<ITimerManagementService, TimerManagementService>();
+        services.AddScoped<IMusicConfigService, MusicConfigService>();
+        services.AddScoped<ITtsConfigService, TtsConfigService>();
+        services.AddScoped<IEventResponseService, EventResponseService>();
 
         // GDPR + migration (scoped — use DbContext)
         services.AddScoped<GdprService>();
@@ -164,17 +178,18 @@ public static class DependencyInjection
             sp.GetRequiredService<IHttpClientFactory>(),
             sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AzureTtsProvider>>(),
             configuration["Azure:Tts:ApiKey"],
-            configuration["Azure:Tts:Region"] ?? "westeurope"));
+            configuration["Azure:Tts:Region"] ?? "westeurope"
+        ));
         services.AddHttpClient("elevenlabs-tts");
         services.AddSingleton<ITtsProvider>(sp => new ElevenLabsTtsProvider(
             sp.GetRequiredService<IHttpClientFactory>(),
             sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ElevenLabsTtsProvider>>(),
-            configuration["ElevenLabs:ApiKey"]));
+            configuration["ElevenLabs:ApiKey"]
+        ));
         services.AddSingleton<ITtsService, TtsService>();
 
         // Spotify HTTP clients with resilience
-        services.AddHttpClient("spotify")
-            .AddSpotifyResilienceHandler();
+        services.AddHttpClient("spotify").AddSpotifyResilienceHandler();
         services.AddHttpClient("spotify-auth");
 
         // Music providers
@@ -184,7 +199,9 @@ public static class DependencyInjection
 
         // ChannelRegistry (singleton + hosted service)
         services.AddSingleton<NoMercyBot.Domain.Interfaces.IChannelRegistry, ChannelRegistry>();
-        services.AddHostedService(sp => (ChannelRegistry)sp.GetRequiredService<NoMercyBot.Domain.Interfaces.IChannelRegistry>());
+        services.AddHostedService(sp =>
+            (ChannelRegistry)sp.GetRequiredService<NoMercyBot.Domain.Interfaces.IChannelRegistry>()
+        );
 
         // Background lifecycle services
         services.AddHostedService<BotLifecycleService>();
@@ -196,8 +213,7 @@ public static class DependencyInjection
 
         // Twitch HTTP clients with resilience
         services.AddHttpClient("twitch-auth");
-        services.AddHttpClient("twitch-helix")
-            .AddTwitchResilienceHandler();
+        services.AddHttpClient("twitch-helix").AddTwitchResilienceHandler();
         services.AddHttpClient("twitch-eventsub");
 
         // Twitch auth service (scoped — uses IApplicationDbContext)
@@ -216,7 +232,9 @@ public static class DependencyInjection
 
         // Twitch EventSub service (singleton + hosted service — persistent WebSocket connection)
         services.AddSingleton<TwitchEventSubService>();
-        services.AddSingleton<ITwitchEventSubService>(sp => sp.GetRequiredService<TwitchEventSubService>());
+        services.AddSingleton<ITwitchEventSubService>(sp =>
+            sp.GetRequiredService<TwitchEventSubService>()
+        );
         services.AddHostedService(sp => sp.GetRequiredService<TwitchEventSubService>());
 
         return services;
@@ -228,7 +246,8 @@ public static class DependencyInjection
     /// </summary>
     public static IServiceCollection AddEventHandlersFromAssembly(
         this IServiceCollection services,
-        Assembly assembly)
+        Assembly assembly
+    )
     {
         RegisterEventHandlers(services, assembly);
         return services;
@@ -237,22 +256,32 @@ public static class DependencyInjection
     /// <summary>
     /// Scans assemblies for IEventHandler implementations and registers them as transient.
     /// </summary>
-    private static void RegisterEventHandlers(IServiceCollection services, params Assembly[] assemblies)
+    private static void RegisterEventHandlers(
+        IServiceCollection services,
+        params Assembly[] assemblies
+    )
     {
         var handlerInterfaceType = typeof(IEventHandler<>);
 
         foreach (var assembly in assemblies)
         {
-            var handlerTypes = assembly.GetTypes()
+            var handlerTypes = assembly
+                .GetTypes()
                 .Where(t => t is { IsAbstract: false, IsInterface: false })
-                .Where(t => t.GetInterfaces().Any(i =>
-                    i.IsGenericType && i.GetGenericTypeDefinition() == handlerInterfaceType));
+                .Where(t =>
+                    t.GetInterfaces()
+                        .Any(i =>
+                            i.IsGenericType && i.GetGenericTypeDefinition() == handlerInterfaceType
+                        )
+                );
 
             foreach (var handlerType in handlerTypes)
             {
-                var handlerInterfaces = handlerType.GetInterfaces()
-                    .Where(i => i.IsGenericType
-                        && i.GetGenericTypeDefinition() == handlerInterfaceType);
+                var handlerInterfaces = handlerType
+                    .GetInterfaces()
+                    .Where(i =>
+                        i.IsGenericType && i.GetGenericTypeDefinition() == handlerInterfaceType
+                    );
 
                 foreach (var @interface in handlerInterfaces)
                 {

@@ -8,9 +8,7 @@ namespace NoMercyBot.Infrastructure.Persistence;
 public class AppDbContext : DbContext, IApplicationDbContext
 {
     public AppDbContext(DbContextOptions<AppDbContext> options)
-        : base(options)
-    {
-    }
+        : base(options) { }
 
     // Core
     public DbSet<User> Users => Set<User>();
@@ -30,7 +28,8 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<Domain.Entities.Stream> Streams => Set<Domain.Entities.Stream>();
 
     // Config & Storage
-    public DbSet<NoMercyBot.Domain.Entities.Configuration> Configurations => Set<NoMercyBot.Domain.Entities.Configuration>();
+    public DbSet<NoMercyBot.Domain.Entities.Configuration> Configurations =>
+        Set<NoMercyBot.Domain.Entities.Configuration>();
     public DbSet<Storage> Storages => Set<Storage>();
     public DbSet<Record> Records => Set<Record>();
 
@@ -39,8 +38,10 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<ChannelFeature> ChannelFeatures => Set<ChannelFeature>();
 
     // Auth & Billing
-    public DbSet<ChannelBotAuthorization> ChannelBotAuthorizations => Set<ChannelBotAuthorization>();
-    public DbSet<DiscordServerAuthorization> DiscordServerAuthorizations => Set<DiscordServerAuthorization>();
+    public DbSet<ChannelBotAuthorization> ChannelBotAuthorizations =>
+        Set<ChannelBotAuthorization>();
+    public DbSet<DiscordServerAuthorization> DiscordServerAuthorizations =>
+        Set<DiscordServerAuthorization>();
     public DbSet<ChannelSubscription> ChannelSubscriptions => Set<ChannelSubscription>();
 
     // TTS
@@ -57,6 +58,9 @@ public class AppDbContext : DbContext, IApplicationDbContext
 
     // Timers
     public DbSet<Domain.Entities.Timer> Timers => Set<Domain.Entities.Timer>();
+
+    // Event responses
+    public DbSet<EventResponse> EventResponses => Set<EventResponse>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
