@@ -75,6 +75,7 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
                 "caps" => CheckCaps(message, rule),
                 "links" => CheckLinks(message),
                 "banned_phrases" => CheckBannedPhrases(message, rule),
+                "emote_spam" => CheckEmoteSpam(@event.Fragments, rule),
                 _ => false,
             };
 
@@ -153,6 +154,24 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
         }
 
         return false;
+    }
+
+    private static bool CheckEmoteSpam(
+        IReadOnlyList<NoMercyBot.Domain.ValueObjects.ChatMessageFragment> fragments,
+        AutoModRule rule
+    )
+    {
+        var maxEmotes =
+            rule.Settings.TryGetValue("max_emotes", out var maxObj)
+            && maxObj is JsonElement maxElem
+            && maxElem.ValueKind == JsonValueKind.Number
+                ? maxElem.GetInt32()
+                : 10; // Default: 10 emotes max
+
+        var emoteCount = fragments.Count(f =>
+            f.Type.Equals("emote", StringComparison.OrdinalIgnoreCase)
+        );
+        return emoteCount > maxEmotes;
     }
 
     private static bool ShouldApply(AutoModRule rule, ChatMessageReceivedEvent @event)
