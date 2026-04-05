@@ -14,6 +14,7 @@ namespace NoMercyBot.Api.Controllers.V1;
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/channels/{channelId}/rewards")]
 [Authorize]
+[Tags("Rewards")]
 public class RewardsController : BaseController
 {
     private readonly IRewardService _rewardService;
@@ -24,6 +25,7 @@ public class RewardsController : BaseController
     }
 
     [HttpGet]
+    [ProducesResponseType<PaginatedResponse<RewardDetail>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListRewards(
         string channelId,
         [FromQuery] PageRequestDto request,
@@ -36,6 +38,7 @@ public class RewardsController : BaseController
     }
 
     [HttpGet("{rewardId}")]
+    [ProducesResponseType<StatusResponseDto<RewardDetail>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetReward(string channelId, string rewardId, CancellationToken ct)
     {
         var result = await _rewardService.GetAsync(channelId, rewardId, ct);
@@ -43,6 +46,7 @@ public class RewardsController : BaseController
     }
 
     [HttpPost]
+    [ProducesResponseType<StatusResponseDto<RewardDetail>>(StatusCodes.Status201Created)]
     public async Task<IActionResult> CreateReward(
         string channelId,
         [FromBody] CreateRewardRequest request,
@@ -56,6 +60,7 @@ public class RewardsController : BaseController
     }
 
     [HttpPut("{rewardId}")]
+    [ProducesResponseType<StatusResponseDto<RewardDetail>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> UpdateReward(
         string channelId,
         string rewardId,
@@ -68,6 +73,7 @@ public class RewardsController : BaseController
     }
 
     [HttpDelete("{rewardId}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteReward(string channelId, string rewardId, CancellationToken ct)
     {
         var result = await _rewardService.DeleteAsync(channelId, rewardId, ct);
@@ -76,6 +82,7 @@ public class RewardsController : BaseController
     }
 
     [HttpPost("sync")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> SyncRewards(string channelId, CancellationToken ct)
     {
         var result = await _rewardService.SyncWithTwitchAsync(channelId, ct);

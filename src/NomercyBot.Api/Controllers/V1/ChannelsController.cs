@@ -14,6 +14,7 @@ namespace NoMercyBot.Api.Controllers.V1;
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/channels")]
 [Authorize]
+[Tags("Channels")]
 public class ChannelsController : BaseController
 {
     private readonly IChannelService _channelService;
@@ -24,6 +25,7 @@ public class ChannelsController : BaseController
     }
 
     [HttpGet]
+    [ProducesResponseType<PaginatedResponse<ChannelDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListChannels(
         [FromQuery] PageRequestDto request,
         CancellationToken ct)
@@ -41,6 +43,7 @@ public class ChannelsController : BaseController
     }
 
     [HttpGet("{channelId}")]
+    [ProducesResponseType<StatusResponseDto<ChannelDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetChannel(string channelId, CancellationToken ct)
     {
         var result = await _channelService.GetAsync(channelId, ct);
@@ -48,6 +51,7 @@ public class ChannelsController : BaseController
     }
 
     [HttpPost]
+    [ProducesResponseType<StatusResponseDto<ChannelDto>>(StatusCodes.Status201Created)]
     public async Task<IActionResult> OnboardChannel(
         [FromBody] CreateChannelRequest request,
         CancellationToken ct)
@@ -60,6 +64,7 @@ public class ChannelsController : BaseController
     }
 
     [HttpPut("{channelId}")]
+    [ProducesResponseType<StatusResponseDto<ChannelDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> UpdateChannelSettings(
         string channelId,
         [FromBody] UpdateChannelSettingsDto request,
@@ -71,6 +76,7 @@ public class ChannelsController : BaseController
     }
 
     [HttpPost("{channelId}/join")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> JoinChannel(string channelId, CancellationToken ct)
     {
         var result = await _channelService.JoinAsync(channelId, ct);
@@ -79,6 +85,7 @@ public class ChannelsController : BaseController
     }
 
     [HttpPost("{channelId}/leave")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> LeaveChannel(string channelId, CancellationToken ct)
     {
         var result = await _channelService.LeaveAsync(channelId, ct);
@@ -87,6 +94,7 @@ public class ChannelsController : BaseController
     }
 
     [HttpDelete("{channelId}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteChannel(string channelId, CancellationToken ct)
     {
         var result = await _channelService.DeleteAsync(channelId, ct);

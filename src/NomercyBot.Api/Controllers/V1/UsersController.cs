@@ -15,6 +15,7 @@ namespace NoMercyBot.Api.Controllers.V1;
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/users")]
 [Authorize]
+[Tags("Users")]
 public class UsersController : BaseController
 {
     private readonly IUserService _userService;
@@ -27,6 +28,7 @@ public class UsersController : BaseController
     }
 
     [HttpGet]
+    [ProducesResponseType<PaginatedResponse<UserDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> SearchUsers(
         [FromQuery] string? query,
         [FromQuery] PageRequestDto request,
@@ -42,6 +44,7 @@ public class UsersController : BaseController
     }
 
     [HttpGet("{userId}")]
+    [ProducesResponseType<StatusResponseDto<UserDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetUser(string userId, CancellationToken ct)
     {
         var result = await _userService.GetAsync(userId, ct);
@@ -49,6 +52,7 @@ public class UsersController : BaseController
     }
 
     [HttpGet("{userId}/profile")]
+    [ProducesResponseType<StatusResponseDto<UserProfileDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetUserProfile(string userId, CancellationToken ct)
     {
         var result = await _userService.GetProfileAsync(userId, ct);
@@ -56,6 +60,7 @@ public class UsersController : BaseController
     }
 
     [HttpPut("{userId}/profile")]
+    [ProducesResponseType<StatusResponseDto<UserProfileDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> UpdateUserProfile(
         string userId,
         [FromBody] UpdateUserProfileRequest request,
@@ -73,6 +78,7 @@ public class UsersController : BaseController
     /// Returns a JSON file download containing all data we hold for this user.
     /// </summary>
     [HttpGet("{userId}/data-export")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> ExportUserData(string userId, CancellationToken ct)
     {
         // Only the user themselves or admins may export
@@ -92,6 +98,7 @@ public class UsersController : BaseController
     /// This action is irreversible.
     /// </summary>
     [HttpDelete("{userId}/data")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> DeleteUserData(string userId, CancellationToken ct)
     {
         var callerId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;

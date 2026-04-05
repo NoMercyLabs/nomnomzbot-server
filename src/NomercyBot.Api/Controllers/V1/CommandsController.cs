@@ -14,6 +14,7 @@ namespace NoMercyBot.Api.Controllers.V1;
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/channels/{channelId}/commands")]
 [Authorize]
+[Tags("Commands")]
 public class CommandsController : BaseController
 {
     private readonly ICommandService _commandService;
@@ -24,6 +25,7 @@ public class CommandsController : BaseController
     }
 
     [HttpGet]
+    [ProducesResponseType<PaginatedResponse<CommandDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListCommands(
         string channelId,
         [FromQuery] PageRequestDto request,
@@ -36,6 +38,7 @@ public class CommandsController : BaseController
     }
 
     [HttpGet("{commandName}")]
+    [ProducesResponseType<StatusResponseDto<CommandDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetCommand(string channelId, string commandName, CancellationToken ct)
     {
         var result = await _commandService.GetAsync(channelId, commandName, ct);
@@ -43,6 +46,7 @@ public class CommandsController : BaseController
     }
 
     [HttpPost]
+    [ProducesResponseType<StatusResponseDto<CommandDto>>(StatusCodes.Status201Created)]
     public async Task<IActionResult> CreateCommand(
         string channelId,
         [FromBody] CreateCommandDto request,
@@ -56,6 +60,7 @@ public class CommandsController : BaseController
     }
 
     [HttpPut("{commandName}")]
+    [ProducesResponseType<StatusResponseDto<CommandDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> UpdateCommand(
         string channelId,
         string commandName,
@@ -68,6 +73,7 @@ public class CommandsController : BaseController
     }
 
     [HttpDelete("{commandName}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteCommand(string channelId, string commandName, CancellationToken ct)
     {
         var result = await _commandService.DeleteAsync(channelId, commandName, ct);

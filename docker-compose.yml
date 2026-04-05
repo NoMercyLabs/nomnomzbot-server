@@ -10,13 +10,27 @@ services:
       - "5000:5000"
       - "5001:5001"
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:5000
       - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=nomercybot;Username=${POSTGRES_USER:-nomercybot};Password=${POSTGRES_PASSWORD}
       - Jwt__Secret=${JWT_SECRET}
       - Encryption__Key=${ENCRYPTION_KEY}
+      - Twitch__ClientId=${TWITCH_CLIENT_ID}
+      - Twitch__ClientSecret=${TWITCH_CLIENT_SECRET}
+      - Twitch__BotUsername=${TWITCH_BOT_USERNAME}
+      - Azure__Tts__ApiKey=${AZURE_TTS_API_KEY:-}
+      - Azure__Tts__Region=${AZURE_TTS_REGION:-westeurope}
+      - ElevenLabs__ApiKey=${ELEVENLABS_API_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/health/live || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
     networks:
       - nomercybot
 
@@ -31,10 +45,12 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U nomercybot -d nomercybot"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nomercybot} -d nomercybot"]
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 10s
+    restart: unless-stopped
     networks:
       - nomercybot
 
@@ -42,6 +58,13 @@ services:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
     networks:
       - nomercybot
 

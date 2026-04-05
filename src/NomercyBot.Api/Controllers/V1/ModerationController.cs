@@ -14,6 +14,7 @@ namespace NoMercyBot.Api.Controllers.V1;
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/channels/{channelId}/moderation")]
 [Authorize]
+[Tags("Moderation")]
 public class ModerationController : BaseController
 {
     private readonly IModerationService _moderationService;
@@ -26,6 +27,7 @@ public class ModerationController : BaseController
     // ─── Rules ───────────────────────────────────────────────────────────────
 
     [HttpGet("rules")]
+    [ProducesResponseType<PaginatedResponse<ModerationRuleDetail>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListRules(
         string channelId,
         [FromQuery] PageRequestDto request,
@@ -38,6 +40,7 @@ public class ModerationController : BaseController
     }
 
     [HttpPost("rules")]
+    [ProducesResponseType<StatusResponseDto<ModerationRuleDetail>>(StatusCodes.Status201Created)]
     public async Task<IActionResult> CreateRule(
         string channelId,
         [FromBody] CreateModerationRuleRequest request,
@@ -51,6 +54,7 @@ public class ModerationController : BaseController
     }
 
     [HttpPut("rules/{ruleId:int}")]
+    [ProducesResponseType<StatusResponseDto<ModerationRuleDetail>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> UpdateRule(
         string channelId,
         int ruleId,
@@ -63,6 +67,7 @@ public class ModerationController : BaseController
     }
 
     [HttpDelete("rules/{ruleId:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteRule(string channelId, int ruleId, CancellationToken ct)
     {
         var result = await _moderationService.DeleteRuleAsync(channelId, ruleId, ct);
@@ -73,6 +78,7 @@ public class ModerationController : BaseController
     // ─── Actions ─────────────────────────────────────────────────────────────
 
     [HttpGet("actions")]
+    [ProducesResponseType<PaginatedResponse<ModerationActionResult>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListActions(
         string channelId,
         [FromQuery] PageRequestDto request,
@@ -85,6 +91,7 @@ public class ModerationController : BaseController
     }
 
     [HttpPost("actions")]
+    [ProducesResponseType<StatusResponseDto<ModerationActionResult>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> PerformAction(
         string channelId,
         [FromBody] PerformModerationActionRequest request,

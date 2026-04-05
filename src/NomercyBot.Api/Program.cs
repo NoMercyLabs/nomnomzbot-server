@@ -2,8 +2,12 @@
 // Copyright (C) NoMercy Entertainment. All rights reserved.
 
 using System.Text;
+using System.Threading.RateLimiting;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using NoMercyBot.Api.Hubs;
 using NoMercyBot.Api.Middleware;
@@ -93,6 +97,38 @@ try
 
     builder.Services.AddAuthorization();
 
+    // Rate limiting — per-user (or per-IP for anonymous) fixed window
+    builder.Services.AddRateLimiter(options =>
+    {
+        // General API: 120 req/min per authenticated user or IP
+        options.AddPolicy("api", context =>
+        {
+            var key = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                ?? context.Connection.RemoteIpAddress?.ToString()
+                ?? "anonymous";
+            return RateLimitPartition.GetFixedWindowLimiter(key, _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 120,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+            });
+        });
+
+        // Auth endpoints: 10 req/min per IP (brute-force protection)
+        options.AddPolicy("auth", context =>
+        {
+            var ip = context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+            return RateLimitPartition.GetFixedWindowLimiter($"auth:{ip}", _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+            });
+        });
+
+        options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    });
+
     // OpenAPI
     builder.Services.AddOpenApi();
 
@@ -114,7 +150,8 @@ try
     builder.Services.AddHealthChecks()
         .AddNpgSql(
             builder.Configuration.GetConnectionString("DefaultConnection") ?? "Host=localhost;Database=nomercybot;Username=postgres;Password=postgres",
-            name: "postgresql");
+            name: "postgresql",
+            tags: ["db", "ready"]);
 
     var app = builder.Build();
 
@@ -127,6 +164,7 @@ try
 
     app.UseHttpsRedirection();
     app.UseCors();
+    app.UseRateLimiter();
     app.UseAuthentication();
     app.UseAuthorization();
     app.UseMiddleware<TenantResolutionMiddleware>();
@@ -139,8 +177,37 @@ try
     app.MapHub<OBSRelayHub>("/hubs/obs");
     app.MapHub<AdminHub>("/hubs/admin");
 
-    // Health checks
-    app.MapHealthChecks("/health");
+    // Health check — returns JSON with per-check status
+    app.MapHealthChecks("/health", new HealthCheckOptions
+    {
+        ResponseWriter = async (context, report) =>
+        {
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsJsonAsync(new
+            {
+                status = report.Status.ToString().ToLowerInvariant(),
+                checks = report.Entries.Select(e => new
+                {
+                    name = e.Key,
+                    status = e.Value.Status.ToString().ToLowerInvariant(),
+                    description = e.Value.Description,
+                    durationMs = (int)e.Value.Duration.TotalMilliseconds,
+                    tags = e.Value.Tags,
+                }),
+                totalDurationMs = (int)report.TotalDuration.TotalMilliseconds,
+            });
+        },
+        ResultStatusCodes =
+        {
+            [HealthStatus.Healthy] = StatusCodes.Status200OK,
+            [HealthStatus.Degraded] = StatusCodes.Status200OK,
+            [HealthStatus.Unhealthy] = StatusCodes.Status503ServiceUnavailable,
+        },
+    });
+
+    // Liveness probe (no dependency checks — just proves the process is alive)
+    app.MapGet("/health/live", () => Results.Ok(new { status = "alive" }))
+        .ExcludeFromDescription();
 
     app.Run();
 }

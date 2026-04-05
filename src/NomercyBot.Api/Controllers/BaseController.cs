@@ -2,11 +2,20 @@
 // Copyright (C) NoMercy Entertainment. All rights reserved.
 
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using NoMercyBot.Api.Models;
 
 namespace NoMercyBot.Api.Controllers;
 
 [ApiController]
+[EnableRateLimiting("api")]
+[Produces("application/json")]
+[ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status400BadRequest)]
+[ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status401Unauthorized)]
+[ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status403Forbidden)]
+[ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status404NotFound)]
+[ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status429TooManyRequests)]
+[ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status500InternalServerError)]
 public abstract class BaseController : ControllerBase
 {
     protected IActionResult UnauthenticatedResponse(string? message = null) =>
