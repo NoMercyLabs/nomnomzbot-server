@@ -128,10 +128,9 @@ public sealed class AutoModerationEngine : IAutoModerationEngine
         // 1. Slow mode
         if (settings.SlowModeSeconds > 0)
         {
-            var slowKey = $"slowmode:{broadcasterId}:{userId}";
-            if (!_cooldowns.IsOnCooldown(slowKey))
+            if (!_cooldowns.IsOnCooldown(broadcasterId, "slowmode", userId))
             {
-                _cooldowns.SetCooldown(slowKey, settings.SlowModeSeconds);
+                _cooldowns.SetCooldown(broadcasterId, "slowmode", TimeSpan.FromSeconds(settings.SlowModeSeconds), userId);
             }
             else
             {

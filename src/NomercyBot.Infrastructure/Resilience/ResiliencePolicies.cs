@@ -4,6 +4,7 @@
 using System.Net;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http.Resilience;
+using Polly;
 
 namespace NoMercyBot.Infrastructure.Resilience;
 
@@ -29,7 +30,7 @@ public static class ResiliencePolicies
     /// </summary>
     public static IHttpClientBuilder AddTwitchResilienceHandler(this IHttpClientBuilder builder)
     {
-        return builder.AddResilienceHandler("twitch-resilience", pipeline =>
+        builder.AddResilienceHandler("twitch-resilience", pipeline =>
         {
             // Retry: 3 attempts, exponential backoff starting at 500ms, jitter
             pipeline.AddRetry(new HttpRetryStrategyOptions
@@ -58,6 +59,7 @@ public static class ResiliencePolicies
                     args.Outcome.Exception is HttpRequestException),
             });
         });
+        return builder;
     }
 
     /// <summary>
@@ -66,7 +68,7 @@ public static class ResiliencePolicies
     /// </summary>
     public static IHttpClientBuilder AddSpotifyResilienceHandler(this IHttpClientBuilder builder)
     {
-        return builder.AddResilienceHandler("spotify-resilience", pipeline =>
+        builder.AddResilienceHandler("spotify-resilience", pipeline =>
         {
             // Retry: 2 attempts, exponential backoff starting at 1s, jitter
             pipeline.AddRetry(new HttpRetryStrategyOptions
@@ -112,5 +114,6 @@ public static class ResiliencePolicies
                     args.Outcome.Exception is HttpRequestException),
             });
         });
+        return builder;
     }
 }

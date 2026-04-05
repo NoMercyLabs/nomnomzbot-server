@@ -144,7 +144,7 @@ public sealed class SqliteMigrationService
                     CooldownSeconds = cooldown,
                     IsEnabled = true,
                     Type = "chat",
-                    Permission = Domain.Enums.CommandPermission.Everyone,
+                    Permission = "everyone",
                     Responses = [],
                     Aliases = [],
                 });

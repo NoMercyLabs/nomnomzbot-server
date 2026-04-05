@@ -3,21 +3,30 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using NoMercyBot.Application.Common.Interfaces;
+using NoMercyBot.Application.Contracts.Music;
 using NoMercyBot.Application.Contracts.Persistence;
+using NoMercyBot.Application.Contracts.Tts;
 using NoMercyBot.Application.Contracts.Twitch;
 using NoMercyBot.Application.Services;
 using NoMercyBot.Domain.Interfaces;
+using NoMercyBot.Infrastructure.BackgroundServices;
 using NoMercyBot.Infrastructure.Configuration;
 using NoMercyBot.Infrastructure.EventBus;
 using NoMercyBot.Infrastructure.Persistence;
 using NoMercyBot.Infrastructure.Persistence.Interceptors;
 using NoMercyBot.Infrastructure.Persistence.Repositories;
+using NoMercyBot.Infrastructure.Resilience;
 using NoMercyBot.Infrastructure.Services.Application;
 using NoMercyBot.Infrastructure.Services.Caching;
 using NoMercyBot.Infrastructure.Services.General;
 using NoMercyBot.Infrastructure.Services.Identity;
+using NoMercyBot.Infrastructure.Services.Migration;
+using NoMercyBot.Infrastructure.Services.Moderation;
+using NoMercyBot.Infrastructure.Services.Music;
 using NoMercyBot.Infrastructure.Services.Registry;
 using NoMercyBot.Infrastructure.Services.Security;
+using NoMercyBot.Infrastructure.Services.Trust;
+using NoMercyBot.Infrastructure.Services.Tts;
 using NoMercyBot.Infrastructure.Services.Twitch;
 
 namespace NoMercyBot.Infrastructure;
@@ -98,17 +107,46 @@ public static class DependencyInjection
         services.AddScoped<IWidgetService, WidgetService>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IModerationService, ModerationService>();
+        services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IPermissionService, PermissionService>();
+
+        // GDPR + migration (scoped — use DbContext)
+        services.AddScoped<GdprService>();
+        services.AddScoped<SqliteMigrationService>();
+
+        // Auto-moderation (scoped — uses ICooldownManager which is singleton, fine)
+        services.AddScoped<AutoModerationEngine>();
+
+        // Music providers + service (singleton — maintain per-channel queues)
+        services.AddSingleton<ITtsProvider, EdgeTtsProvider>();
+        services.AddSingleton<ITtsProvider, AzureTtsProvider>();
+        services.AddSingleton<ITtsProvider, ElevenLabsTtsProvider>();
+        services.AddSingleton<ITtsService, TtsService>();
+
+        // Spotify HTTP client with resilience
+        services.AddHttpClient("spotify")
+            .AddSpotifyResilienceHandler();
+
+        // Music providers
+        services.AddScoped<SpotifyMusicProvider>();
+        services.AddScoped<YouTubeMusicProvider>();
+        services.AddScoped<IMusicService, MusicService>();
 
         // ChannelRegistry (singleton + hosted service)
         services.AddSingleton<NoMercyBot.Domain.Interfaces.IChannelRegistry, ChannelRegistry>();
         services.AddHostedService(sp => (ChannelRegistry)sp.GetRequiredService<NoMercyBot.Domain.Interfaces.IChannelRegistry>());
 
+        // Background lifecycle services
+        services.AddHostedService<BotLifecycleService>();
+        services.AddHostedService<TimerSchedulerService>();
+
         // Twitch options
         services.Configure<TwitchOptions>(configuration.GetSection(TwitchOptions.SectionName));
 
-        // Twitch HTTP clients
+        // Twitch HTTP clients with resilience
         services.AddHttpClient("twitch-auth");
-        services.AddHttpClient("twitch-helix");
+        services.AddHttpClient("twitch-helix")
+            .AddTwitchResilienceHandler();
         services.AddHttpClient("twitch-eventsub");
 
         // Twitch auth service (scoped — uses IApplicationDbContext)

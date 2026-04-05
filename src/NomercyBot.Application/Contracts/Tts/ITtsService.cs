@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) NoMercy Entertainment. All rights reserved.
 
+using NoMercyBot.Domain.Interfaces;
+
 namespace NoMercyBot.Application.Contracts.Tts;
 
 public interface ITtsService
@@ -10,4 +12,3 @@ public interface ITtsService
 }
 
 public record TtsResult(byte[] AudioData, int DurationMs, string VoiceId, string Provider);
-public record TtsVoiceInfo(string Id, string Name, string DisplayName, string Locale, string Gender, string Provider);

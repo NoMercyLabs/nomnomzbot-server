@@ -3,6 +3,7 @@
 
 using Microsoft.Extensions.Logging;
 using NoMercyBot.Application.Contracts.Tts;
+using NoMercyBot.Domain.Interfaces;
 
 namespace NoMercyBot.Infrastructure.Stubs;
 

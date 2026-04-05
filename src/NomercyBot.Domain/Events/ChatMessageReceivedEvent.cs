@@ -12,7 +12,7 @@ namespace NoMercyBot.Domain.Events;
 public sealed class ChatMessageReceivedEvent : DomainEventBase
 {
     public required string MessageId { get; init; }
-    public required string BroadcasterId { get; init; }
+    public new required string BroadcasterId { get; init; }
     public required string UserId { get; init; }
     public required string UserDisplayName { get; init; }
     public required string UserLogin { get; init; }

@@ -256,10 +256,11 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
         tags.TryGetValue("bits", out var bitsRaw);
         tags.TryGetValue("reply-parent-msg-id", out var replyParentId);
 
-        var badges = ParseBadges(badgesRaw);
+        var badgeDict = ParseBadges(badgesRaw);
+        var badgeList = badgeDict.Select(kv => new NoMercyBot.Domain.ValueObjects.ChatBadge(kv.Key, kv.Value)).ToList();
         int.TryParse(bitsRaw, out var bits);
 
-        var isBroadcaster = badges.ContainsKey("broadcaster");
+        var isBroadcaster = badgeDict.ContainsKey("broadcaster");
 
         await _eventBus.PublishAsync(new ChatMessageReceivedEvent
         {
@@ -269,11 +270,12 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
             UserDisplayName = displayName ?? login ?? string.Empty,
             UserLogin = login ?? string.Empty,
             Message = messageText,
-            IsSubscriber = subRaw == "1" || badges.ContainsKey("subscriber"),
-            IsVip = vipRaw == "1" || badges.ContainsKey("vip"),
-            IsModerator = modRaw == "1" || badges.ContainsKey("moderator"),
+            Fragments = [new NoMercyBot.Domain.ValueObjects.ChatMessageFragment { Type = "text", Text = messageText }],
+            IsSubscriber = subRaw == "1" || badgeDict.ContainsKey("subscriber"),
+            IsVip = vipRaw == "1" || badgeDict.ContainsKey("vip"),
+            IsModerator = modRaw == "1" || badgeDict.ContainsKey("moderator"),
             IsBroadcaster = isBroadcaster,
-            Badges = badges,
+            Badges = badgeList,
             Bits = bits,
             ReplyParentMessageId = replyParentId,
         }, ct);

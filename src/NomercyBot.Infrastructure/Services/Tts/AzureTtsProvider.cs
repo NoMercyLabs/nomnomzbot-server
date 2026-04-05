@@ -2,6 +2,7 @@
 // Copyright (C) NoMercy Entertainment. All rights reserved.
 
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Logging;

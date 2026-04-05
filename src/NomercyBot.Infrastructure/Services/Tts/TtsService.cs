@@ -98,8 +98,7 @@ public sealed class TtsService : ITtsService
             try
             {
                 var voices = await provider.GetVoicesAsync(ct);
-                allVoices.AddRange(voices.Select(v => new TtsVoiceInfo(
-                    v.Id, v.Name, v.DisplayName, v.Locale, v.Gender, v.Provider)));
+                allVoices.AddRange(voices);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
