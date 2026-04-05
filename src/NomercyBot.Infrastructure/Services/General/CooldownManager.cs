@@ -1,0 +1,85 @@
+using System.Collections.Concurrent;
+using NoMercyBot.Application.Common.Interfaces;
+
+namespace NoMercyBot.Infrastructure.Services.General;
+
+/// <summary>
+/// ICooldownManager implementation using ConcurrentDictionary.
+/// Tracks cooldowns for commands per-channel and optionally per-user.
+/// Thread-safe for concurrent access from multiple event handlers.
+/// </summary>
+public sealed class CooldownManager : ICooldownManager
+{
+    // Key format: "{broadcasterId}:{commandName}" for global cooldowns
+    //             "{broadcasterId}:{commandName}:{userId}" for per-user cooldowns
+    private readonly ConcurrentDictionary<string, DateTime> _cooldowns = new();
+
+    public bool IsOnCooldown(string channelId, string commandName, string? userId = null)
+    {
+        var key = BuildKey(channelId, commandName, userId);
+
+        if (!_cooldowns.TryGetValue(key, out var expiresAt))
+        {
+            return false;
+        }
+
+        if (DateTime.UtcNow >= expiresAt)
+        {
+            // Cooldown expired, clean up
+            _cooldowns.TryRemove(key, out _);
+            return false;
+        }
+
+        return true;
+    }
+
+    public TimeSpan? GetRemainingCooldown(string channelId, string commandName, string? userId = null)
+    {
+        var key = BuildKey(channelId, commandName, userId);
+
+        if (!_cooldowns.TryGetValue(key, out var expiresAt))
+        {
+            return null;
+        }
+
+        var remaining = expiresAt - DateTime.UtcNow;
+        if (remaining <= TimeSpan.Zero)
+        {
+            _cooldowns.TryRemove(key, out _);
+            return null;
+        }
+
+        return remaining;
+    }
+
+    public void SetCooldown(string channelId, string commandName, TimeSpan duration, string? userId = null)
+    {
+        var key = BuildKey(channelId, commandName, userId);
+        var expiresAt = DateTime.UtcNow.Add(duration);
+        _cooldowns[key] = expiresAt;
+    }
+
+    public void ClearCooldown(string channelId, string commandName, string? userId = null)
+    {
+        var key = BuildKey(channelId, commandName, userId);
+        _cooldowns.TryRemove(key, out _);
+    }
+
+    public void ClearAllCooldowns(string channelId)
+    {
+        var prefix = $"{channelId}:";
+        var keysToRemove = _cooldowns.Keys.Where(k => k.StartsWith(prefix, StringComparison.Ordinal));
+
+        foreach (var key in keysToRemove)
+        {
+            _cooldowns.TryRemove(key, out _);
+        }
+    }
+
+    private static string BuildKey(string channelId, string commandName, string? userId)
+    {
+        return userId is null
+            ? $"{channelId}:{commandName}"
+            : $"{channelId}:{commandName}:{userId}";
+    }
+}
