@@ -73,10 +73,15 @@ public class FairQueueTests
         dequeued.Should().BeEquivalentTo(["a1", "a2", "b1", "b2", "c1", "c2"]);
 
         // The first three should be the round-1 items, in insertion order
-        dequeued[..3].Should().BeEquivalentTo(["a1", "b1", "c1"],
-            "rank-1 items from all owners come before rank-2 items");
-        dequeued[3..].Should().BeEquivalentTo(["a2", "b2", "c2"],
-            "rank-2 items follow after all rank-1 items");
+        dequeued[..3]
+            .Should()
+            .BeEquivalentTo(
+                ["a1", "b1", "c1"],
+                "rank-1 items from all owners come before rank-2 items"
+            );
+        dequeued[3..]
+            .Should()
+            .BeEquivalentTo(["a2", "b2", "c2"], "rank-2 items follow after all rank-1 items");
     }
 
     [Fact]
@@ -189,12 +194,15 @@ public class FairQueueTests
         var q = new FairQueue<int>();
         const int iterations = 100;
 
-        var tasks = Enumerable.Range(0, 10).Select(ownerId =>
-            Task.Run(() =>
-            {
-                for (int i = 0; i < iterations; i++)
-                    q.Enqueue($"owner{ownerId}", ownerId * iterations + i);
-            }));
+        var tasks = Enumerable
+            .Range(0, 10)
+            .Select(ownerId =>
+                Task.Run(() =>
+                {
+                    for (int i = 0; i < iterations; i++)
+                        q.Enqueue($"owner{ownerId}", ownerId * iterations + i);
+                })
+            );
 
         await Task.WhenAll(tasks);
 
