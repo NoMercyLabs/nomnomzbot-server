@@ -33,6 +33,7 @@ public interface IApplicationDbContext
     DbSet<TtsCacheEntry> TtsCacheEntries { get; }
     DbSet<Pronoun> Pronouns { get; }
     DbSet<DeletionAuditLog> DeletionAuditLogs { get; }
+    DbSet<NoMercyBot.Domain.Entities.Timer> Timers { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

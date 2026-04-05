@@ -112,6 +112,87 @@ public sealed class TwitchApiService : ITwitchApiService
         return await BanOrTimeoutAsync(broadcasterId, userId, null, reason, ct);
     }
 
+    public async Task<bool> UnbanUserAsync(
+        string broadcasterId,
+        string userId,
+        CancellationToken ct = default)
+    {
+        var tokenInfo = await GetModeratorTokenAsync(broadcasterId, ct);
+        if (tokenInfo is null)
+        {
+            _logger.LogWarning("No moderator token for broadcaster {BroadcasterId}, skipping unban", broadcasterId);
+            return false;
+        }
+
+        var url = $"{HelixBase}/moderation/bans" +
+                  $"?broadcaster_id={Uri.EscapeDataString(broadcasterId)}" +
+                  $"&moderator_id={Uri.EscapeDataString(broadcasterId)}" +
+                  $"&user_id={Uri.EscapeDataString(userId)}";
+
+        var response = await SendHelixAsync(HttpMethod.Delete, url, tokenInfo.Value, null, ct);
+        return response is { IsSuccessStatusCode: true };
+    }
+
+    public async Task<bool> SendChatMessageAsync(
+        string broadcasterId,
+        string senderUserId,
+        string message,
+        string? replyParentMessageId = null,
+        CancellationToken ct = default)
+    {
+        var tokenInfo = await GetBotTokenAsync(ct);
+        if (tokenInfo is null)
+        {
+            _logger.LogWarning("No bot token available, cannot send chat message to {BroadcasterId}", broadcasterId);
+            return false;
+        }
+
+        var body = replyParentMessageId is not null
+            ? (object)new
+            {
+                broadcaster_id = broadcasterId,
+                sender_id = senderUserId,
+                message,
+                reply_parent_message_id = replyParentMessageId,
+            }
+            : (object)new
+            {
+                broadcaster_id = broadcasterId,
+                sender_id = senderUserId,
+                message,
+            };
+
+        var response = await SendHelixAsync(HttpMethod.Post, $"{HelixBase}/chat/messages", tokenInfo.Value, body, ct);
+        if (response is null) return false;
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var err = await response.Content.ReadAsStringAsync(ct);
+            _logger.LogWarning("Helix SendChatMessage failed for {BroadcasterId}: {Status} — {Error}",
+                broadcasterId, response.StatusCode, err);
+            return false;
+        }
+
+        return true;
+    }
+
+    public async Task<bool> DeleteChatMessageAsync(
+        string broadcasterId,
+        string messageId,
+        CancellationToken ct = default)
+    {
+        var tokenInfo = await GetModeratorTokenAsync(broadcasterId, ct);
+        if (tokenInfo is null) return false;
+
+        var url = $"{HelixBase}/moderation/chat" +
+                  $"?broadcaster_id={Uri.EscapeDataString(broadcasterId)}" +
+                  $"&moderator_id={Uri.EscapeDataString(broadcasterId)}" +
+                  $"&message_id={Uri.EscapeDataString(messageId)}";
+
+        var response = await SendHelixAsync(HttpMethod.Delete, url, tokenInfo.Value, null, ct);
+        return response is { IsSuccessStatusCode: true };
+    }
+
     public async Task<bool> ShoutoutAsync(
         string broadcasterId,
         string toUserId,

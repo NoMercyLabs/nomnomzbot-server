@@ -28,6 +28,10 @@ using NoMercyBot.Infrastructure.Services.Security;
 using NoMercyBot.Infrastructure.Services.Trust;
 using NoMercyBot.Infrastructure.Services.Tts;
 using NoMercyBot.Infrastructure.Services.Twitch;
+using NoMercyBot.Infrastructure.EventHandlers;
+using NoMercyBot.Infrastructure.Pipeline;
+using NoMercyBot.Infrastructure.Pipeline.Actions;
+using NoMercyBot.Infrastructure.Pipeline.Conditions;
 
 namespace NoMercyBot.Infrastructure;
 
@@ -81,6 +85,25 @@ public static class DependencyInjection
         services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
         services.AddSingleton<ICooldownManager, CooldownManager>();
         services.AddSingleton<ITemplateEngine, TemplateEngine>();
+        services.AddSingleton<ITemplateResolver, TemplateResolver>();
+        services.AddSingleton<ITrustService, TrustService>();
+
+        // Pipeline actions (transient — stateless)
+        services.AddTransient<ICommandAction, SendMessageAction>();
+        services.AddTransient<ICommandAction, SendReplyAction>();
+        services.AddTransient<ICommandAction, TimeoutAction>();
+        services.AddTransient<ICommandAction, BanAction>();
+        services.AddTransient<ICommandAction, WaitAction>();
+        services.AddTransient<ICommandAction, SetVariableAction>();
+        services.AddTransient<ICommandAction, StopAction>();
+        services.AddTransient<ICommandAction, DeleteMessageAction>();
+
+        // Pipeline conditions (transient — stateless)
+        services.AddTransient<ICommandCondition, UserRoleCondition>();
+        services.AddTransient<ICommandCondition, RandomCondition>();
+
+        // PipelineEngine (singleton — manages per-channel concurrency)
+        services.AddSingleton<IPipelineEngine, PipelineEngine>();
 
         // Identity / tenant
         services.AddHttpContextAccessor();
@@ -118,6 +141,7 @@ public static class DependencyInjection
         services.AddScoped<AutoModerationEngine>();
 
         // Music providers + service (singleton — maintain per-channel queues)
+        services.AddHttpClient("edge-tts");
         services.AddSingleton<ITtsProvider, EdgeTtsProvider>();
         services.AddHttpClient("azure-tts");
         services.AddSingleton<ITtsProvider>(sp => new AzureTtsProvider(
@@ -132,9 +156,10 @@ public static class DependencyInjection
             configuration["ElevenLabs:ApiKey"]));
         services.AddSingleton<ITtsService, TtsService>();
 
-        // Spotify HTTP client with resilience
+        // Spotify HTTP clients with resilience
         services.AddHttpClient("spotify")
             .AddSpotifyResilienceHandler();
+        services.AddHttpClient("spotify-auth");
 
         // Music providers
         services.AddScoped<SpotifyMusicProvider>();
@@ -148,6 +173,7 @@ public static class DependencyInjection
         // Background lifecycle services
         services.AddHostedService<BotLifecycleService>();
         services.AddHostedService<TimerSchedulerService>();
+        services.AddHostedService<TimerService>();
 
         // Twitch options
         services.Configure<TwitchOptions>(configuration.GetSection(TwitchOptions.SectionName));

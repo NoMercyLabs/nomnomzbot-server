@@ -399,6 +399,17 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
                 if (eventData.HasValue)
                     await HandleChatMessageAsync(eventData.Value, broadcasterId, ct);
                 break;
+
+            case "channel.chat.message_delete":
+                if (eventData.HasValue)
+                    await _eventBus.PublishAsync(new ChatMessageDeletedEvent
+                    {
+                        BroadcasterId = broadcasterId,
+                        MessageId = eventData.Value.GetProp("message_id") ?? string.Empty,
+                        DeletedByUserId = eventData.Value.GetProp("moderator_user_id") ?? string.Empty,
+                        TargetUserId = eventData.Value.GetProp("target_user_id") ?? string.Empty,
+                    }, ct);
+                break;
         }
     }
 
@@ -649,7 +660,7 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
             {
                 ["to_broadcaster_user_id"] = broadcasterId,
             },
-            "channel.chat.message" or "channel.chat.notification" => new()
+            "channel.chat.message" or "channel.chat.notification" or "channel.chat.message_delete" => new()
             {
                 ["broadcaster_user_id"] = broadcasterId,
                 ["user_id"] = broadcasterId,

@@ -9,5 +9,16 @@ namespace NoMercyBot.Domain.Interfaces;
 /// </summary>
 public interface ITemplateResolver
 {
-    Task<string> ResolveAsync(string template, IDictionary<string, object> context, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Resolves a template string using the provided context dictionary and optional channel context.
+    /// Pre-seeded variables in <paramref name="seedVariables"/> take precedence over auto-resolved values.
+    /// </summary>
+    Task<string> ResolveAsync(
+        string template,
+        IDictionary<string, string> seedVariables,
+        string? broadcasterId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Simple synchronous resolve using only the provided variables (no async DB lookups).</summary>
+    string Resolve(string template, IDictionary<string, string> variables);
 }

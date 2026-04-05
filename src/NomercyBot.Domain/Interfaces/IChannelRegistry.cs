@@ -49,6 +49,9 @@ public class ChannelContext
     // Session chatters seen since bot joined: key = userId, value = displayName
     public ConcurrentDictionary<string, string> SessionChatters { get; } = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>Messages received since the bot joined. Used by TimerService for MinChatActivity checks.</summary>
+    public long MessageCount { get; set; }
+
     public DateTimeOffset LoadedAt { get; init; } = DateTimeOffset.UtcNow;
     public DateTimeOffset LastActivityAt { get; set; } = DateTimeOffset.UtcNow;
 
