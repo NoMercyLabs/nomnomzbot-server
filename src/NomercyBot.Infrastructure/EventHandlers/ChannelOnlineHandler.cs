@@ -14,22 +14,26 @@ namespace NoMercyBot.Infrastructure.EventHandlers;
 /// <summary>
 /// Updates Channel.IsLive = true, refreshes title/game, and creates a Stream record
 /// when a stream comes online via EventSub stream.online.
+/// Also resets per-session ChannelContext state (chatters, shoutout cooldowns).
 /// stream.online EventSub does not include title/game — these are fetched from Helix.
 /// </summary>
 public sealed class ChannelOnlineHandler : IEventHandler<ChannelOnlineEvent>
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IPipelineEngine _pipeline;
+    private readonly IChannelRegistry _registry;
     private readonly ILogger<ChannelOnlineHandler> _logger;
 
     public ChannelOnlineHandler(
         IServiceScopeFactory scopeFactory,
         IPipelineEngine pipeline,
+        IChannelRegistry registry,
         ILogger<ChannelOnlineHandler> logger
     )
     {
         _scopeFactory = scopeFactory;
         _pipeline = pipeline;
+        _registry = registry;
         _logger = logger;
     }
 
@@ -70,6 +74,16 @@ public sealed class ChannelOnlineHandler : IEventHandler<ChannelOnlineEvent>
         }
 
         channel.IsLive = true;
+
+        // Reset per-session in-memory state
+        var channelCtx = _registry.Get(broadcasterId);
+        if (channelCtx is not null)
+        {
+            channelCtx.WentLiveAt = DateTimeOffset.UtcNow;
+            channelCtx.SessionChatters.Clear();
+            channelCtx.LastShoutoutPerUser.Clear();
+            channelCtx.LastGlobalShoutout = null;
+        }
         if (!string.IsNullOrEmpty(title))
             channel.Title = title;
         if (!string.IsNullOrEmpty(gameName))
