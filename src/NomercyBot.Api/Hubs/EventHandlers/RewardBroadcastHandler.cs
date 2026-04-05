@@ -20,13 +20,15 @@ public sealed class RewardRedeemedBroadcastHandler : IEventHandler<RewardRedeeme
             return Task.CompletedTask;
 
         RewardRedeemedDto dto = new(
+            BroadcasterId: @event.BroadcasterId,
             RewardId: @event.RewardId,
             RewardTitle: @event.RewardTitle,
             RedemptionId: @event.RedemptionId,
             UserId: @event.UserId,
             UserDisplayName: @event.UserDisplayName,
             Cost: @event.Cost,
-            UserInput: @event.UserInput
+            UserInput: @event.UserInput,
+            Timestamp: @event.Timestamp.ToString("O")
         );
 
         return _notifier.SendRewardRedeemedAsync(@event.BroadcasterId, dto, ct);

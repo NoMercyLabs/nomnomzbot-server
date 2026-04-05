@@ -33,6 +33,7 @@ public record ModActionDto(
 );
 
 public record CommandExecutedDto(
+    string BroadcasterId,
     string CommandName,
     string TriggeredByUserId,
     bool Succeeded,
@@ -40,13 +41,15 @@ public record CommandExecutedDto(
 );
 
 public record RewardRedeemedDto(
+    string BroadcasterId,
     string RewardId,
     string RewardTitle,
     string RedemptionId,
     string UserId,
     string UserDisplayName,
     int Cost,
-    string? UserInput
+    string? UserInput,
+    string Timestamp
 );
 
 public record PermissionChangedDto(

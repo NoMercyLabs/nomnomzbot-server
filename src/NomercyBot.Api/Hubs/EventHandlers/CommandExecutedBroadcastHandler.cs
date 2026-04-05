@@ -11,17 +11,33 @@ namespace NoMercyBot.Api.Hubs.EventHandlers;
 public sealed class CommandExecutedBroadcastHandler : IEventHandler<AfterCommandExecutedEvent>
 {
     private readonly IDashboardNotifier _notifier;
+    private readonly IChannelRegistry _registry;
 
-    public CommandExecutedBroadcastHandler(IDashboardNotifier notifier) => _notifier = notifier;
+    public CommandExecutedBroadcastHandler(IDashboardNotifier notifier, IChannelRegistry registry)
+    {
+        _notifier = notifier;
+        _registry = registry;
+    }
 
     public Task HandleAsync(AfterCommandExecutedEvent @event, CancellationToken ct = default)
     {
         if (string.IsNullOrEmpty(@event.BroadcasterId))
             return Task.CompletedTask;
 
+        if (@event.Succeeded)
+        {
+            ChannelContext? ctx = _registry.Get(@event.BroadcasterId);
+            if (ctx is not null)
+            {
+                lock (ctx.Lock)
+                    ctx.CommandsUsed++;
+            }
+        }
+
         return _notifier.SendCommandExecutedAsync(
             @event.BroadcasterId,
             new(
+                @event.BroadcasterId,
                 @event.CommandName,
                 @event.TriggeredByUserId,
                 @event.Succeeded,
