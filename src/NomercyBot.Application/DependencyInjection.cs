@@ -8,6 +8,7 @@ using NoMercyBot.Application.Features.Channels.Queries.GetChannel;
 using NoMercyBot.Application.Features.Commands.Commands.CreateCommand;
 using NoMercyBot.Application.Features.Commands.Commands.DeleteCommand;
 using NoMercyBot.Application.Features.Commands.Queries.GetCommands;
+using NoMercyBot.Application.Features.Features.Commands.ToggleFeature;
 using NoMercyBot.Application.Features.Features.Queries.GetFeatures;
 using NoMercyBot.Application.Pipeline;
 using NoMercyBot.Application.Pipeline.Actions;
@@ -28,6 +29,7 @@ public static class DependencyInjection
         services.AddScoped<GetCommandsQueryHandler>();
         services.AddScoped<GetCurrentUserQueryHandler>();
         services.AddScoped<GetFeaturesQueryHandler>();
+        services.AddScoped<ToggleFeatureCommandHandler>();
 
         // Command handlers
         services.AddScoped<CreateCommandHandler>();

@@ -31,7 +31,7 @@ public interface IWidgetService
     );
 
     /// <summary>List all widgets for a channel with pagination.</summary>
-    Task<Result<PagedList<WidgetListItem>>> ListAsync(
+    Task<Result<PagedList<WidgetDetail>>> ListAsync(
         string broadcasterId,
         PaginationParams pagination,
         CancellationToken cancellationToken = default

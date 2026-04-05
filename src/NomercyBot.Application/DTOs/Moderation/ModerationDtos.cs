@@ -67,3 +67,42 @@ public sealed record PerformModerationActionRequest
 }
 
 public sealed record ModerationActionResult(bool Success, string? Message);
+
+// ─── AutoMod Config ──────────────────────────────────────────────────────────
+
+public sealed record AutomodLinkFilterDto(bool Enabled, List<string> Whitelist);
+
+public sealed record AutomodCapsFilterDto(bool Enabled, int Threshold);
+
+public sealed record AutomodBannedPhrasesDto(bool Enabled, List<string> Phrases);
+
+public sealed record AutomodEmoteSpamDto(bool Enabled, int MaxEmotes);
+
+public sealed record AutomodConfigDto(
+    AutomodLinkFilterDto LinkFilter,
+    AutomodCapsFilterDto CapsFilter,
+    AutomodBannedPhrasesDto BannedPhrases,
+    AutomodEmoteSpamDto EmoteSpam
+);
+
+// ─── Bans ────────────────────────────────────────────────────────────────────
+
+public sealed record BannedUserDto(
+    string UserId,
+    string Username,
+    string? Reason,
+    string BannedBy,
+    DateTime BannedAt
+);
+
+// ─── Mod Log ─────────────────────────────────────────────────────────────────
+
+public sealed record ModLogEntryDto(
+    string Id,
+    string Action,
+    string Moderator,
+    string? Target,
+    string? Reason,
+    DateTime Timestamp,
+    int? Duration
+);

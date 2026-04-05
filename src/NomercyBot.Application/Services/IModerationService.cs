@@ -67,4 +67,23 @@ public interface IModerationService
         PaginationParams pagination,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>Get the auto-moderation config (link filter, caps filter, banned phrases, emote spam).</summary>
+    Task<Result<AutomodConfigDto>> GetAutomodConfigAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>Save the auto-moderation config, upserting the four built-in rule types.</summary>
+    Task<Result<AutomodConfigDto>> SaveAutomodConfigAsync(
+        string broadcasterId,
+        AutomodConfigDto config,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>List users currently banned in a channel.</summary>
+    Task<Result<List<BannedUserDto>>> GetBannedUsersAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    );
 }

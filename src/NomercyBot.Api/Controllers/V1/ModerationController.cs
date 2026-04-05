@@ -34,13 +34,12 @@ public class ModerationController : BaseController
         CancellationToken ct
     )
     {
-        PaginationParams pagination = new(
-            request.Page,
-            request.Take,
-            request.Sort,
-            request.Order
+        PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
+        Result<PagedList<ModerationRuleListItem>> result = await _moderationService.ListRulesAsync(
+            channelId,
+            pagination,
+            ct
         );
-        Result<PagedList<ModerationRuleListItem>> result = await _moderationService.ListRulesAsync(channelId, pagination, ct);
         if (result.IsFailure)
             return ResultResponse(result);
         return GetPaginatedResponse(result.Value, request);
@@ -54,7 +53,11 @@ public class ModerationController : BaseController
         CancellationToken ct
     )
     {
-        Result<ModerationRuleDetail> result = await _moderationService.CreateRuleAsync(channelId, request, ct);
+        Result<ModerationRuleDetail> result = await _moderationService.CreateRuleAsync(
+            channelId,
+            request,
+            ct
+        );
         if (result.IsFailure)
             return ResultResponse(result);
 
@@ -78,7 +81,12 @@ public class ModerationController : BaseController
         CancellationToken ct
     )
     {
-        Result<ModerationRuleDetail> result = await _moderationService.UpdateRuleAsync(channelId, ruleId, request, ct);
+        Result<ModerationRuleDetail> result = await _moderationService.UpdateRuleAsync(
+            channelId,
+            ruleId,
+            request,
+            ct
+        );
         if (result.IsFailure)
             return ResultResponse(result);
         return Ok(new StatusResponseDto<ModerationRuleDetail> { Data = result.Value });
@@ -94,6 +102,102 @@ public class ModerationController : BaseController
         return NoContent();
     }
 
+    // ─── AutoMod Config ──────────────────────────────────────────────────────
+
+    [HttpGet("automod")]
+    [ProducesResponseType<StatusResponseDto<AutomodConfigDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAutomodConfig(string channelId, CancellationToken ct)
+    {
+        Result<AutomodConfigDto> result = await _moderationService.GetAutomodConfigAsync(
+            channelId,
+            ct
+        );
+        return ResultResponse(result);
+    }
+
+    [HttpPost("automod")]
+    [ProducesResponseType<StatusResponseDto<AutomodConfigDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SaveAutomodConfig(
+        string channelId,
+        [FromBody] AutomodConfigDto request,
+        CancellationToken ct
+    )
+    {
+        Result<AutomodConfigDto> result = await _moderationService.SaveAutomodConfigAsync(
+            channelId,
+            request,
+            ct
+        );
+        return ResultResponse(result);
+    }
+
+    // ─── Bans ─────────────────────────────────────────────────────────────────
+
+    [HttpGet("bans")]
+    [ProducesResponseType<StatusResponseDto<List<BannedUserDto>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetBannedUsers(string channelId, CancellationToken ct)
+    {
+        Result<List<BannedUserDto>> result = await _moderationService.GetBannedUsersAsync(
+            channelId,
+            ct
+        );
+        return ResultResponse(result);
+    }
+
+    [HttpDelete("bans/{userId}")]
+    [ProducesResponseType<StatusResponseDto<ModerationActionResult>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> UnbanUser(
+        string channelId,
+        string userId,
+        CancellationToken ct
+    )
+    {
+        Result<ModerationActionResult> result = await _moderationService.UnbanAsync(
+            channelId,
+            userId,
+            ct
+        );
+        return ResultResponse(result);
+    }
+
+    // ─── Mod Log ─────────────────────────────────────────────────────────────
+
+    [HttpGet("log")]
+    [ProducesResponseType<PaginatedResponse<ModLogEntryDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetModLog(
+        string channelId,
+        [FromQuery] PageRequestDto request,
+        CancellationToken ct
+    )
+    {
+        PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
+        Result<PagedList<ModerationActionLog>> result = await _moderationService.GetActionsAsync(
+            channelId,
+            pagination,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+
+        PagedList<ModLogEntryDto> mapped = new(
+            result
+                .Value.Items.Select(a => new ModLogEntryDto(
+                    a.Id,
+                    a.Action,
+                    a.ModeratorUsername,
+                    a.TargetUsername,
+                    a.Reason,
+                    a.Timestamp,
+                    a.DurationSeconds
+                ))
+                .ToList(),
+            result.Value.TotalCount,
+            result.Value.Page,
+            result.Value.PageSize
+        );
+        return GetPaginatedResponse(mapped, request);
+    }
+
     // ─── Actions ─────────────────────────────────────────────────────────────
 
     [HttpGet("actions")]
@@ -104,13 +208,12 @@ public class ModerationController : BaseController
         CancellationToken ct
     )
     {
-        PaginationParams pagination = new(
-            request.Page,
-            request.Take,
-            request.Sort,
-            request.Order
+        PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
+        Result<PagedList<ModerationActionLog>> result = await _moderationService.GetActionsAsync(
+            channelId,
+            pagination,
+            ct
         );
-        Result<PagedList<ModerationActionLog>> result = await _moderationService.GetActionsAsync(channelId, pagination, ct);
         if (result.IsFailure)
             return ResultResponse(result);
         return GetPaginatedResponse(result.Value, request);

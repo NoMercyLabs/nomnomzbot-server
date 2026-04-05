@@ -23,23 +23,33 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
 
     public async Task HandleAsync(ChatMessageReceivedEvent evt, CancellationToken ct = default)
     {
+        string userType =
+            evt.IsBroadcaster ? "broadcaster"
+            : evt.IsModerator ? "moderator"
+            : evt.IsVip ? "vip"
+            : evt.IsSubscriber ? "subscriber"
+            : "viewer";
+
         DashboardChatMessageDto dto = new(
-            MessageId: evt.MessageId,
-            BroadcasterId: evt.BroadcasterId,
+            Id: evt.MessageId,
+            ChannelId: evt.BroadcasterId,
             UserId: evt.UserId,
-            UserDisplayName: evt.UserDisplayName,
-            UserLogin: evt.UserLogin,
+            DisplayName: evt.UserDisplayName,
+            Username: evt.UserLogin,
             Message: evt.Message,
             Fragments: evt.Fragments.Select(MapFragment).ToList(),
+            UserType: userType,
             IsSubscriber: evt.IsSubscriber,
             IsVip: evt.IsVip,
             IsModerator: evt.IsModerator,
             IsBroadcaster: evt.IsBroadcaster,
+            IsCheer: evt.Bits > 0,
+            IsCommand: false,
             Badges: evt.Badges.Select(b => new ChatBadgeDto(b.SetId, b.Id, b.Info)).ToList(),
-            Bits: evt.Bits,
-            ColorHex: evt.ColorHex,
+            BitsAmount: evt.Bits,
+            Color: evt.ColorHex,
             MessageType: evt.MessageType,
-            ReplyParentMessageId: evt.ReplyParentMessageId,
+            ReplyToMessageId: evt.ReplyParentMessageId,
             ReplyParentMessageBody: evt.ReplyParentMessageBody,
             ReplyParentUserName: evt.ReplyParentUserName,
             Timestamp: DateTimeOffset.UtcNow.ToString("O")
@@ -53,20 +63,24 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
             Type: f.Type,
             Text: f.Text,
             Emote: f.EmoteId is not null
-                ? new ChatEmoteDto(f.EmoteId, f.EmoteSetId, f.EmoteOwnerId, f.EmoteFormats)
+                ? new ChatEmoteDto(
+                    Id: f.EmoteId,
+                    SetId: f.EmoteSetId,
+                    Format: f.EmoteFormats.Contains("animated") ? "animated" : "static"
+                )
                 : null,
             Cheermote: f.CheermotePrefix is not null
                 ? new ChatCheermoteDto(
-                    f.CheermotePrefix,
-                    f.CheermoteBits ?? 0,
-                    f.CheermoteTier ?? 1
+                    Prefix: f.CheermotePrefix,
+                    Bits: f.CheermoteBits ?? 0,
+                    Tier: f.CheermoteTier ?? 1
                 )
                 : null,
             Mention: f.MentionUserId is not null
                 ? new ChatMentionDto(
-                    f.MentionUserId,
-                    f.MentionUserLogin ?? string.Empty,
-                    f.MentionUserName ?? string.Empty
+                    UserId: f.MentionUserId,
+                    Username: f.MentionUserLogin ?? string.Empty,
+                    DisplayName: f.MentionUserName ?? string.Empty
                 )
                 : null
         );

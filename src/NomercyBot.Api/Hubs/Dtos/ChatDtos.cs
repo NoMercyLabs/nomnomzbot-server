@@ -4,28 +4,33 @@ namespace NoMercyBot.Api.Hubs.Dtos;
 /// <summary>
 /// Rich chat message DTO sent to dashboard/overlay clients via SignalR.
 /// Includes structured fragments for inline emote, mention, and cheermote rendering.
+/// Field names match the frontend ChatMessagePayload type exactly.
 /// </summary>
 public record DashboardChatMessageDto(
-    string MessageId,
-    string BroadcasterId,
+    string Id,
+    string ChannelId,
     string UserId,
-    string UserDisplayName,
-    string UserLogin,
+    string DisplayName,
+    string Username,
     /// <summary>Raw plain-text fallback (for clients that don't render fragments).</summary>
     string Message,
     /// <summary>Structured fragments: text, emote, cheermote, mention.</summary>
     IReadOnlyList<ChatFragmentDto> Fragments,
+    /// <summary>Derived role: broadcaster | moderator | vip | subscriber | viewer</summary>
+    string UserType,
     bool IsSubscriber,
     bool IsVip,
     bool IsModerator,
     bool IsBroadcaster,
+    bool IsCheer,
+    bool IsCommand,
     IReadOnlyList<ChatBadgeDto> Badges,
-    int Bits,
-    /// <summary>User's chat color #RRGGBB — also used as accent color in dashboard.</summary>
-    string? ColorHex,
+    int BitsAmount,
+    /// <summary>User's chat color #RRGGBB.</summary>
+    string? Color,
     /// <summary>Message type: text | channel_points_highlighted | channel_points_sub_only | user_intro</summary>
     string MessageType,
-    string? ReplyParentMessageId,
+    string? ReplyToMessageId,
     string? ReplyParentMessageBody,
     string? ReplyParentUserName,
     string Timestamp
@@ -41,13 +46,13 @@ public record ChatFragmentDto(
 );
 
 /// <summary>Emote fragment data.</summary>
-public record ChatEmoteDto(string EmoteId, string? EmoteSetId, string? OwnerId, string[] Formats);
+public record ChatEmoteDto(string Id, string? SetId, string Format);
 
 /// <summary>Cheermote fragment data.</summary>
 public record ChatCheermoteDto(string Prefix, int Bits, int Tier);
 
 /// <summary>Mention fragment data (@user).</summary>
-public record ChatMentionDto(string UserId, string UserLogin, string UserName);
+public record ChatMentionDto(string UserId, string Username, string DisplayName);
 
 /// <summary>A chat badge (subscriber, moderator, etc.).</summary>
 public record ChatBadgeDto(string SetId, string Id, string? Info = null);

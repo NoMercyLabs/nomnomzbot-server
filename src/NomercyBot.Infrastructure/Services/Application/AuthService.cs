@@ -87,10 +87,13 @@ public sealed class AuthService : IAuthService
         CancellationToken cancellationToken = default
     )
     {
-        // Exchange code for tokens
+        // Exchange code for tokens.
+        // Mobile clients send their own redirect URI (e.g. nomercybot://callback) which
+        // must match what was used in the authorization request.
+        string redirectUri = callback.RedirectUri ?? _options.RedirectUri;
         TokenResult? tokens = await _twitchAuth.ExchangeCodeAsync(
             callback.Code,
-            _options.RedirectUri,
+            redirectUri,
             cancellationToken
         );
         if (tokens is null)
@@ -133,30 +136,39 @@ public sealed class AuthService : IAuthService
             user.ProfileImageUrl = twitchUser.ProfileImageUrl;
         }
 
-        // Store Twitch tokens in Service table
-        Service? service = await _db.Services.FirstOrDefaultAsync(
-            s => s.BroadcasterId == twitchUser.Id && s.Name == "twitch",
-            cancellationToken
-        );
-
-        if (service is null)
-        {
-            service = new()
-            {
-                Name = "twitch",
-                BroadcasterId = twitchUser.Id,
-                UserId = twitchUser.Id,
-                Enabled = true,
-            };
-            _db.Services.Add(service);
-        }
-
-        service.AccessToken = _encryption.Encrypt(tokens.AccessToken);
-        service.RefreshToken = _encryption.Encrypt(tokens.RefreshToken);
-        service.TokenExpiry = tokens.ExpiresAt;
-        service.Scopes = tokens.Scopes;
-
         await _db.SaveChangesAsync(cancellationToken);
+
+        // Store Twitch tokens in Service table.
+        // The Services FK requires a Channel row; skip if the user hasn't onboarded yet.
+        bool channelExists = await _db.Channels.AnyAsync(
+            c => c.Id == twitchUser.Id, cancellationToken);
+
+        if (channelExists)
+        {
+            Service? service = await _db.Services.FirstOrDefaultAsync(
+                s => s.BroadcasterId == twitchUser.Id && s.Name == "twitch",
+                cancellationToken
+            );
+
+            if (service is null)
+            {
+                service = new()
+                {
+                    Name = "twitch",
+                    BroadcasterId = twitchUser.Id,
+                    UserId = twitchUser.Id,
+                    Enabled = true,
+                };
+                _db.Services.Add(service);
+            }
+
+            service.AccessToken = _encryption.Encrypt(tokens.AccessToken);
+            service.RefreshToken = _encryption.Encrypt(tokens.RefreshToken);
+            service.TokenExpiry = tokens.ExpiresAt;
+            service.Scopes = tokens.Scopes;
+
+            await _db.SaveChangesAsync(cancellationToken);
+        }
 
         // Issue platform JWT
         IEnumerable<string> roles = user.IsAdmin ? ["user", "admin"] : ["user"];

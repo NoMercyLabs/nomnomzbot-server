@@ -407,6 +407,218 @@ public class ModerationService : IModerationService
         return Result.Success(new ModerationActionResult(true, $"{action} applied successfully."));
     }
 
+    public async Task<Result<AutomodConfigDto>> GetAutomodConfigAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        List<Record> rules = await _db
+            .Records.Where(r =>
+                r.BroadcasterId == broadcasterId
+                && r.RecordType == RuleRecordType
+                && (
+                    r.Data.Contains("\"link_filter\"")
+                    || r.Data.Contains("\"caps_filter\"")
+                    || r.Data.Contains("\"banned_phrases\"")
+                    || r.Data.Contains("\"emote_spam\"")
+                )
+            )
+            .ToListAsync(cancellationToken);
+
+        AutomodLinkFilterDto linkFilter = new(false, []);
+        AutomodCapsFilterDto capsFilter = new(false, 70);
+        AutomodBannedPhrasesDto bannedPhrases = new(false, []);
+        AutomodEmoteSpamDto emoteSpam = new(false, 10);
+
+        foreach (Record rule in rules)
+        {
+            ModerationRuleData data =
+                JsonSerializer.Deserialize<ModerationRuleData>(rule.Data)
+                ?? new ModerationRuleData();
+
+            switch (data.Type)
+            {
+                case "link_filter":
+                    List<string> whitelist =
+                        data.Settings.TryGetValue("whitelist", out object? wl)
+                        && wl is JsonElement wlEl
+                            ? wlEl.EnumerateArray()
+                                .Select(e => e.GetString() ?? "")
+                                .Where(s => s != "")
+                                .ToList()
+                            : [];
+                    linkFilter = new(data.IsEnabled, whitelist);
+                    break;
+
+                case "caps_filter":
+                    int threshold =
+                        data.Settings.TryGetValue("threshold", out object? thr)
+                        && thr is JsonElement thrEl
+                            ? thrEl.GetInt32()
+                            : 70;
+                    capsFilter = new(data.IsEnabled, threshold);
+                    break;
+
+                case "banned_phrases":
+                    List<string> phrases =
+                        data.Settings.TryGetValue("phrases", out object? ph)
+                        && ph is JsonElement phEl
+                            ? phEl.EnumerateArray()
+                                .Select(e => e.GetString() ?? "")
+                                .Where(s => s != "")
+                                .ToList()
+                            : [];
+                    bannedPhrases = new(data.IsEnabled, phrases);
+                    break;
+
+                case "emote_spam":
+                    int maxEmotes =
+                        data.Settings.TryGetValue("maxEmotes", out object? me)
+                        && me is JsonElement meEl
+                            ? meEl.GetInt32()
+                            : 10;
+                    emoteSpam = new(data.IsEnabled, maxEmotes);
+                    break;
+            }
+        }
+
+        return Result.Success(
+            new AutomodConfigDto(linkFilter, capsFilter, bannedPhrases, emoteSpam)
+        );
+    }
+
+    public async Task<Result<AutomodConfigDto>> SaveAutomodConfigAsync(
+        string broadcasterId,
+        AutomodConfigDto config,
+        CancellationToken cancellationToken = default
+    )
+    {
+        bool channelExists = await _db.Channels.AnyAsync(
+            c => c.Id == broadcasterId,
+            cancellationToken
+        );
+        if (!channelExists)
+            return Errors.ChannelNotFound<AutomodConfigDto>(broadcasterId);
+
+        (string type, bool enabled, Dictionary<string, object?> settings)[] automodRules =
+        [
+            (
+                "link_filter",
+                config.LinkFilter.Enabled,
+                new Dictionary<string, object?> { ["whitelist"] = config.LinkFilter.Whitelist }
+            ),
+            (
+                "caps_filter",
+                config.CapsFilter.Enabled,
+                new Dictionary<string, object?> { ["threshold"] = config.CapsFilter.Threshold }
+            ),
+            (
+                "banned_phrases",
+                config.BannedPhrases.Enabled,
+                new Dictionary<string, object?> { ["phrases"] = config.BannedPhrases.Phrases }
+            ),
+            (
+                "emote_spam",
+                config.EmoteSpam.Enabled,
+                new Dictionary<string, object?> { ["maxEmotes"] = config.EmoteSpam.MaxEmotes }
+            ),
+        ];
+
+        foreach ((string type, bool enabled, Dictionary<string, object?> settings) in automodRules)
+        {
+            string typeJson = $"\"{type}\"";
+            Record? existing = await _db
+                .Records.Where(r =>
+                    r.BroadcasterId == broadcasterId
+                    && r.RecordType == RuleRecordType
+                    && r.Data.Contains(typeJson)
+                )
+                .FirstOrDefaultAsync(cancellationToken);
+
+            ModerationRuleData ruleData = existing is not null
+                ? JsonSerializer.Deserialize<ModerationRuleData>(existing.Data)
+                    ?? new ModerationRuleData()
+                : new ModerationRuleData
+                {
+                    Name = type,
+                    Type = type,
+                    Action = "delete",
+                };
+
+            ruleData.IsEnabled = enabled;
+            ruleData.Settings = settings;
+
+            if (existing is not null)
+            {
+                existing.Data = JsonSerializer.Serialize(ruleData);
+                existing.UpdatedAt = DateTime.UtcNow;
+            }
+            else
+            {
+                _db.Records.Add(
+                    new()
+                    {
+                        BroadcasterId = broadcasterId,
+                        RecordType = RuleRecordType,
+                        Data = JsonSerializer.Serialize(ruleData),
+                        UserId = broadcasterId,
+                    }
+                );
+            }
+        }
+
+        await _db.SaveChangesAsync(cancellationToken);
+
+        return await GetAutomodConfigAsync(broadcasterId, cancellationToken);
+    }
+
+    public async Task<Result<List<BannedUserDto>>> GetBannedUsersAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        List<Record> actions = await _db
+            .Records.Include(r => r.User)
+            .Where(r =>
+                r.BroadcasterId == broadcasterId
+                && r.RecordType == ActionRecordType
+                && (r.Data.Contains("\"ban\"") || r.Data.Contains("\"unban\""))
+            )
+            .OrderByDescending(r => r.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        // Build the latest action per target user
+        Dictionary<
+            string,
+            (string action, Record record, ModerationActionData data)
+        > latestByTarget = new(StringComparer.OrdinalIgnoreCase);
+
+        foreach (Record r in actions)
+        {
+            ModerationActionData d =
+                JsonSerializer.Deserialize<ModerationActionData>(r.Data)
+                ?? new ModerationActionData();
+            if (d.TargetUserId is null)
+                continue;
+            if (!latestByTarget.ContainsKey(d.TargetUserId))
+                latestByTarget[d.TargetUserId] = (d.Action, r, d);
+        }
+
+        List<BannedUserDto> banned = latestByTarget
+            .Values.Where(e => e.action == "ban")
+            .Select(e => new BannedUserDto(
+                e.data.TargetUserId!,
+                e.data.TargetUsername ?? e.data.TargetUserId!,
+                e.data.Reason,
+                e.record.User?.Username ?? e.record.UserId,
+                e.record.CreatedAt
+            ))
+            .OrderByDescending(b => b.BannedAt)
+            .ToList();
+
+        return Result.Success(banned);
+    }
+
     // ─── Private data shapes stored in Record.Data ───────────────────────────
 
     private sealed class ModerationRuleData

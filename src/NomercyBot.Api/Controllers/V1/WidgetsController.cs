@@ -38,7 +38,7 @@ public class WidgetsController : BaseController
             request.Sort,
             request.Order
         );
-        Result<PagedList<WidgetListItem>> result = await _widgetService.ListAsync(channelId, pagination, ct);
+        Result<PagedList<WidgetDetail>> result = await _widgetService.ListAsync(channelId, pagination, ct);
         if (result.IsFailure)
             return ResultResponse(result);
         return GetPaginatedResponse(result.Value, request);

@@ -48,3 +48,15 @@ public sealed record UserStatsDto(
     DateTime? LastActive,
     bool ExportAvailable
 );
+
+/// <summary>User entry as seen in the admin user list.</summary>
+public sealed record AdminUserDto(
+    string Id,
+    string DisplayName,
+    string Login,
+    string? Email,
+    string Role,
+    int ChannelCount,
+    DateTime CreatedAt,
+    DateTime? LastActive
+);

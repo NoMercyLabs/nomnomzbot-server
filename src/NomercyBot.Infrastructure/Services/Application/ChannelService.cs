@@ -241,6 +241,7 @@ public class ChannelService : IChannelService
             null,
             c.BotJoinedAt,
             "free",
+            c.Language,
             c.CreatedAt
         );
 }

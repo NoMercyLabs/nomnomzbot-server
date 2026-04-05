@@ -23,9 +23,9 @@ public sealed class JwtTokenService : IJwtTokenService
         _issuer = jwtSection["Issuer"] ?? "NomercyBot";
         _audience = jwtSection["Audience"] ?? "NomercyBot";
         _key = Encoding.UTF8.GetBytes(
-            jwtSection["Key"] ?? throw new InvalidOperationException("JWT Key is not configured.")
+            jwtSection["Secret"] ?? jwtSection["Key"] ?? throw new InvalidOperationException("JWT Secret is not configured.")
         );
-        _expiration = TimeSpan.FromMinutes(double.Parse(jwtSection["ExpirationMinutes"] ?? "60"));
+        _expiration = TimeSpan.FromMinutes(double.Parse(jwtSection["ExpiryMinutes"] ?? jwtSection["ExpirationMinutes"] ?? "60"));
     }
 
     public string GenerateToken(string userId, string username, IEnumerable<string>? roles = null)

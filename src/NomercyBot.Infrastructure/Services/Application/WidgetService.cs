@@ -2,6 +2,7 @@
 // Copyright (C) NoMercy Entertainment. All rights reserved.
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using NoMercyBot.Application.Common.Interfaces;
 using NoMercyBot.Application.Common.Models;
 using NoMercyBot.Application.DTOs.Widgets;
@@ -13,10 +14,12 @@ namespace NoMercyBot.Infrastructure.Services.Application;
 public class WidgetService : IWidgetService
 {
     private readonly IApplicationDbContext _db;
+    private readonly string _overlayBaseUrl;
 
-    public WidgetService(IApplicationDbContext db)
+    public WidgetService(IApplicationDbContext db, IConfiguration configuration)
     {
         _db = db;
+        _overlayBaseUrl = configuration["OverlayBaseUrl"] ?? "http://localhost:8080";
     }
 
     public async Task<Result<WidgetDetail>> CreateAsync(
@@ -25,12 +28,12 @@ public class WidgetService : IWidgetService
         CancellationToken cancellationToken = default
     )
     {
-        bool channelExists = await _db.Channels.AnyAsync(
+        Channel? channel = await _db.Channels.FirstOrDefaultAsync(
             c => c.Id == broadcasterId,
             cancellationToken
         );
 
-        if (!channelExists)
+        if (channel is null)
             return Errors.ChannelNotFound<WidgetDetail>(broadcasterId);
 
         Widget widget = new()
@@ -49,7 +52,7 @@ public class WidgetService : IWidgetService
         _db.Widgets.Add(widget);
         await _db.SaveChangesAsync(cancellationToken);
 
-        return Result.Success(ToDetail(widget));
+        return Result.Success(ToDetail(widget, channel.OverlayToken, _overlayBaseUrl));
     }
 
     public async Task<Result<WidgetDetail>> UpdateAsync(
@@ -59,10 +62,12 @@ public class WidgetService : IWidgetService
         CancellationToken cancellationToken = default
     )
     {
-        Widget? widget = await _db.Widgets.FirstOrDefaultAsync(
-            w => w.Id == widgetId && w.BroadcasterId == broadcasterId,
-            cancellationToken
-        );
+        Widget? widget = await _db.Widgets
+            .Include(w => w.Channel)
+            .FirstOrDefaultAsync(
+                w => w.Id == widgetId && w.BroadcasterId == broadcasterId,
+                cancellationToken
+            );
 
         if (widget is null)
             return Errors.NotFound<WidgetDetail>("Widget", widgetId);
@@ -78,7 +83,7 @@ public class WidgetService : IWidgetService
 
         await _db.SaveChangesAsync(cancellationToken);
 
-        return Result.Success(ToDetail(widget));
+        return Result.Success(ToDetail(widget, widget.Channel.OverlayToken, _overlayBaseUrl));
     }
 
     public async Task<Result> DeleteAsync(
@@ -101,25 +106,29 @@ public class WidgetService : IWidgetService
         return Result.Success();
     }
 
-    public async Task<Result<PagedList<WidgetListItem>>> ListAsync(
+    public async Task<Result<PagedList<WidgetDetail>>> ListAsync(
         string broadcasterId,
         PaginationParams pagination,
         CancellationToken cancellationToken = default
     )
     {
-        IQueryable<Widget> query = _db.Widgets.Where(w => w.BroadcasterId == broadcasterId);
+        IQueryable<Widget> query = _db.Widgets
+            .Include(w => w.Channel)
+            .Where(w => w.BroadcasterId == broadcasterId);
+
         int total = await query.CountAsync(cancellationToken);
 
-        List<WidgetListItem> items = await query
+        List<Widget> widgets = await query
             .OrderBy(w => w.Name)
             .Skip((pagination.Page - 1) * pagination.PageSize)
             .Take(pagination.PageSize)
-            .Select(w => new WidgetListItem(w.Id, w.Name, w.Framework, w.IsEnabled, w.CreatedAt))
             .ToListAsync(cancellationToken);
 
-        return Result.Success(
-            new PagedList<WidgetListItem>(items, total, pagination.Page, pagination.PageSize)
-        );
+        List<WidgetDetail> items = widgets
+            .Select(w => ToDetail(w, w.Channel.OverlayToken, _overlayBaseUrl))
+            .ToList();
+
+        return Result.Success(new PagedList<WidgetDetail>(items, total, pagination.Page, pagination.PageSize));
     }
 
     public async Task<Result<WidgetDetail>> GetAsync(
@@ -128,15 +137,17 @@ public class WidgetService : IWidgetService
         CancellationToken cancellationToken = default
     )
     {
-        Widget? widget = await _db.Widgets.FirstOrDefaultAsync(
-            w => w.Id == widgetId && w.BroadcasterId == broadcasterId,
-            cancellationToken
-        );
+        Widget? widget = await _db.Widgets
+            .Include(w => w.Channel)
+            .FirstOrDefaultAsync(
+                w => w.Id == widgetId && w.BroadcasterId == broadcasterId,
+                cancellationToken
+            );
 
         if (widget is null)
             return Errors.NotFound<WidgetDetail>("Widget", widgetId);
 
-        return Result.Success(ToDetail(widget));
+        return Result.Success(ToDetail(widget, widget.Channel.OverlayToken, _overlayBaseUrl));
     }
 
     public async Task<Result<WidgetDetail>> GetByTokenAsync(
@@ -144,7 +155,6 @@ public class WidgetService : IWidgetService
         CancellationToken cancellationToken = default
     )
     {
-        // Widgets are accessed via channel overlay token; look up the channel first
         Channel? channel = await _db.Channels.FirstOrDefaultAsync(
             c => c.OverlayToken == token,
             cancellationToken
@@ -156,7 +166,6 @@ public class WidgetService : IWidgetService
                 "NOT_FOUND"
             );
 
-        // Return the first enabled widget for that channel as a representative
         Widget? widget = await _db
             .Widgets.Where(w => w.BroadcasterId == channel.Id && w.IsEnabled)
             .OrderBy(w => w.Name)
@@ -168,16 +177,16 @@ public class WidgetService : IWidgetService
                 "NOT_FOUND"
             );
 
-        return Result.Success(ToDetail(widget));
+        return Result.Success(ToDetail(widget, channel.OverlayToken, _overlayBaseUrl));
     }
 
-    private static WidgetDetail ToDetail(Widget w) =>
+    private static WidgetDetail ToDetail(Widget w, string overlayToken, string overlayBaseUrl) =>
         new(
             w.Id,
             w.Name,
             w.Framework,
             w.IsEnabled,
-            null,
+            $"{overlayBaseUrl}/overlay?widgetId={w.Id}&token={overlayToken}",
             w.Settings.ToDictionary(k => k.Key, v => (object?)v.Value),
             w.EventSubscriptions,
             w.CreatedAt,

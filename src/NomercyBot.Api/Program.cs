@@ -165,7 +165,12 @@ try
             policy
                 .WithOrigins(
                     builder.Configuration.GetSection("Cors:Origins").Get<string[]>()
-                        ?? ["http://localhost:3000", "http://localhost:5173"]
+                        ?? [
+                        "http://localhost:3000",
+                        "http://localhost:5173",
+                        "http://localhost:8081",
+                        "https://bot-dev.nomercy.tv"
+                    ]
                 )
                 .AllowAnyHeader()
                 .AllowAnyMethod()

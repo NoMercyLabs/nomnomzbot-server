@@ -13,6 +13,7 @@ public sealed record ChannelDto(
     int? ViewerCount,
     DateTime? BotJoinedAt,
     string SubscriptionTier,
+    string? Language,
     DateTime CreatedAt
 );
 
