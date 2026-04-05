@@ -47,6 +47,11 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
     {
         if (string.IsNullOrWhiteSpace(@event.BroadcasterId)) return;
 
+        // Increment channel message counter (used by TimerService for activity gating; approximate is fine)
+        var channelCtx = _registry.Get(@event.BroadcasterId);
+        if (channelCtx is not null)
+            channelCtx.MessageCount++;
+
         var text = @event.Message?.Trim();
         if (string.IsNullOrEmpty(text) || text[0] != '!') return;
 

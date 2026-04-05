@@ -55,6 +55,9 @@ public class AppDbContext : DbContext, IApplicationDbContext
     // Audit
     public DbSet<DeletionAuditLog> DeletionAuditLogs => Set<DeletionAuditLog>();
 
+    // Timers
+    public DbSet<Domain.Entities.Timer> Timers => Set<Domain.Entities.Timer>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

@@ -127,6 +127,9 @@ public static class DependencyInjection
         services.AddSingleton<NoMercyBot.Domain.Interfaces.IChannelRegistry, ChannelRegistry>();
         services.AddHostedService(sp => (ChannelRegistry)sp.GetRequiredService<NoMercyBot.Domain.Interfaces.IChannelRegistry>());
 
+        // TimerService (singleton + hosted service — fires per-channel timers)
+        services.AddHostedService<BackgroundServices.TimerService>();
+
         // Twitch options
         services.Configure<TwitchOptions>(configuration.GetSection(TwitchOptions.SectionName));
 
