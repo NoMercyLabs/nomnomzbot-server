@@ -211,7 +211,7 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
             // configured yet), back off longer rather than tight-looping.
             if (cleanClose && _activeSubscriptions.IsEmpty)
             {
-                var idleDelay = TimeSpan.FromSeconds(30);
+                var idleDelay = TimeSpan.FromMinutes(5);
                 _logger.LogInformation(
                     "EventSub: No subscriptions — waiting {Delay:g} before reconnect",
                     idleDelay
