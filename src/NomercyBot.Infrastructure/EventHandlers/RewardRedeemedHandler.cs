@@ -57,55 +57,44 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
             ["input"] = @event.UserInput ?? string.Empty,
         };
 
-        // Try to find a Reward entity with a pipeline or response configured
-        // Rewards are matched by their Twitch reward ID stored in the RewardId field.
-        // The Reward.Id is a Guid (internal); the Twitch reward ID comes from the event.
-        // We match by searching for a reward whose title matches or by scanning platform rewards.
-        // For now, search Records with RecordType = "reward:{rewardId}" for the pipeline.
-        var rewardConfig = await db.Records.FirstOrDefaultAsync(
-            r => r.BroadcasterId == broadcasterId && r.RecordType == $"reward:{@event.RewardId}",
+        // Look up Reward entity matched by TwitchRewardId
+        var reward = await db.Rewards.FirstOrDefaultAsync(
+            r => r.BroadcasterId == broadcasterId && r.TwitchRewardId == @event.RewardId,
             cancellationToken
         );
 
-        if (rewardConfig is not null && !string.IsNullOrWhiteSpace(rewardConfig.Data))
-        {
-            _logger.LogDebug(
-                "Executing reward pipeline for reward {RewardId} in channel {Channel}",
-                @event.RewardId,
-                broadcasterId
-            );
+        var pipelineJson = reward?.PipelineJson;
 
-            await ExecutePipelineAsync(
-                broadcasterId,
-                rewardConfig.Data,
-                @event.UserId,
-                @event.UserDisplayName,
-                @event.RedemptionId,
-                @event.RewardId,
-                variables,
-                cancellationToken
-            );
-            return;
+        // Fall back to simple Response text as a send_message pipeline
+        if (pipelineJson is null && reward?.Response is not null)
+        {
+            pipelineJson = BuildResponsePipeline(reward.Response);
         }
 
-        // Fall back to generic event_response:reward_redeemed
-        var genericConfig = await db.Records.FirstOrDefaultAsync(
-            r =>
-                r.BroadcasterId == broadcasterId
-                && r.RecordType == "event_response:reward_redeemed",
-            cancellationToken
-        );
+        // Fall back to generic event_response:reward_redeemed record
+        if (pipelineJson is null)
+        {
+            var genericConfig = await db.Records.FirstOrDefaultAsync(
+                r =>
+                    r.BroadcasterId == broadcasterId
+                    && r.RecordType == "event_response:reward_redeemed",
+                cancellationToken
+            );
+            pipelineJson = genericConfig?.Data;
+        }
 
-        if (genericConfig is null || string.IsNullOrWhiteSpace(genericConfig.Data))
+        if (string.IsNullOrWhiteSpace(pipelineJson))
             return;
 
         _logger.LogDebug(
-            "Executing generic reward_redeemed pipeline for channel {Channel}",
+            "Executing pipeline for reward {RewardId} in channel {Channel}",
+            @event.RewardId,
             broadcasterId
         );
+
         await ExecutePipelineAsync(
             broadcasterId,
-            genericConfig.Data,
+            pipelineJson,
             @event.UserId,
             @event.UserDisplayName,
             @event.RedemptionId,
@@ -113,6 +102,14 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
             variables,
             cancellationToken
         );
+    }
+
+    private static string BuildResponsePipeline(string message)
+    {
+        var escaped = message.Replace("\\", "\\\\").Replace("\"", "\\\"");
+        return "{\"steps\":[{\"action\":{\"type\":\"send_message\",\"message\":\""
+            + escaped
+            + "\",\"target\":\"channel\"}}]}";
     }
 
     private async Task ExecutePipelineAsync(

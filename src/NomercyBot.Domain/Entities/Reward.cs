@@ -32,6 +32,12 @@ public class Reward : SoftDeletableEntity, ITenantScoped
 
     public bool IsPlatform { get; set; }
 
+    /// <summary>Twitch's own reward ID (UUID). Null until synced with Twitch.</summary>
+    [MaxLength(50)]
+    public string? TwitchRewardId { get; set; }
+
+    public int? Cost { get; set; }
+
     [ForeignKey(nameof(BroadcasterId))]
     public virtual Channel Channel { get; set; } = null!;
 }

@@ -528,6 +528,112 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
                 );
                 break;
 
+            case "channel.channel_points_custom_reward.add":
+                await _eventBus.PublishAsync(
+                    new RewardCreatedEvent
+                    {
+                        BroadcasterId = broadcasterId,
+                        TwitchRewardId = eventData?.GetProp("id") ?? string.Empty,
+                        Title = eventData?.GetProp("title") ?? string.Empty,
+                        Cost =
+                            envelope.Payload?.Event?.TryGetProperty("cost", out var cp) == true
+                                ? cp.GetInt32()
+                                : 0,
+                        IsEnabled = eventData?.GetProp("is_enabled") != "false",
+                    },
+                    ct
+                );
+                break;
+
+            case "channel.channel_points_custom_reward.update":
+                await _eventBus.PublishAsync(
+                    new RewardUpdatedEvent
+                    {
+                        BroadcasterId = broadcasterId,
+                        TwitchRewardId = eventData?.GetProp("id") ?? string.Empty,
+                        Title = eventData?.GetProp("title") ?? string.Empty,
+                        Cost =
+                            envelope.Payload?.Event?.TryGetProperty("cost", out var cup) == true
+                                ? cup.GetInt32()
+                                : 0,
+                        IsEnabled = eventData?.GetProp("is_enabled") != "false",
+                    },
+                    ct
+                );
+                break;
+
+            case "channel.channel_points_custom_reward.remove":
+                await _eventBus.PublishAsync(
+                    new RewardRemovedEvent
+                    {
+                        BroadcasterId = broadcasterId,
+                        TwitchRewardId = eventData?.GetProp("id") ?? string.Empty,
+                        Title = eventData?.GetProp("title") ?? string.Empty,
+                    },
+                    ct
+                );
+                break;
+
+            case "channel.poll.begin":
+                if (eventData.HasValue)
+                    await HandlePollBeginAsync(eventData.Value, broadcasterId, ct);
+                break;
+
+            case "channel.poll.end":
+                if (eventData.HasValue)
+                    await HandlePollEndAsync(eventData.Value, broadcasterId, ct);
+                break;
+
+            case "channel.prediction.begin":
+                if (eventData.HasValue)
+                    await HandlePredictionBeginAsync(eventData.Value, broadcasterId, ct);
+                break;
+
+            case "channel.prediction.lock":
+                if (eventData.HasValue)
+                    await HandlePredictionLockAsync(eventData.Value, broadcasterId, ct);
+                break;
+
+            case "channel.prediction.end":
+                if (eventData.HasValue)
+                    await HandlePredictionEndAsync(eventData.Value, broadcasterId, ct);
+                break;
+
+            case "channel.hype_train.begin":
+                int.TryParse(eventData?.GetProp("level"), out var htLevel);
+                int.TryParse(eventData?.GetProp("total"), out var htTotal);
+                int.TryParse(eventData?.GetProp("goal"), out var htGoal);
+                DateTimeOffset.TryParse(eventData?.GetProp("expires_at"), out var htExpires);
+                await _eventBus.PublishAsync(
+                    new HypeTrainBeganEvent
+                    {
+                        BroadcasterId = broadcasterId,
+                        HypeTrainId = eventData?.GetProp("id") ?? string.Empty,
+                        Level = htLevel,
+                        Total = htTotal,
+                        Goal = htGoal,
+                        ExpiresAt =
+                            htExpires == default ? DateTimeOffset.UtcNow.AddMinutes(5) : htExpires,
+                    },
+                    ct
+                );
+                break;
+
+            case "channel.hype_train.end":
+                int.TryParse(eventData?.GetProp("level"), out var hteLevel);
+                int.TryParse(eventData?.GetProp("total"), out var hteTotal);
+                await _eventBus.PublishAsync(
+                    new HypeTrainEndedEvent
+                    {
+                        BroadcasterId = broadcasterId,
+                        HypeTrainId = eventData?.GetProp("id") ?? string.Empty,
+                        Level = hteLevel,
+                        Total = hteTotal,
+                    },
+                    ct
+                );
+                break;
+
             case "channel.chat.message":
                 if (eventData.HasValue)
                     await HandleChatMessageAsync(eventData.Value, broadcasterId, ct);
@@ -549,6 +655,167 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
                     );
                 break;
         }
+    }
+
+    // ─── Poll / Prediction / HypeTrain parsing ────────────────────────────────────
+
+    private async Task HandlePollBeginAsync(
+        JsonElement ev,
+        string broadcasterId,
+        CancellationToken ct
+    )
+    {
+        var choices = ParsePollChoices(ev);
+        int.TryParse(ev.GetProp("duration_seconds"), out var duration);
+        DateTimeOffset.TryParse(ev.GetProp("ends_at"), out var endsAt);
+
+        await _eventBus.PublishAsync(
+            new PollBeganEvent
+            {
+                BroadcasterId = broadcasterId,
+                PollId = ev.GetProp("id") ?? string.Empty,
+                Title = ev.GetProp("title") ?? string.Empty,
+                Choices = choices,
+                DurationSeconds = duration,
+                EndsAt = endsAt == default ? DateTimeOffset.UtcNow.AddSeconds(duration) : endsAt,
+            },
+            ct
+        );
+    }
+
+    private async Task HandlePollEndAsync(
+        JsonElement ev,
+        string broadcasterId,
+        CancellationToken ct
+    )
+    {
+        var choices = ParsePollChoices(ev);
+        await _eventBus.PublishAsync(
+            new PollEndedEvent
+            {
+                BroadcasterId = broadcasterId,
+                PollId = ev.GetProp("id") ?? string.Empty,
+                Title = ev.GetProp("title") ?? string.Empty,
+                Status = ev.GetProp("status") ?? string.Empty,
+                Choices = choices,
+            },
+            ct
+        );
+    }
+
+    private static IReadOnlyList<PollChoice> ParsePollChoices(JsonElement ev)
+    {
+        var choices = new List<PollChoice>();
+        if (
+            ev.TryGetProperty("choices", out var choicesArr)
+            && choicesArr.ValueKind == JsonValueKind.Array
+        )
+        {
+            foreach (var c in choicesArr.EnumerateArray())
+            {
+                c.TryGetProperty("votes", out var votesEl);
+                c.TryGetProperty("channel_points_votes", out var cpVotesEl);
+                choices.Add(
+                    new PollChoice(
+                        c.GetProp("id") ?? string.Empty,
+                        c.GetProp("title") ?? string.Empty,
+                        votesEl.ValueKind == JsonValueKind.Number ? votesEl.GetInt32() : 0,
+                        cpVotesEl.ValueKind == JsonValueKind.Number ? cpVotesEl.GetInt32() : 0
+                    )
+                );
+            }
+        }
+        return choices;
+    }
+
+    private async Task HandlePredictionBeginAsync(
+        JsonElement ev,
+        string broadcasterId,
+        CancellationToken ct
+    )
+    {
+        var outcomes = ParsePredictionOutcomes(ev);
+        int.TryParse(ev.GetProp("prediction_window"), out var window);
+        DateTimeOffset.TryParse(ev.GetProp("locks_at"), out var locksAt);
+
+        await _eventBus.PublishAsync(
+            new PredictionBeganEvent
+            {
+                BroadcasterId = broadcasterId,
+                PredictionId = ev.GetProp("id") ?? string.Empty,
+                Title = ev.GetProp("title") ?? string.Empty,
+                Outcomes = outcomes,
+                WindowSeconds = window,
+                LocksAt = locksAt == default ? DateTimeOffset.UtcNow.AddSeconds(window) : locksAt,
+            },
+            ct
+        );
+    }
+
+    private async Task HandlePredictionLockAsync(
+        JsonElement ev,
+        string broadcasterId,
+        CancellationToken ct
+    )
+    {
+        var outcomes = ParsePredictionOutcomes(ev);
+        await _eventBus.PublishAsync(
+            new PredictionLockedEvent
+            {
+                BroadcasterId = broadcasterId,
+                PredictionId = ev.GetProp("id") ?? string.Empty,
+                Title = ev.GetProp("title") ?? string.Empty,
+                Outcomes = outcomes,
+            },
+            ct
+        );
+    }
+
+    private async Task HandlePredictionEndAsync(
+        JsonElement ev,
+        string broadcasterId,
+        CancellationToken ct
+    )
+    {
+        var outcomes = ParsePredictionOutcomes(ev);
+        await _eventBus.PublishAsync(
+            new PredictionEndedEvent
+            {
+                BroadcasterId = broadcasterId,
+                PredictionId = ev.GetProp("id") ?? string.Empty,
+                Title = ev.GetProp("title") ?? string.Empty,
+                Status = ev.GetProp("status") ?? string.Empty,
+                Outcomes = outcomes,
+                WinningOutcomeId = ev.GetProp("winning_outcome_id"),
+            },
+            ct
+        );
+    }
+
+    private static IReadOnlyList<PredictionOutcome> ParsePredictionOutcomes(JsonElement ev)
+    {
+        var outcomes = new List<PredictionOutcome>();
+        if (
+            ev.TryGetProperty("outcomes", out var outcomesArr)
+            && outcomesArr.ValueKind == JsonValueKind.Array
+        )
+        {
+            foreach (var o in outcomesArr.EnumerateArray())
+            {
+                o.TryGetProperty("channel_points", out var cpEl);
+                o.TryGetProperty("users", out var usersEl);
+                outcomes.Add(
+                    new PredictionOutcome(
+                        o.GetProp("id") ?? string.Empty,
+                        o.GetProp("title") ?? string.Empty,
+                        cpEl.ValueKind == JsonValueKind.Number ? cpEl.GetInt32() : 0,
+                        usersEl.ValueKind == JsonValueKind.Number ? usersEl.GetInt32() : 0,
+                        o.GetProp("color") ?? string.Empty
+                    )
+                );
+            }
+        }
+        return outcomes;
     }
 
     // ─── channel.chat.message parsing ────────────────────────────────────────────
@@ -849,6 +1116,13 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
             {
                 ["broadcaster_user_id"] = broadcasterId,
                 ["moderator_user_id"] = broadcasterId,
+            },
+            "channel.channel_points_custom_reward_redemption.add"
+            or "channel.channel_points_custom_reward.add"
+            or "channel.channel_points_custom_reward.update"
+            or "channel.channel_points_custom_reward.remove" => new()
+            {
+                ["broadcaster_user_id"] = broadcasterId,
             },
             _ => new() { ["broadcaster_user_id"] = broadcasterId },
         };

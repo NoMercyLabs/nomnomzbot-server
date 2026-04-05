@@ -108,4 +108,29 @@ public class TwitchApiServiceStub : ITwitchApiService
         );
         return Task.FromResult(true);
     }
+
+    public Task<IReadOnlyList<TwitchRewardInfo>> GetCustomRewardsAsync(
+        string broadcasterId,
+        CancellationToken ct = default
+    )
+    {
+        _logger.LogDebug("[STUB] GetCustomRewards for {BroadcasterId}", broadcasterId);
+        return Task.FromResult<IReadOnlyList<TwitchRewardInfo>>([]);
+    }
+
+    public Task<bool> UpdateRedemptionStatusAsync(
+        string broadcasterId,
+        string rewardId,
+        string redemptionId,
+        string status,
+        CancellationToken ct = default
+    )
+    {
+        _logger.LogDebug(
+            "[STUB] UpdateRedemptionStatus {RedemptionId} -> {Status}",
+            redemptionId,
+            status
+        );
+        return Task.FromResult(true);
+    }
 }

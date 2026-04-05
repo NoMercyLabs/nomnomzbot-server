@@ -46,7 +46,31 @@ public interface ITwitchApiService
         string messageId,
         CancellationToken ct = default
     );
+
+    /// <summary>Get all custom channel point rewards manageable by the bot.</summary>
+    Task<IReadOnlyList<TwitchRewardInfo>> GetCustomRewardsAsync(
+        string broadcasterId,
+        CancellationToken ct = default
+    );
+
+    /// <summary>Update the status of a channel point redemption (FULFILLED or CANCELED).</summary>
+    Task<bool> UpdateRedemptionStatusAsync(
+        string broadcasterId,
+        string rewardId,
+        string redemptionId,
+        string status,
+        CancellationToken ct = default
+    );
 }
+
+public sealed record TwitchRewardInfo(
+    string Id,
+    string Title,
+    int Cost,
+    bool IsEnabled,
+    string? Prompt,
+    bool UserInputRequired
+);
 
 public record TwitchUserInfo(
     string Id,
