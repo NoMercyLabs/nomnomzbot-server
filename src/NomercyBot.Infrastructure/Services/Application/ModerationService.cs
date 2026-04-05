@@ -3,8 +3,10 @@
 
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using NoMercyBot.Application.Common.Interfaces;
 using NoMercyBot.Application.Common.Models;
+using NoMercyBot.Application.Contracts.Twitch;
 using NoMercyBot.Application.DTOs.Moderation;
 using NoMercyBot.Application.Services;
 using NoMercyBot.Domain.Entities;
@@ -17,10 +19,18 @@ public class ModerationService : IModerationService
     private const string ActionRecordType = "moderation_action";
 
     private readonly IApplicationDbContext _db;
+    private readonly ITwitchApiService _twitchApi;
+    private readonly ILogger<ModerationService> _logger;
 
-    public ModerationService(IApplicationDbContext db)
+    public ModerationService(
+        IApplicationDbContext db,
+        ITwitchApiService twitchApi,
+        ILogger<ModerationService> logger
+    )
     {
         _db = db;
+        _twitchApi = twitchApi;
+        _logger = logger;
     }
 
     public async Task<Result<ModerationActionResult>> TimeoutAsync(
@@ -31,7 +41,7 @@ public class ModerationService : IModerationService
         CancellationToken cancellationToken = default
     )
     {
-        return await RecordActionAsync(
+        var result = await RecordActionAsync(
             broadcasterId,
             "timeout",
             targetUserId,
@@ -39,6 +49,25 @@ public class ModerationService : IModerationService
             durationSeconds,
             cancellationToken
         );
+
+        if (result.IsSuccess)
+        {
+            var ok = await _twitchApi.TimeoutUserAsync(
+                broadcasterId,
+                targetUserId,
+                durationSeconds,
+                reason,
+                cancellationToken
+            );
+            if (!ok)
+                _logger.LogWarning(
+                    "Twitch API timeout failed for {UserId} in {Channel}",
+                    targetUserId,
+                    broadcasterId
+                );
+        }
+
+        return result;
     }
 
     public async Task<Result<ModerationActionResult>> BanAsync(
@@ -48,7 +77,7 @@ public class ModerationService : IModerationService
         CancellationToken cancellationToken = default
     )
     {
-        return await RecordActionAsync(
+        var result = await RecordActionAsync(
             broadcasterId,
             "ban",
             targetUserId,
@@ -56,6 +85,24 @@ public class ModerationService : IModerationService
             null,
             cancellationToken
         );
+
+        if (result.IsSuccess)
+        {
+            var ok = await _twitchApi.BanUserAsync(
+                broadcasterId,
+                targetUserId,
+                reason,
+                cancellationToken
+            );
+            if (!ok)
+                _logger.LogWarning(
+                    "Twitch API ban failed for {UserId} in {Channel}",
+                    targetUserId,
+                    broadcasterId
+                );
+        }
+
+        return result;
     }
 
     public async Task<Result<ModerationActionResult>> UnbanAsync(
@@ -64,7 +111,7 @@ public class ModerationService : IModerationService
         CancellationToken cancellationToken = default
     )
     {
-        return await RecordActionAsync(
+        var result = await RecordActionAsync(
             broadcasterId,
             "unban",
             targetUserId,
@@ -72,6 +119,23 @@ public class ModerationService : IModerationService
             null,
             cancellationToken
         );
+
+        if (result.IsSuccess)
+        {
+            var ok = await _twitchApi.UnbanUserAsync(
+                broadcasterId,
+                targetUserId,
+                cancellationToken
+            );
+            if (!ok)
+                _logger.LogWarning(
+                    "Twitch API unban failed for {UserId} in {Channel}",
+                    targetUserId,
+                    broadcasterId
+                );
+        }
+
+        return result;
     }
 
     public async Task<Result<ModerationRuleDetail>> CreateRuleAsync(

@@ -279,6 +279,76 @@ public sealed class TwitchApiService : ITwitchApiService
         return response?.StatusCode is HttpStatusCode.NoContent or HttpStatusCode.OK;
     }
 
+    public async Task<IReadOnlyList<TwitchRewardInfo>> GetCustomRewardsAsync(
+        string broadcasterId,
+        CancellationToken ct = default
+    )
+    {
+        var tokenInfo = await GetModeratorTokenAsync(broadcasterId, ct);
+        if (tokenInfo is null)
+            return [];
+
+        var url =
+            $"{HelixBase}/channel_points/custom_rewards"
+            + $"?broadcaster_id={Uri.EscapeDataString(broadcasterId)}"
+            + "&only_manageable_rewards=true";
+
+        var response = await SendHelixAsync(HttpMethod.Get, url, tokenInfo.Value, null, ct);
+        if (response is null || !response.IsSuccessStatusCode)
+        {
+            var err = response is null ? "null" : await response.Content.ReadAsStringAsync(ct);
+            _logger.LogWarning(
+                "GetCustomRewards failed for {BroadcasterId}: {Error}",
+                broadcasterId,
+                err
+            );
+            return [];
+        }
+
+        var data = await response.Content.ReadFromJsonAsync<HelixDataResponse<HelixCustomReward>>(
+            cancellationToken: ct
+        );
+
+        return (data?.Data ?? [])
+            .Select(r => new TwitchRewardInfo(
+                r.Id,
+                r.Title,
+                r.Cost,
+                r.IsEnabled,
+                r.Prompt,
+                r.IsUserInputRequired
+            ))
+            .ToList();
+    }
+
+    public async Task<bool> UpdateRedemptionStatusAsync(
+        string broadcasterId,
+        string rewardId,
+        string redemptionId,
+        string status,
+        CancellationToken ct = default
+    )
+    {
+        var tokenInfo = await GetModeratorTokenAsync(broadcasterId, ct);
+        if (tokenInfo is null)
+            return false;
+
+        var url =
+            $"{HelixBase}/channel_points/custom_rewards/redemptions"
+            + $"?broadcaster_id={Uri.EscapeDataString(broadcasterId)}"
+            + $"&reward_id={Uri.EscapeDataString(rewardId)}"
+            + $"&id={Uri.EscapeDataString(redemptionId)}";
+
+        var response = await SendHelixAsync(
+            new HttpMethod("PATCH"),
+            url,
+            tokenInfo.Value,
+            new { status },
+            ct
+        );
+        return response is { IsSuccessStatusCode: true };
+    }
+
     // ─── Private helpers ─────────────────────────────────────────────────────────
 
     private async Task<bool> BanOrTimeoutAsync(
@@ -475,6 +545,27 @@ public sealed class TwitchApiService : ITwitchApiService
 
         [JsonPropertyName("broadcaster_type")]
         public string BroadcasterType { get; set; } = null!;
+    }
+
+    private sealed class HelixCustomReward
+    {
+        [JsonPropertyName("id")]
+        public string Id { get; set; } = null!;
+
+        [JsonPropertyName("title")]
+        public string Title { get; set; } = null!;
+
+        [JsonPropertyName("cost")]
+        public int Cost { get; set; }
+
+        [JsonPropertyName("is_enabled")]
+        public bool IsEnabled { get; set; }
+
+        [JsonPropertyName("prompt")]
+        public string? Prompt { get; set; }
+
+        [JsonPropertyName("is_user_input_required")]
+        public bool IsUserInputRequired { get; set; }
     }
 
     private sealed class HelixStream

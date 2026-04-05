@@ -32,6 +32,14 @@ public class RewardConfiguration : IEntityTypeConfiguration<Reward>
 
         builder.Property(e => e.IsPlatform).IsRequired();
 
+        builder.Property(e => e.TwitchRewardId).HasMaxLength(50);
+        builder
+            .HasIndex(e => new { e.BroadcasterId, e.TwitchRewardId })
+            .IsUnique()
+            .HasFilter("\"TwitchRewardId\" IS NOT NULL");
+
+        builder.Property(e => e.Cost);
+
         builder
             .HasOne(e => e.Channel)
             .WithMany()

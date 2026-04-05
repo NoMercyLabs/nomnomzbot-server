@@ -1,0 +1,71 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) NoMercy Entertainment. All rights reserved.
+
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using NoMercyBot.Domain.Events;
+using NoMercyBot.Domain.Interfaces;
+
+namespace NoMercyBot.Infrastructure.EventHandlers;
+
+/// <summary>
+/// Handles poll lifecycle events.
+/// Executes the event_response:poll_begin / poll_end pipeline if configured.
+/// </summary>
+public sealed class PollBeganHandler
+    : TwitchAlertHandlerBase<PollBeganEvent>,
+        IEventHandler<PollBeganEvent>
+{
+    protected override string EventTypeKey => "poll_begin";
+
+    public PollBeganHandler(IServiceScopeFactory s, IPipelineEngine p, ILogger<PollBeganHandler> l)
+        : base(s, p, l) { }
+
+    protected override string? GetUserId(PollBeganEvent e) => e.BroadcasterId;
+
+    protected override string? GetUserDisplayName(PollBeganEvent e) => null;
+
+    protected override Dictionary<string, string> BuildVariables(PollBeganEvent e) =>
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["poll.id"] = e.PollId,
+            ["poll.title"] = e.Title,
+            ["poll.duration"] = e.DurationSeconds.ToString(),
+            ["poll.choices"] = string.Join(", ", e.Choices.Select(c => c.Title)),
+        };
+
+    public Task HandleAsync(PollBeganEvent @event, CancellationToken ct = default) =>
+        HandleCoreAsync(@event, ct);
+}
+
+/// <summary>Handles poll ended events and optionally posts results to chat.</summary>
+public sealed class PollEndedHandler
+    : TwitchAlertHandlerBase<PollEndedEvent>,
+        IEventHandler<PollEndedEvent>
+{
+    protected override string EventTypeKey => "poll_end";
+
+    public PollEndedHandler(IServiceScopeFactory s, IPipelineEngine p, ILogger<PollEndedHandler> l)
+        : base(s, p, l) { }
+
+    protected override string? GetUserId(PollEndedEvent e) => e.BroadcasterId;
+
+    protected override string? GetUserDisplayName(PollEndedEvent e) => null;
+
+    protected override Dictionary<string, string> BuildVariables(PollEndedEvent e)
+    {
+        var winner = e.Choices.OrderByDescending(c => c.Votes).FirstOrDefault();
+        return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["poll.id"] = e.PollId,
+            ["poll.title"] = e.Title,
+            ["poll.status"] = e.Status,
+            ["poll.winner"] = winner?.Title ?? string.Empty,
+            ["poll.winner.votes"] = winner?.Votes.ToString() ?? "0",
+            ["poll.results"] = string.Join(", ", e.Choices.Select(c => $"{c.Title}: {c.Votes}")),
+        };
+    }
+
+    public Task HandleAsync(PollEndedEvent @event, CancellationToken ct = default) =>
+        HandleCoreAsync(@event, ct);
+}

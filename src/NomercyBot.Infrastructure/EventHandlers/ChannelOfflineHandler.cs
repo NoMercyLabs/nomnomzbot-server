@@ -13,21 +13,25 @@ namespace NoMercyBot.Infrastructure.EventHandlers;
 /// <summary>
 /// Updates Channel.IsLive = false and cancels all running pipelines when
 /// the stream goes offline via EventSub stream.offline.
+/// Computes actual stream duration from ChannelContext.WentLiveAt.
 /// </summary>
 public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IPipelineEngine _pipeline;
+    private readonly IChannelRegistry _registry;
     private readonly ILogger<ChannelOfflineHandler> _logger;
 
     public ChannelOfflineHandler(
         IServiceScopeFactory scopeFactory,
         IPipelineEngine pipeline,
+        IChannelRegistry registry,
         ILogger<ChannelOfflineHandler> logger
     )
     {
         _scopeFactory = scopeFactory;
         _pipeline = pipeline;
+        _registry = registry;
         _logger = logger;
     }
 
@@ -53,13 +57,26 @@ public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
             return;
         }
 
+        // Compute actual stream duration from ChannelContext before resetting state
+        var channelCtx = _registry.Get(broadcasterId);
+        var streamDuration =
+            channelCtx?.WentLiveAt.HasValue == true
+                ? DateTimeOffset.UtcNow - channelCtx.WentLiveAt.Value
+                : @event.StreamDuration;
+
+        if (channelCtx is not null)
+        {
+            channelCtx.IsLive = false;
+            channelCtx.WentLiveAt = null;
+        }
+
         channel.IsLive = false;
         await db.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation(
             "Channel {BroadcasterId} went OFFLINE after {Duration}",
             broadcasterId,
-            @event.StreamDuration
+            streamDuration
         );
 
         await _pipeline.CancelAllForChannelAsync(broadcasterId);
@@ -71,7 +88,7 @@ public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["broadcaster"] = @event.BroadcasterDisplayName,
-                ["duration"] = @event.StreamDuration.ToString(@"hh\:mm\:ss"),
+                ["duration"] = streamDuration.ToString(@"hh\:mm\:ss"),
             },
             cancellationToken
         );

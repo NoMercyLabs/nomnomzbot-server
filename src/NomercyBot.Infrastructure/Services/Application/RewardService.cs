@@ -2,8 +2,10 @@
 // Copyright (C) NoMercy Entertainment. All rights reserved.
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using NoMercyBot.Application.Common.Interfaces;
 using NoMercyBot.Application.Common.Models;
+using NoMercyBot.Application.Contracts.Twitch;
 using NoMercyBot.Application.DTOs.Rewards;
 using NoMercyBot.Application.Services;
 using NoMercyBot.Domain.Entities;
@@ -13,10 +15,18 @@ namespace NoMercyBot.Infrastructure.Services.Application;
 public class RewardService : IRewardService
 {
     private readonly IApplicationDbContext _db;
+    private readonly ITwitchApiService _twitchApi;
+    private readonly ILogger<RewardService> _logger;
 
-    public RewardService(IApplicationDbContext db)
+    public RewardService(
+        IApplicationDbContext db,
+        ITwitchApiService twitchApi,
+        ILogger<RewardService> logger
+    )
     {
         _db = db;
+        _twitchApi = twitchApi;
+        _logger = logger;
     }
 
     public async Task<Result<RewardDetail>> CreateAsync(
@@ -150,16 +160,90 @@ public class RewardService : IRewardService
         return Result.Success(ToDetail(reward));
     }
 
-    public Task<Result> SyncWithTwitchAsync(
+    public async Task<Result> SyncWithTwitchAsync(
         string broadcasterId,
         CancellationToken cancellationToken = default
     )
     {
-        // Twitch sync requires an external Twitch API client — not available in this layer.
-        // Return not-implemented so callers can handle gracefully.
-        return Task.FromResult(
-            Result.Failure("Twitch sync is not yet implemented.", "SERVICE_UNAVAILABLE")
+        var channelExists = await _db.Channels.AnyAsync(
+            c => c.Id == broadcasterId,
+            cancellationToken
         );
+        if (!channelExists)
+            return Errors.ChannelNotFound(broadcasterId);
+
+        var twitchRewards = await _twitchApi.GetCustomRewardsAsync(
+            broadcasterId,
+            cancellationToken
+        );
+        if (twitchRewards.Count == 0)
+        {
+            _logger.LogInformation(
+                "No manageable rewards found for broadcaster {BroadcasterId}",
+                broadcasterId
+            );
+            return Result.Success();
+        }
+
+        var existing = await _db
+            .Rewards.Where(r => r.BroadcasterId == broadcasterId)
+            .ToListAsync(cancellationToken);
+
+        var existingByTwitchId = existing
+            .Where(r => r.TwitchRewardId != null)
+            .ToDictionary(r => r.TwitchRewardId!);
+
+        var existingByTitle = existing.ToDictionary(r => r.Title, StringComparer.OrdinalIgnoreCase);
+
+        var syncedCount = 0;
+        foreach (var tr in twitchRewards)
+        {
+            if (existingByTwitchId.TryGetValue(tr.Id, out var reward))
+            {
+                // Update existing record
+                reward.Title = tr.Title;
+                reward.Cost = tr.Cost;
+                reward.IsEnabled = tr.IsEnabled;
+                reward.Description = tr.Prompt;
+                syncedCount++;
+            }
+            else if (existingByTitle.TryGetValue(tr.Title, out var rewardByTitle))
+            {
+                // Match by title — link Twitch ID
+                rewardByTitle.TwitchRewardId = tr.Id;
+                rewardByTitle.Cost = tr.Cost;
+                rewardByTitle.IsEnabled = tr.IsEnabled;
+                rewardByTitle.Description = tr.Prompt;
+                syncedCount++;
+            }
+            else
+            {
+                // New reward — create local record
+                _db.Rewards.Add(
+                    new Reward
+                    {
+                        Id = Guid.NewGuid(),
+                        BroadcasterId = broadcasterId,
+                        Title = tr.Title,
+                        TwitchRewardId = tr.Id,
+                        Cost = tr.Cost,
+                        IsEnabled = tr.IsEnabled,
+                        Description = tr.Prompt,
+                        IsPlatform = true,
+                    }
+                );
+                syncedCount++;
+            }
+        }
+
+        await _db.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "Synced {Count} rewards for broadcaster {BroadcasterId}",
+            syncedCount,
+            broadcasterId
+        );
+        return Result.Success();
     }
 
     private static RewardDetail ToDetail(Reward r) =>
