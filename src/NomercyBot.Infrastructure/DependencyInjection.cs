@@ -80,6 +80,9 @@ public static class DependencyInjection
         // TemplateResolver: full async resolver with 90+ variables (singleton — all state is scoped internally)
         services.AddSingleton<ITemplateResolver, TemplateResolver>();
 
+        // TrustService: Bamo's exponential decay algorithm (singleton — manages per-user state cache)
+        services.AddSingleton<ITrustService, Services.General.TrustService>();
+
         // Pipeline actions (transient — stateless)
         services.AddTransient<ICommandAction, SendMessageAction>();
         services.AddTransient<ICommandAction, SendReplyAction>();
