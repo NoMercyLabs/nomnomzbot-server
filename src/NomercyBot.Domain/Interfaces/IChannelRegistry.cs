@@ -59,6 +59,9 @@ public class ChannelContext
     /// <summary>Messages received since the bot joined. Used by TimerService for MinChatActivity checks.</summary>
     public long MessageCount { get; set; }
 
+    /// <summary>Commands successfully executed since the bot joined this session.</summary>
+    public long CommandsUsed { get; set; }
+
     public DateTimeOffset LoadedAt { get; init; } = DateTimeOffset.UtcNow;
     public DateTimeOffset LastActivityAt { get; set; } = DateTimeOffset.UtcNow;
 
