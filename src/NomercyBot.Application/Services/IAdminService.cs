@@ -15,5 +15,10 @@ public interface IAdminService
         CancellationToken ct = default
     );
 
+    Task<Result<PagedList<AdminUserDto>>> ListUsersAsync(
+        PaginationParams pagination,
+        CancellationToken ct = default
+    );
+
     Task<Result<AdminSystemDto>> GetSystemHealthAsync(CancellationToken ct = default);
 }

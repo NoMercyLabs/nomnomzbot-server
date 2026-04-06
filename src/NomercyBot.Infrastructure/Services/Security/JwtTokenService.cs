@@ -16,16 +16,24 @@ public sealed class JwtTokenService : IJwtTokenService
     private readonly string _audience;
     private readonly byte[] _key;
     private readonly TimeSpan _expiration;
+    private readonly TimeSpan _refreshExpiration;
 
     public JwtTokenService(IConfiguration configuration)
     {
         IConfigurationSection jwtSection = configuration.GetSection("Jwt");
-        _issuer = jwtSection["Issuer"] ?? "NomercyBot";
-        _audience = jwtSection["Audience"] ?? "NomercyBot";
+        _issuer = jwtSection["Issuer"] ?? "nomercybot";
+        _audience = jwtSection["Audience"] ?? "nomercybot";
         _key = Encoding.UTF8.GetBytes(
-            jwtSection["Secret"] ?? jwtSection["Key"] ?? throw new InvalidOperationException("JWT Secret is not configured.")
+            jwtSection["Secret"]
+                ?? jwtSection["Key"]
+                ?? throw new InvalidOperationException("JWT Secret is not configured.")
         );
-        _expiration = TimeSpan.FromMinutes(double.Parse(jwtSection["ExpiryMinutes"] ?? jwtSection["ExpirationMinutes"] ?? "60"));
+        _expiration = TimeSpan.FromMinutes(
+            double.Parse(jwtSection["ExpiryMinutes"] ?? jwtSection["ExpirationMinutes"] ?? "60")
+        );
+        _refreshExpiration = TimeSpan.FromDays(
+            double.Parse(jwtSection["RefreshExpiryDays"] ?? "7")
+        );
     }
 
     public string GenerateToken(string userId, string username, IEnumerable<string>? roles = null)
@@ -58,6 +66,35 @@ public sealed class JwtTokenService : IJwtTokenService
             audience: _audience,
             claims: claims,
             expires: DateTime.UtcNow.Add(_expiration),
+            signingCredentials: credentials
+        );
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    public string GenerateRefreshToken(string userId, string username)
+    {
+        List<Claim> claims =
+        [
+            new(ClaimTypes.NameIdentifier, userId),
+            new(ClaimTypes.Name, username),
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new(
+                JwtRegisteredClaimNames.Iat,
+                DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(),
+                ClaimValueTypes.Integer64
+            ),
+            new(ClaimTypes.Role, "refresh"),
+        ];
+
+        SymmetricSecurityKey securityKey = new(_key);
+        SigningCredentials credentials = new(securityKey, SecurityAlgorithms.HmacSha256);
+
+        JwtSecurityToken token = new(
+            issuer: _issuer,
+            audience: _audience,
+            claims: claims,
+            expires: DateTime.UtcNow.Add(_refreshExpiration),
             signingCredentials: credentials
         );
 

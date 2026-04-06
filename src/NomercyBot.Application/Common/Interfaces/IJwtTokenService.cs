@@ -8,5 +8,6 @@ namespace NoMercyBot.Application.Common.Interfaces;
 public interface IJwtTokenService
 {
     string GenerateToken(string userId, string username, IEnumerable<string>? roles = null);
+    string GenerateRefreshToken(string userId, string username);
     ClaimsPrincipal? ValidateToken(string token);
 }

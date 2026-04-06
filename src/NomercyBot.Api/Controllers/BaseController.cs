@@ -97,7 +97,9 @@ public abstract class BaseController : ControllerBase
 
         return result.ErrorCode switch
         {
-            "AUTH_REQUIRED" or "TOKEN_EXPIRED" => UnauthenticatedResponse(result.ErrorMessage),
+            "AUTH_REQUIRED" or "TOKEN_EXPIRED" or "INVALID_TOKEN" => UnauthenticatedResponse(
+                result.ErrorMessage
+            ),
             "FORBIDDEN" or "FEATURE_DISABLED" or "SCOPE_MISSING" or "BILLING_LIMIT" =>
                 UnauthorizedResponse(result.ErrorMessage),
             "NOT_FOUND" or "CHANNEL_NOT_FOUND" or "CHANNEL_NOT_ONBOARDED" => NotFoundResponse(
@@ -118,7 +120,9 @@ public abstract class BaseController : ControllerBase
 
         return result.ErrorCode switch
         {
-            "AUTH_REQUIRED" or "TOKEN_EXPIRED" => UnauthenticatedResponse(result.ErrorMessage),
+            "AUTH_REQUIRED" or "TOKEN_EXPIRED" or "INVALID_TOKEN" => UnauthenticatedResponse(
+                result.ErrorMessage
+            ),
             "FORBIDDEN" or "FEATURE_DISABLED" or "SCOPE_MISSING" or "BILLING_LIMIT" =>
                 UnauthorizedResponse(result.ErrorMessage),
             "NOT_FOUND" or "CHANNEL_NOT_FOUND" or "CHANNEL_NOT_ONBOARDED" => NotFoundResponse(

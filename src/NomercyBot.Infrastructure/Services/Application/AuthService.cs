@@ -71,14 +71,15 @@ public sealed class AuthService : IAuthService
         string scopes = Uri.EscapeDataString(string.Join(" ", RequiredScopes));
         string redirectUri = Uri.EscapeDataString(_options.RedirectUri);
         string clientId = Uri.EscapeDataString(_options.ClientId);
-        string stateParam = state is not null ? $"&state={Uri.EscapeDataString(state)}" : string.Empty;
+        string stateParam = state is not null
+            ? $"&state={Uri.EscapeDataString(state)}"
+            : string.Empty;
 
         return $"https://id.twitch.tv/oauth2/authorize"
             + $"?client_id={clientId}"
             + $"&redirect_uri={redirectUri}"
             + $"&response_type=code"
             + $"&scope={scopes}"
-            + $"&force_verify=true"
             + stateParam;
     }
 
@@ -103,7 +104,10 @@ public sealed class AuthService : IAuthService
             );
 
         // Fetch Twitch user info using the fresh access token (returns authenticated user, no id query)
-        TwitchUserInfo? twitchUser = await GetUserFromTokenAsync(tokens.AccessToken, cancellationToken);
+        TwitchUserInfo? twitchUser = await GetUserFromTokenAsync(
+            tokens.AccessToken,
+            cancellationToken
+        );
         if (twitchUser is null)
             return Result.Failure<AuthResultDto>(
                 "Failed to fetch Twitch user info.",
@@ -141,7 +145,9 @@ public sealed class AuthService : IAuthService
         // Store Twitch tokens in Service table.
         // The Services FK requires a Channel row; skip if the user hasn't onboarded yet.
         bool channelExists = await _db.Channels.AnyAsync(
-            c => c.Id == twitchUser.Id, cancellationToken);
+            c => c.Id == twitchUser.Id,
+            cancellationToken
+        );
 
         if (channelExists)
         {
@@ -173,7 +179,7 @@ public sealed class AuthService : IAuthService
         // Issue platform JWT
         IEnumerable<string> roles = user.IsAdmin ? ["user", "admin"] : ["user"];
         string platformJwt = _jwt.GenerateToken(twitchUser.Id, twitchUser.Login, roles);
-        string refreshJwt = _jwt.GenerateToken(twitchUser.Id, twitchUser.Login, ["refresh"]);
+        string refreshJwt = _jwt.GenerateRefreshToken(twitchUser.Id, twitchUser.Login);
 
         UserDto userDto = new(
             twitchUser.Id,
@@ -204,7 +210,9 @@ public sealed class AuthService : IAuthService
                 "INVALID_TOKEN"
             );
 
-        string? userId = principal.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        string? userId = principal
+            .FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)
+            ?.Value;
         if (userId is null)
             return Result.Failure<AuthResultDto>("Token missing user ID.", "INVALID_TOKEN");
 
@@ -215,7 +223,7 @@ public sealed class AuthService : IAuthService
 
         IEnumerable<string> refreshRoles = user.IsAdmin ? ["user", "admin"] : ["user"];
         string newJwt = _jwt.GenerateToken(user.Id, user.Username, refreshRoles);
-        string newRefresh = _jwt.GenerateToken(user.Id, user.Username, ["refresh"]);
+        string newRefresh = _jwt.GenerateRefreshToken(user.Id, user.Username);
 
         UserDto userDto = new(
             user.Id,
@@ -271,9 +279,9 @@ public sealed class AuthService : IAuthService
             if (!response.IsSuccessStatusCode)
                 return null;
 
-            HelixDataResponse<HelixUser>? data = await response.Content.ReadFromJsonAsync<HelixDataResponse<HelixUser>>(
-                cancellationToken: ct
-            );
+            HelixDataResponse<HelixUser>? data = await response.Content.ReadFromJsonAsync<
+                HelixDataResponse<HelixUser>
+            >(cancellationToken: ct);
             HelixUser? user = data?.Data?.FirstOrDefault();
             if (user is null)
                 return null;

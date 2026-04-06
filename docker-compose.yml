@@ -14,6 +14,8 @@ services:
       - ASPNETCORE_URLS=http://+:5000
       - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=nomercybot;Username=${POSTGRES_USER:-nomercybot};Password=${POSTGRES_PASSWORD:-nomercybot_dev}
       - Jwt__Secret=${JWT_SECRET:-dev-secret-key-at-least-32-characters-long!!}
+      - Jwt__Issuer=${JWT_ISSUER:-nomercybot}
+      - Jwt__Audience=${JWT_AUDIENCE:-nomercybot}
       - Encryption__Key=${ENCRYPTION_KEY:-ZGV2LWVuY3J5cHRpb24ta2V5LWZvci1sb2NhbC1kZXY=}
       - Twitch__ClientId=${TWITCH_CLIENT_ID}
       - Twitch__ClientSecret=${TWITCH_CLIENT_SECRET}

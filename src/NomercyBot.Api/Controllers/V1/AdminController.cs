@@ -41,16 +41,26 @@ public class AdminController : BaseController
         CancellationToken ct
     )
     {
-        PaginationParams pagination = new(
-            request.Page,
-            request.Take,
-            request.Sort,
-            request.Order
-        );
+        PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
         Result<PagedList<AdminChannelDto>> result = await _adminService.ListChannelsAsync(
             pagination,
             ct
         );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return GetPaginatedResponse(result.Value, request);
+    }
+
+    /// <summary>Returns all registered users.</summary>
+    [HttpGet("users")]
+    [ProducesResponseType<PaginatedResponse<AdminUserDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListUsers(
+        [FromQuery] PageRequestDto request,
+        CancellationToken ct
+    )
+    {
+        PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
+        Result<PagedList<AdminUserDto>> result = await _adminService.ListUsersAsync(pagination, ct);
         if (result.IsFailure)
             return ResultResponse(result);
         return GetPaginatedResponse(result.Value, request);

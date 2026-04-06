@@ -25,6 +25,17 @@ public sealed record AdminChannelDto(
 
 public sealed record ServiceHealthDto(string Name, string Status, int? LatencyMs);
 
+public sealed record AdminUserDto(
+    string Id,
+    string DisplayName,
+    string Login,
+    string? Email,
+    string Role,
+    int ChannelCount,
+    DateTime CreatedAt,
+    DateTime? LastActive
+);
+
 public sealed record AdminSystemDto(
     string Overall,
     List<ServiceHealthDto> Services,

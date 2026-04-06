@@ -27,13 +27,11 @@ public sealed class AdminService : IAdminService
         int totalUsers = await _db.Users.CountAsync(ct);
 
         DateTime today = DateTime.UtcNow.Date;
-        int eventsToday = await _db.ChannelEvents.CountAsync(
-            e => e.CreatedAt >= today,
-            ct
-        );
+        int eventsToday = await _db.ChannelEvents.CountAsync(e => e.CreatedAt >= today, ct);
 
         Process process = Process.GetCurrentProcess();
-        long uptimeSeconds = (long)(DateTime.UtcNow - process.StartTime.ToUniversalTime()).TotalSeconds;
+        long uptimeSeconds = (long)
+            (DateTime.UtcNow - process.StartTime.ToUniversalTime()).TotalSeconds;
 
         AdminStatsDto dto = new(
             totalChannels,
@@ -56,8 +54,7 @@ public sealed class AdminService : IAdminService
 
         List<AdminChannelDto> items = await (
             from c in _db.Channels
-            join sub in _db.ChannelSubscriptions
-                on c.Id equals sub.BroadcasterId into subs
+            join sub in _db.ChannelSubscriptions on c.Id equals sub.BroadcasterId into subs
             from sub in subs.OrderByDescending(s => s.CreatedAt).Take(1).DefaultIfEmpty()
             orderby c.CreatedAt descending
             select new AdminChannelDto(
@@ -80,14 +77,42 @@ public sealed class AdminService : IAdminService
         );
     }
 
+    public async Task<Result<PagedList<AdminUserDto>>> ListUsersAsync(
+        PaginationParams pagination,
+        CancellationToken ct = default
+    )
+    {
+        int total = await _db.Users.CountAsync(ct);
+
+        List<AdminUserDto> items = await _db
+            .Users.OrderByDescending(u => u.CreatedAt)
+            .Skip((pagination.Page - 1) * pagination.PageSize)
+            .Take(pagination.PageSize)
+            .Select(u => new AdminUserDto(
+                u.Id,
+                u.DisplayName,
+                u.Username,
+                null,
+                u.IsAdmin ? "admin" : "user",
+                _db.Channels.Count(c => c.Id == u.Id),
+                u.CreatedAt,
+                u.UpdatedAt
+            ))
+            .ToListAsync(ct);
+
+        return Result.Success(
+            new PagedList<AdminUserDto>(items, total, pagination.Page, pagination.PageSize)
+        );
+    }
+
     public Task<Result<AdminSystemDto>> GetSystemHealthAsync(CancellationToken ct = default)
     {
         Process process = Process.GetCurrentProcess();
         long memoryMb = process.WorkingSet64 / (1024 * 1024);
-        long uptimeSeconds = (long)(DateTime.UtcNow - process.StartTime.ToUniversalTime()).TotalSeconds;
+        long uptimeSeconds = (long)
+            (DateTime.UtcNow - process.StartTime.ToUniversalTime()).TotalSeconds;
 
-        string version =
-            Assembly.GetEntryAssembly()?.GetName().Version?.ToString() ?? "0.0.0";
+        string version = Assembly.GetEntryAssembly()?.GetName().Version?.ToString() ?? "0.0.0";
 
         List<ServiceHealthDto> services =
         [
@@ -96,13 +121,7 @@ public sealed class AdminService : IAdminService
             new("bot", uptimeSeconds > 0 ? "healthy" : "degraded", null),
         ];
 
-        AdminSystemDto dto = new(
-            "healthy",
-            services,
-            version,
-            memoryMb,
-            0
-        );
+        AdminSystemDto dto = new("healthy", services, version, memoryMb, 0);
 
         return Task.FromResult(Result.Success(dto));
     }
