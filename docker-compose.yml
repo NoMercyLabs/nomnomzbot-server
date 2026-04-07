@@ -12,14 +12,24 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:5000
-      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=nomercybot;Username=${POSTGRES_USER:-nomercybot};Password=${POSTGRES_PASSWORD:-nomercybot_dev}
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=nomnomzbot;Username=${POSTGRES_USER:-nomnomzbot};Password=${POSTGRES_PASSWORD:-nomnomzbot_dev}
       - Jwt__Secret=${JWT_SECRET:-dev-secret-key-at-least-32-characters-long!!}
-      - Jwt__Issuer=${JWT_ISSUER:-nomercybot}
-      - Jwt__Audience=${JWT_AUDIENCE:-nomercybot}
+      - Jwt__Issuer=${JWT_ISSUER:-nomnomzbot}
+      - Jwt__Audience=${JWT_AUDIENCE:-nomnomzbot}
       - Encryption__Key=${ENCRYPTION_KEY:-ZGV2LWVuY3J5cHRpb24ta2V5LWZvci1sb2NhbC1kZXY=}
+      - App__BaseUrl=${API_BASE_URL:-http://localhost:5080}
+      - App__FrontendUrl=${FRONTEND_URL:-http://localhost:19006}
       - Twitch__ClientId=${TWITCH_CLIENT_ID}
       - Twitch__ClientSecret=${TWITCH_CLIENT_SECRET}
       - Twitch__BotUsername=${TWITCH_BOT_USERNAME}
+      - Twitch__BotRedirectUri=${TWITCH_BOT_REDIRECT_URI:-https://bot-dev-api.nomercy.tv/api/v1/auth/twitch/bot/callback}
+      - Twitch__ChannelBotRedirectUri=${TWITCH_CHANNEL_BOT_REDIRECT_URI:-https://bot-dev-api.nomercy.tv/api/v1/channels/callback/bot}
+      - Spotify__ClientId=${SPOTIFY_CLIENT_ID:-}
+      - Spotify__ClientSecret=${SPOTIFY_CLIENT_SECRET:-}
+      - Discord__ClientId=${DISCORD_CLIENT_ID:-}
+      - Discord__ClientSecret=${DISCORD_CLIENT_SECRET:-}
+      - YouTube__ClientId=${YOUTUBE_CLIENT_ID:-}
+      - YouTube__ClientSecret=${YOUTUBE_CLIENT_SECRET:-}
       - Azure__Tts__ApiKey=${AZURE_TTS_API_KEY:-}
       - Azure__Tts__Region=${AZURE_TTS_REGION:-westeurope}
       - ElevenLabs__ApiKey=${ELEVENLABS_API_KEY:-}
@@ -37,28 +47,28 @@ services:
       start_period: 30s
     restart: unless-stopped
     networks:
-      - nomercybot
+      - nomnomzbot
 
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: nomercybot
-      POSTGRES_USER: ${POSTGRES_USER:-nomercybot}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nomercybot_dev}
+      POSTGRES_DB: nomnomzbot
+      POSTGRES_USER: ${POSTGRES_USER:-nomnomzbot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nomnomzbot_dev}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/postgres:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nomercybot} -d nomercybot"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nomnomzbot} -d nomnomzbot"]
       interval: 5s
       timeout: 5s
       retries: 5
       start_period: 10s
     restart: unless-stopped
     networks:
-      - nomercybot
+      - nomnomzbot
 
   redis:
     image: redis:7-alpine
@@ -72,11 +82,25 @@ services:
       start_period: 5s
     restart: unless-stopped
     networks:
-      - nomercybot
+      - nomnomzbot
+
+  adminer:
+    image: adminer:latest
+    ports:
+      - "${ADMINER_PORT:-8082}:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+      ADMINER_DESIGN: dracula
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - nomnomzbot
 
 volumes:
   postgres_data:
 
 networks:
-  nomercybot:
+  nomnomzbot:
     driver: bridge
