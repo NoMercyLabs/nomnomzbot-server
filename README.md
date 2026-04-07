@@ -1,6 +1,8 @@
-# NomercyBot
+# NomNomzBot — Server
 
 Multi-tenant Twitch bot platform. Self-hosted, AGPL-3.0. One instance, unlimited channels.
+
+> **This is a submodule of [nomnomzbot](https://github.com/NoMercyLabs/nomnomzbot). Clone the parent repo with `--recursive` for the full platform.**
 
 ## Features
 
@@ -33,16 +35,16 @@ Multi-tenant Twitch bot platform. Self-hosted, AGPL-3.0. One instance, unlimited
 ## Quick Start (Docker)
 
 ```bash
-git clone https://github.com/NoMercyLabs/nomercybot.git
-cd nomercybot
+git clone --recursive git@github.com:NoMercyLabs/nomnomzbot.git
+cd nomnomzbot/nomnomzbot-server
 cp .env.example .env
 # Edit .env: set POSTGRES_PASSWORD, JWT_SECRET, ENCRYPTION_KEY, TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET
 docker compose up -d
 ```
 
-The API starts on `http://localhost:5000`. Database migrations and seed data run automatically on first boot.
+The API starts on `http://localhost:5080`. Database migrations and seed data run automatically on first boot.
 
-Health check: `curl http://localhost:5000/health`
+Health check: `curl http://localhost:5080/health`
 
 ## Development Setup (without Docker)
 
@@ -55,7 +57,7 @@ cp .env.example .env
 # Edit .env — set ConnectionStrings__DefaultConnection, Jwt__Secret, Twitch__* vars
 
 # 3. Run the API
-dotnet run --project src/NomercyBot.Api
+dotnet run --project src/NomNomzBot.Api
 ```
 
 The app auto-migrates and seeds on startup. No manual `dotnet ef` commands needed.
@@ -70,20 +72,20 @@ dotnet test
 
 ```
 src/
-  NomercyBot.Domain/          # Entities, interfaces, domain events (zero dependencies)
-  NomercyBot.Application/     # Service interfaces, DTOs, FluentValidation, pipeline logic
-  NomercyBot.Infrastructure/  # EF Core, Twitch/Spotify/TTS clients, background services
-  NomercyBot.Api/             # Controllers, SignalR hubs, middleware, health checks
+  NomNomzBot.Domain/          # Entities, interfaces, domain events (zero dependencies)
+  NomNomzBot.Application/     # Service interfaces, DTOs, FluentValidation, pipeline logic
+  NomNomzBot.Infrastructure/  # EF Core, Twitch/Spotify/TTS clients, background services
+  NomNomzBot.Api/             # Controllers, SignalR hubs, middleware, health checks
 tests/
-  NomercyBot.*.Tests/         # Unit and integration tests per layer
+  NomNomzBot.*.Tests/         # Unit and integration tests per layer
 ```
 
 Dependency direction: `Api → Infrastructure → Application → Domain`
 
 ## API
 
-- Base URL: `http://localhost:5000/api/v1`
-- OpenAPI (Swagger): `http://localhost:5000/openapi/v1.json` (development only)
+- Base URL: `http://localhost:5080/api/v1`
+- Interactive API docs (Scalar): `http://localhost:5080/scalar`
 - SignalR hubs: `/hubs/dashboard`, `/hubs/overlay`, `/hubs/obs`, `/hubs/admin`
 
 Authentication uses JWT Bearer tokens obtained via Twitch OAuth (`/api/v1/auth/login`).
@@ -93,7 +95,7 @@ Authentication uses JWT Bearer tokens obtained via Twitch OAuth (`/api/v1/auth/l
 See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 To add a new pipeline action:
-1. Implement `ICommandAction` in `NomercyBot.Infrastructure/Pipeline/Actions/`
+1. Implement `ICommandAction` in `NomNomzBot.Infrastructure/Pipeline/Actions/`
 2. Register it as `Transient<ICommandAction>` in `DependencyInjection.cs`
 3. Add a corresponding condition in `Pipeline/Conditions/` if needed
 
