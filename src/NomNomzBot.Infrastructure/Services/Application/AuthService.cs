@@ -5,6 +5,7 @@ using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NoMercyBot.Application.Common.Interfaces;
@@ -35,6 +36,7 @@ public sealed class AuthService : IAuthService
     private readonly HttpClient _http;
     private readonly TwitchOptions _options;
     private readonly ILogger<AuthService> _logger;
+    private readonly string _baseUrl;
 
     private static readonly string[] RequiredScopes =
     [
@@ -106,6 +108,7 @@ public sealed class AuthService : IAuthService
         IEncryptionService encryption,
         IHttpClientFactory httpClientFactory,
         IOptions<TwitchOptions> options,
+        IConfiguration configuration,
         ILogger<AuthService> logger
     )
     {
@@ -116,13 +119,14 @@ public sealed class AuthService : IAuthService
         _http = httpClientFactory.CreateClient("twitch-helix");
         _options = options.Value;
         _logger = logger;
+        _baseUrl = configuration["App:BaseUrl"] ?? "http://localhost:5080";
     }
 
     public async Task<string> GetTwitchOAuthUrl(string? state = null, CancellationToken cancellationToken = default)
     {
         string clientId = Uri.EscapeDataString(await GetEffectiveClientIdAsync(cancellationToken));
         string scopes = Uri.EscapeDataString(string.Join(" ", RequiredScopes));
-        string redirectUri = Uri.EscapeDataString(_options.RedirectUri);
+        string redirectUri = Uri.EscapeDataString($"{_baseUrl}/api/v1/auth/twitch/callback");
         string stateParam = state is not null
             ? $"&state={Uri.EscapeDataString(state)}"
             : string.Empty;
@@ -143,7 +147,7 @@ public sealed class AuthService : IAuthService
         // Exchange code for tokens.
         // Mobile clients send their own redirect URI (e.g. nomercybot://callback) which
         // must match what was used in the authorization request.
-        string redirectUri = callback.RedirectUri ?? _options.RedirectUri;
+        string redirectUri = callback.RedirectUri ?? $"{_baseUrl}/api/v1/auth/twitch/callback";
         TokenResult? tokens = await _twitchAuth.ExchangeCodeAsync(
             callback.Code,
             redirectUri,
@@ -319,7 +323,7 @@ public sealed class AuthService : IAuthService
     {
         string clientId = Uri.EscapeDataString(await GetEffectiveClientIdAsync(cancellationToken));
         string scopes = Uri.EscapeDataString(string.Join(" ", BotScopes));
-        string redirectUri = Uri.EscapeDataString(_options.BotRedirectUri);
+        string redirectUri = Uri.EscapeDataString($"{_baseUrl}/api/v1/auth/twitch/bot/callback");
         string stateParam = state is not null
             ? $"&state={Uri.EscapeDataString(state)}"
             : string.Empty;
@@ -338,7 +342,7 @@ public sealed class AuthService : IAuthService
         CancellationToken cancellationToken = default
     )
     {
-        string redirectUri = _options.BotRedirectUri;
+        string redirectUri = $"{_baseUrl}/api/v1/auth/twitch/bot/callback";
         TokenResult? tokens = await _twitchAuth.ExchangeCodeAsync(
             callback.Code,
             redirectUri,
@@ -471,7 +475,7 @@ public sealed class AuthService : IAuthService
     {
         string clientId = Uri.EscapeDataString(await GetEffectiveClientIdAsync(cancellationToken));
         string scopes = Uri.EscapeDataString(string.Join(" ", BotScopes));
-        string redirectUri = Uri.EscapeDataString(_options.ChannelBotRedirectUri);
+        string redirectUri = Uri.EscapeDataString($"{_baseUrl}/api/v1/channels/callback/bot");
 
         // Embed channelId + optional mobile redirect in state
         var payload = new { channel_id = channelId, redirect_uri = state };
@@ -495,7 +499,7 @@ public sealed class AuthService : IAuthService
     {
         TokenResult? tokens = await _twitchAuth.ExchangeCodeAsync(
             callback.Code,
-            _options.ChannelBotRedirectUri,
+            $"{_baseUrl}/api/v1/channels/callback/bot",
             cancellationToken
         );
         if (tokens is null)

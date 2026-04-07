@@ -10,7 +10,4 @@ public class TwitchOptions
     public string ClientId { get; set; } = null!;
     public string ClientSecret { get; set; } = null!;
     public string BotUsername { get; set; } = null!;
-    public string RedirectUri { get; set; } = null!;
-    public string BotRedirectUri { get; set; } = null!;
-    public string ChannelBotRedirectUri { get; set; } = null!;
 }

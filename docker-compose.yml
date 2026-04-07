@@ -13,18 +13,16 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:5000
-      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=nomnomzbot;Username=${POSTGRES_USER:-nomnomzbot};Password=${POSTGRES_PASSWORD:-nomnomzbot_dev}
-      - Jwt__Secret=${JWT_SECRET:-dev-secret-key-at-least-32-characters-long!!}
+      - ConnectionStrings__DefaultConnection=${DATABASE_URL:-Host=postgres;Port=5432;Database=nomnomzbot;Username=nomnomzbot;Password=nomnomzbot_dev}
+      - Jwt__Secret=${JWT_SECRET}
       - Jwt__Issuer=${JWT_ISSUER:-nomnomzbot}
       - Jwt__Audience=${JWT_AUDIENCE:-nomnomzbot}
-      - Encryption__Key=${ENCRYPTION_KEY:-ZGV2LWVuY3J5cHRpb24ta2V5LWZvci1sb2NhbC1kZXY=}
+      - Encryption__Key=${ENCRYPTION_KEY}
       - App__BaseUrl=${API_BASE_URL:-http://localhost:5080}
       - App__FrontendUrl=${FRONTEND_URL:-http://localhost:19006}
       - Twitch__ClientId=${TWITCH_CLIENT_ID}
       - Twitch__ClientSecret=${TWITCH_CLIENT_SECRET}
       - Twitch__BotUsername=${TWITCH_BOT_USERNAME}
-      - Twitch__BotRedirectUri=${TWITCH_BOT_REDIRECT_URI:-https://bot-dev-api.nomercy.tv/api/v1/auth/twitch/bot/callback}
-      - Twitch__ChannelBotRedirectUri=${TWITCH_CHANNEL_BOT_REDIRECT_URI:-https://bot-dev-api.nomercy.tv/api/v1/channels/callback/bot}
       - Spotify__ClientId=${SPOTIFY_CLIENT_ID:-}
       - Spotify__ClientSecret=${SPOTIFY_CLIENT_SECRET:-}
       - Discord__ClientId=${DISCORD_CLIENT_ID:-}
@@ -34,7 +32,7 @@ services:
       - Azure__Tts__ApiKey=${AZURE_TTS_API_KEY:-}
       - Azure__Tts__Region=${AZURE_TTS_REGION:-westeurope}
       - ElevenLabs__ApiKey=${ELEVENLABS_API_KEY:-}
-      - ConnectionStrings__Redis=${REDIS_CONNECTION_STRING:-redis:6379}
+      - ConnectionStrings__Redis=${REDIS_URL:-redis://redis:6379}
     depends_on:
       postgres:
         condition: service_healthy
@@ -73,10 +71,17 @@ services:
 
   redis:
     image: redis:7-alpine
+    command: >
+      sh -c "redis-server
+      $([ -n \"$REDIS_PASSWORD\" ] && echo \"--requirepass $REDIS_PASSWORD\")"
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
     ports:
       - "${REDIS_PORT:-6379}:6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: >
+        ["CMD-SHELL",
+        "redis-cli $([ -n \"$REDIS_PASSWORD\" ] && echo \"-a $REDIS_PASSWORD\") ping | grep PONG"]
       interval: 5s
       timeout: 3s
       retries: 5
