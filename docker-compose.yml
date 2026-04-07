@@ -6,6 +6,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: nomnomzbot-api
     ports:
       - "${API_HTTP_PORT:-5080}:5000"
       - "${API_HTTPS_PORT:-5081}:5001"
@@ -95,6 +96,19 @@ services:
       postgres:
         condition: service_healthy
     restart: unless-stopped
+    networks:
+      - nomnomzbot
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: nomnomzbot-tunnel
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      api:
+        condition: service_healthy
     networks:
       - nomnomzbot
 
