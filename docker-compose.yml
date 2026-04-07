@@ -13,6 +13,7 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:5000
+      - App__DeploymentMode=${DEPLOYMENT_MODE:-self-hosted}
       - ConnectionStrings__DefaultConnection=${DATABASE_URL:-Host=postgres;Port=5432;Database=nomnomzbot;Username=nomnomzbot;Password=nomnomzbot_dev}
       - Jwt__Secret=${JWT_SECRET}
       - Jwt__Issuer=${JWT_ISSUER:-nomnomzbot}
